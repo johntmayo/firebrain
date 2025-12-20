@@ -93,15 +93,7 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
           <TaskCard task={task} showDragHandle={isJohn} inSlot />
           {isJohn && (
             <button
-              className="btn-ghost"
-              style={{
-                position: 'absolute',
-                top: '4px',
-                right: '4px',
-                padding: '2px 6px',
-                fontSize: '0.7rem',
-                opacity: 0.6,
-              }}
+              className="btn-clear-slot"
               onClick={handleClearSlot}
               title="Remove from Today"
             >

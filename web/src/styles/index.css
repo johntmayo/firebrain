@@ -313,6 +313,46 @@ body::before {
   box-shadow: var(--shadow-glow);
 }
 
+/* Completed Tasks */
+.completed-section {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.completed-header {
+  font-size: 0.813rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.completed-list {
+  opacity: 0.7;
+}
+
+.task-card.completed {
+  background: var(--bg-secondary);
+  border-color: transparent;
+}
+
+.task-card.completed .task-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-card.completed:hover {
+  background: var(--bg-tertiary);
+}
+
+.completed-date {
+  font-size: 0.75rem;
+  color: var(--success);
+}
+
 .drag-handle {
   display: flex;
   align-items: center;
@@ -615,6 +655,37 @@ body::before {
 .slot.big .slot-label { color: var(--slot-big); }
 .slot.medium .slot-label { color: var(--slot-medium); }
 .slot.small .slot-label { color: var(--slot-small); }
+
+.btn-clear-slot {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.slot:hover .btn-clear-slot {
+  opacity: 0.7;
+}
+
+.btn-clear-slot:hover {
+  opacity: 1 !important;
+  background: var(--error);
+  color: white;
+}
 
 .small-slots-grid {
   display: grid;

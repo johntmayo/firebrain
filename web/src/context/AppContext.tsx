@@ -15,12 +15,14 @@ interface AppContextType {
   
   // Tasks
   tasks: Task[];
+  completedTasks: Task[];
   loading: boolean;
   error: string | null;
   
   // UI State
   assigneeFilter: AssigneeFilter;
   viewMode: ViewMode;
+  showCompleted: boolean;
   selectedTask: Task | null;
   isModalOpen: boolean;
   isCreating: boolean;
@@ -29,6 +31,7 @@ interface AppContextType {
   // Actions
   setAssigneeFilter: (filter: AssigneeFilter) => void;
   setViewMode: (mode: ViewMode) => void;
+  toggleShowCompleted: () => void;
   openTaskModal: (task: Task | null, creating?: boolean) => void;
   closeModal: () => void;
   refreshTasks: () => Promise<void>;
@@ -66,12 +69,14 @@ export function AppProvider({ children }: AppProviderProps) {
   
   // Tasks state
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // UI state
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>('john');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -122,6 +127,22 @@ export function AppProvider({ children }: AppProviderProps) {
     setIsCreating(false);
   }, []);
   
+  // Toggle showing completed tasks
+  const toggleShowCompleted = useCallback(async () => {
+    const newValue = !showCompleted;
+    setShowCompleted(newValue);
+    
+    if (newValue && completedTasks.length === 0) {
+      // Fetch completed tasks
+      try {
+        const doneTasks = await api.getTasks('done');
+        setCompletedTasks(doneTasks);
+      } catch (err) {
+        showToast('Failed to load completed tasks', 'error');
+      }
+    }
+  }, [showCompleted, completedTasks.length, showToast]);
+  
   // Task actions with optimistic updates
   const createTask = useCallback(async (input: CreateTaskInput) => {
     try {
@@ -159,12 +180,17 @@ export function AppProvider({ children }: AppProviderProps) {
   
   const completeTask = useCallback(async (taskId: string) => {
     const previousTasks = tasks;
+    const completedTask = tasks.find(t => t.task_id === taskId);
     
     // Optimistic update - remove from list
     setTasks(prev => prev.filter(t => t.task_id !== taskId));
     
     try {
-      await api.completeTask(taskId);
+      const result = await api.completeTask(taskId);
+      // Add to completed tasks if we're showing them
+      if (completedTask) {
+        setCompletedTasks(prev => [{ ...completedTask, ...result, status: 'done' }, ...prev]);
+      }
       showToast('Task completed! 🎉', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
@@ -276,16 +302,19 @@ export function AppProvider({ children }: AppProviderProps) {
     johnEmail: JOHN_EMAIL,
     stephEmail: STEPH_EMAIL,
     tasks,
+    completedTasks,
     loading,
     error,
     assigneeFilter,
     viewMode,
+    showCompleted,
     selectedTask,
     isModalOpen,
     isCreating,
     toast,
     setAssigneeFilter,
     setViewMode,
+    toggleShowCompleted,
     openTaskModal,
     closeModal,
     refreshTasks,
