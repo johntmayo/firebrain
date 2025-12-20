@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import type { Priority } from '../types';
+import type { Priority, Task } from '../types';
 
 export function Inbox() {
   const { 
@@ -38,7 +38,7 @@ export function Inbox() {
             className={`filter-btn ${assigneeFilter === 'steph' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('steph')}
           >
-            Steph
+            Stef
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'all' ? 'active' : ''}`}
@@ -82,7 +82,7 @@ function InboxContent({
   viewMode, 
   onAddTask 
 }: { 
-  tasks: typeof useApp extends () => infer R ? R['inboxTasks'] : never;
+  tasks: Task[];
   loading: boolean;
   viewMode: 'list' | 'buckets';
   onAddTask: () => void;
@@ -125,7 +125,7 @@ function InboxContent({
   );
 }
 
-function ListView({ tasks }: { tasks: typeof useApp extends () => infer R ? R['inboxTasks'] : never }) {
+function ListView({ tasks }: { tasks: Task[] }) {
   return (
     <div className="task-list">
       {tasks.map(task => (
@@ -135,7 +135,7 @@ function ListView({ tasks }: { tasks: typeof useApp extends () => infer R ? R['i
   );
 }
 
-function BucketsView({ tasks }: { tasks: typeof useApp extends () => infer R ? R['inboxTasks'] : never }) {
+function BucketsView({ tasks }: { tasks: Task[] }) {
   const buckets: Record<Priority, typeof tasks> = {
     urgent: [],
     high: [],

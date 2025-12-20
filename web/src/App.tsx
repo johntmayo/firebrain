@@ -109,7 +109,7 @@ function AppContent() {
   };
   
   const displayName = currentUser === johnEmail ? 'John' : 
-                      currentUser === stephEmail ? 'Steph' : 
+                      currentUser === stephEmail ? 'Stef' : 
                       currentUser.split('@')[0];
   
   return (

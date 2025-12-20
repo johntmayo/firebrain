@@ -29,7 +29,7 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
   
   const isOverdue = task.due_date && new Date(task.due_date) < new Date();
   const assigneeName = task.assignee === johnEmail ? 'John' : 
-                       task.assignee === stephEmail ? 'Steph' : 
+                       task.assignee === stephEmail ? 'Stef' : 
                        task.assignee.split('@')[0];
   
   return (

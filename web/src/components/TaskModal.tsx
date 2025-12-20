@@ -146,7 +146,7 @@ export function TaskModal() {
                   onChange={e => setAssignee(e.target.value)}
                 >
                   <option value={johnEmail}>John</option>
-                  <option value={stephEmail}>Steph</option>
+                  <option value={stephEmail}>Stef</option>
                 </select>
               </div>
             </div>
