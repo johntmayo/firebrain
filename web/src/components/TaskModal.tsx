@@ -85,74 +85,71 @@ export function TaskModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreating ? 'New Task' : 'Edit Task'}</h3>
+          <h3>{isCreating ? '◈ NEW QUEST' : '◇ EDIT QUEST'}</h3>
           <button className="modal-close" onClick={closeModal}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            ×
           </button>
         </div>
         
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="title">Title *</label>
+              <label htmlFor="title">OBJECTIVE *</label>
               <input
                 id="title"
                 type="text"
                 className="form-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="What needs to be done?"
+                placeholder="Enter quest objective..."
                 autoFocus
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="notes">Notes</label>
+              <label htmlFor="notes">INTEL</label>
               <textarea
                 id="notes"
                 className="form-textarea"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Additional details..."
+                placeholder="Additional intel..."
               />
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label htmlFor="priority">Priority</label>
+                <label htmlFor="priority">THREAT LEVEL</label>
                 <select
                   id="priority"
                   className="form-select"
                   value={priority}
                   onChange={e => setPriority(e.target.value as Priority)}
                 >
-                  <option value="urgent">🔴 Urgent</option>
-                  <option value="high">🟠 High</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="low">⚪ Low</option>
+                  <option value="urgent">◆ CRITICAL</option>
+                  <option value="high">◇ HIGH</option>
+                  <option value="medium">○ MEDIUM</option>
+                  <option value="low">· LOW</option>
                 </select>
               </div>
               
               <div className="form-group">
-                <label htmlFor="assignee">Assignee</label>
+                <label htmlFor="assignee">OPERATOR</label>
                 <select
                   id="assignee"
                   className="form-select"
                   value={assignee}
                   onChange={e => setAssignee(e.target.value)}
                 >
-                  <option value={johnEmail}>John</option>
-                  <option value={stephEmail}>Stef</option>
+                  <option value={johnEmail}>JOHN</option>
+                  <option value={stephEmail}>STEF</option>
                 </select>
               </div>
             </div>
             
             <div className="form-group">
-              <label htmlFor="dueDate">Due Date</label>
+              <label htmlFor="dueDate">DEADLINE</label>
               <input
                 id="dueDate"
                 type="date"
@@ -170,14 +167,14 @@ export function TaskModal() {
               onClick={closeModal}
               disabled={saving}
             >
-              Cancel
+              ABORT
             </button>
             <button 
               type="submit" 
               className="btn btn-primary"
               disabled={saving || !title.trim()}
             >
-              {saving ? 'Saving...' : isCreating ? 'Create Task' : 'Save Changes'}
+              {saving ? 'PROCESSING...' : isCreating ? 'DEPLOY QUEST' : 'CONFIRM'}
             </button>
           </div>
         </form>

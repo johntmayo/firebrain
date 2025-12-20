@@ -112,6 +112,10 @@ function AppContent() {
                       currentUser === stephEmail ? 'Stef' : 
                       currentUser.split('@')[0];
   
+  // Calculate some stats for status bar
+  const totalSlotsFilled = Array.from(todayTasks.values()).filter(Boolean).length;
+  const energyPercent = Math.round((totalSlotsFilled / 9) * 100);
+  
   return (
     <DndContext
       sensors={sensors}
@@ -122,28 +126,59 @@ function AppContent() {
       <div className="app">
         <header className="app-header">
           <div className="app-logo">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C12 2 8 6 8 10C8 12 9 13.5 10 14.5C9 15 8.5 16 8.5 17C8.5 19.5 10 21 12 22C14 21 15.5 19.5 15.5 17C15.5 16 15 15 14 14.5C15 13.5 16 12 16 10C16 6 12 2 12 2Z" fill="#FF6B35"/>
-              <path d="M12 6C12 6 10 8 10 10C10 11 10.5 11.75 11 12.25C10.5 12.5 10.25 13 10.25 13.5C10.25 14.75 11 15.5 12 16C13 15.5 13.75 14.75 13.75 13.5C13.75 13 13.5 12.5 13 12.25C13.5 11.75 14 11 14 10C14 8 12 6 12 6Z" fill="#FFD93D"/>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C12 2 8 6 8 10C8 12 9 13.5 10 14.5C9 15 8.5 16 8.5 17C8.5 19.5 10 21 12 22C14 21 15.5 19.5 15.5 17C15.5 16 15 15 14 14.5C15 13.5 16 12 16 10C16 6 12 2 12 2Z" fill="#7b68ee"/>
+              <path d="M12 6C12 6 10 8 10 10C10 11 10.5 11.75 11 12.25C10.5 12.5 10.25 13 10.25 13.5C10.25 14.75 11 15.5 12 16C13 15.5 13.75 14.75 13.75 13.5C13.75 13 13.5 12.5 13 12.25C13.5 11.75 14 11 14 10C14 8 12 6 12 6Z" fill="#00d4aa"/>
             </svg>
             <h1>Fire Brain</h1>
           </div>
           
           <div className="user-info">
-            <span>Logged in as:</span>
+            <span>operator:</span>
             <span className={`user-badge ${isJohn ? 'john' : 'steph'}`}>
               {displayName}
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              (press 'u' to switch)
+            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+              [U] SWITCH
             </span>
           </div>
         </header>
         
         <main className="app-main">
-          <Inbox />
           <TodayPlanner />
+          <Inbox />
         </main>
+        
+        {/* Status Bar Footer */}
+        <footer className="status-bar">
+          <div className="status-group">
+            <div className="status-item">
+              <span className="label">SYS</span>
+              <div className="scan-bar"></div>
+            </div>
+            <div className="status-item">
+              <span className="label">ENERGY</span>
+              <div className="energy-bar">
+                <div className="energy-bar-fill" style={{ width: `${energyPercent}%` }}></div>
+              </div>
+              <span className="value">{energyPercent}%</span>
+            </div>
+          </div>
+          <div className="status-group">
+            <div className="status-item">
+              <span className="label">STREAK</span>
+              <span className="value gold">0 DAYS</span>
+            </div>
+            <div className="status-item">
+              <span className="label">RANK</span>
+              <span className="value purple">INITIATE</span>
+            </div>
+            <div className="status-item">
+              <span className="label">XP</span>
+              <span className="value">0</span>
+            </div>
+          </div>
+        </footer>
         
         <TaskModal />
         <Toast />

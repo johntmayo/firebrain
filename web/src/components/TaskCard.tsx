@@ -35,45 +35,46 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
   return (
     <div
       ref={setNodeRef}
-      className={`task-card ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''}`}
+      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''}`}
       onClick={handleClick}
       style={{ opacity: isDragging ? 0.5 : 1, cursor: showDragHandle ? 'grab' : 'pointer' }}
       {...(showDragHandle ? { ...listeners, ...attributes } : {})}
     >
-      
-      <div className="task-content">
-        <div className="task-title">{task.title}</div>
-        <div className="task-meta">
-          <span className={`priority-pill ${task.priority}`}>
-            {task.priority}
-          </span>
-          
-          {!inSlot && (
-            <span className="task-assignee">{assigneeName}</span>
-          )}
-          
-          {task.due_date && (
-            <span className={`task-due ${isOverdue ? 'overdue' : ''}`}>
-              📅 {formatDate(task.due_date)}
+      <div className="task-card-header">
+        <div className="task-content">
+          <div className="task-title">{task.title}</div>
+          <div className="task-meta">
+            <span className={`priority-pill ${task.priority}`}>
+              {task.priority.toUpperCase()}
             </span>
-          )}
-          
-          {task.notes && (
-            <span className="task-notes-icon" title="Has notes">📝</span>
-          )}
+            
+            {!inSlot && (
+              <span className="task-assignee">{assigneeName}</span>
+            )}
+            
+            {task.due_date && (
+              <span className={`task-due ${isOverdue ? 'overdue' : ''}`}>
+                ◷ {formatDate(task.due_date)}
+              </span>
+            )}
+            
+            {task.notes && (
+              <span className="task-notes-icon" title="Has notes">◆</span>
+            )}
+          </div>
         </div>
-      </div>
-      
-      <div className="task-actions">
-        <button 
-          className="btn-done" 
-          onClick={handleDone}
-          title="Mark as done"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </button>
+        
+        <div className="task-actions">
+          <button 
+            className="btn-done" 
+            onClick={handleDone}
+            title="Mark as done"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

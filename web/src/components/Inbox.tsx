@@ -26,8 +26,8 @@ export function Inbox() {
     <div className="pane pane-inbox">
       <div className="pane-header">
         <h2>
-          <span className="icon">📥</span>
-          Inbox
+          <span className="icon">◈</span>
+          THE CACHE
         </h2>
         
         <div className="filter-row">
@@ -35,19 +35,19 @@ export function Inbox() {
             className={`filter-btn ${assigneeFilter === 'john' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('john')}
           >
-            John
+            JOHN
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'steph' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('steph')}
           >
-            Stef
+            STEF
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'all' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('all')}
           >
-            All
+            ALL
           </button>
           
           <div className="view-toggle">
@@ -56,14 +56,14 @@ export function Inbox() {
               onClick={() => setViewMode('list')}
               title="List view"
             >
-              ☰
+              ≡
             </button>
             <button 
               className={viewMode === 'buckets' ? 'active' : ''}
               onClick={() => setViewMode('buckets')}
-              title="Bucket view"
+              title="Grid view"
             >
-              ▦
+              ⊞
             </button>
           </div>
           
@@ -72,7 +72,7 @@ export function Inbox() {
             onClick={toggleShowCompleted}
             title="Show completed tasks"
           >
-            ✓ Done
+            ✓ DONE
           </button>
         </div>
       </div>
@@ -123,9 +123,9 @@ function InboxContent({
         </div>
       ) : tasks.length === 0 && !showCompleted ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📭</div>
+          <div className="empty-state-icon">◇</div>
           <div className="empty-state-text">
-            No tasks in inbox
+            CACHE EMPTY
           </div>
         </div>
       ) : viewMode === 'list' ? (
@@ -137,12 +137,12 @@ function InboxContent({
       {showCompleted && (
         <div className="completed-section">
           <div className="completed-header">
-            <span>✓ Completed ({completedTasks.length})</span>
+            <span>◆ CLEARED ({completedTasks.length})</span>
           </div>
           {completedTasks.length === 0 ? (
             <div className="empty-state" style={{ padding: '1rem' }}>
-              <div className="empty-state-text" style={{ fontSize: '0.85rem' }}>
-                No completed tasks yet
+              <div className="empty-state-text" style={{ fontSize: '0.7rem' }}>
+                NO CLEARED QUESTS
               </div>
             </div>
           ) : (
@@ -157,7 +157,7 @@ function InboxContent({
         
       <button className="add-task-btn" onClick={onAddTask}>
         <span>+</span>
-        Add Task
+        NEW QUEST
       </button>
     </div>
   );
@@ -174,38 +174,22 @@ function ListView({ tasks }: { tasks: Task[] }) {
 }
 
 function BucketsView({ tasks }: { tasks: Task[] }) {
-  const buckets: Record<Priority, typeof tasks> = {
-    urgent: [],
-    high: [],
-    medium: [],
-    low: [],
+  // Sort tasks by priority but display in a single grid (inventory style)
+  const priorityOrder: Record<Priority, number> = {
+    urgent: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
   };
   
-  tasks.forEach(task => {
-    buckets[task.priority].push(task);
-  });
+  const sortedTasks = [...tasks].sort((a, b) => 
+    priorityOrder[a.priority] - priorityOrder[b.priority]
+  );
   
   return (
-    <div className="buckets-view">
-      {(['urgent', 'high', 'medium', 'low'] as Priority[]).map(priority => (
-        <div key={priority} className={`bucket ${priority}`}>
-          <div className="bucket-header">
-            {priority} ({buckets[priority].length})
-          </div>
-          <div className="bucket-content">
-            {buckets[priority].length === 0 ? (
-              <div className="empty-state" style={{ padding: '1rem' }}>
-                <div className="empty-state-text" style={{ fontSize: '0.75rem' }}>
-                  None
-                </div>
-              </div>
-            ) : (
-              buckets[priority].map(task => (
-                <TaskCard key={task.task_id} task={task} compact />
-              ))
-            )}
-          </div>
-        </div>
+    <div className="inventory-grid">
+      {sortedTasks.map(task => (
+        <TaskCard key={task.task_id} task={task} compact />
       ))}
     </div>
   );
@@ -226,7 +210,7 @@ function CompletedTaskCard({ task }: { task: Task }) {
       <div className="task-content">
         <div className="task-title">{task.title}</div>
         <div className="task-meta">
-          <span className="completed-date">✓ {completedDate}</span>
+          <span className="completed-date">◆ CLEARED {completedDate}</span>
         </div>
       </div>
     </div>

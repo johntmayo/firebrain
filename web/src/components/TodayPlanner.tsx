@@ -15,38 +15,39 @@ export function TodayPlanner() {
     <div className="pane pane-today">
       <div className="pane-header today-header">
         <h2>
-          <span className="icon">🔥</span>
-          John — Today (1-3-5)
+          <span className="icon">⚔</span>
+          THE LOADOUT
         </h2>
+        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>
       </div>
       
       <div className="pane-content">
         {!isJohn && (
           <div className="permission-warning">
-            👀 View only — Only John can edit Today
+            ◈ VIEW ONLY — OPERATOR LOCK ACTIVE
           </div>
         )}
         
         <div className="today-slots">
-          {/* Big (1) */}
+          {/* Big (1) - Primary */}
           <div className="slot-section">
-            <div className="slot-section-label">🎯 Big (1)</div>
+            <div className="slot-section-label">◆ PRIMARY</div>
             {bigSlots.map(slot => (
               <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
             ))}
           </div>
           
-          {/* Medium (3) */}
+          {/* Medium (3) - Support */}
           <div className="slot-section">
-            <div className="slot-section-label">📌 Medium (3)</div>
+            <div className="slot-section-label">◇ SUPPORT</div>
             {mediumSlots.map(slot => (
               <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
             ))}
           </div>
           
-          {/* Small (5) */}
+          {/* Small (5) - Quick-Hit */}
           <div className="slot-section">
-            <div className="slot-section-label">✨ Small (5)</div>
+            <div className="slot-section-label">○ QUICK-HIT</div>
             <div className="small-slots-grid">
               {smallSlots.map(slot => (
                 <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
@@ -97,12 +98,12 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
               onClick={handleClearSlot}
               title="Remove from Today"
             >
-              ✕
+              ×
             </button>
           )}
         </div>
       ) : (
-        <span>Drop task here</span>
+        <span>[ EMPTY SLOT ]</span>
       )}
     </div>
   );
