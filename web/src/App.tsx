@@ -10,10 +10,12 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { AppProvider, useApp } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Inbox } from './components/Inbox';
 import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
 import { Toast } from './components/Toast';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
 import type { Task, TodaySlot } from './types';
 
 function AppContent() {
@@ -127,13 +129,14 @@ function AppContent() {
         <header className="app-header">
           <div className="app-logo">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C12 2 8 6 8 10C8 12 9 13.5 10 14.5C9 15 8.5 16 8.5 17C8.5 19.5 10 21 12 22C14 21 15.5 19.5 15.5 17C15.5 16 15 15 14 14.5C15 13.5 16 12 16 10C16 6 12 2 12 2Z" fill="#7b68ee"/>
-              <path d="M12 6C12 6 10 8 10 10C10 11 10.5 11.75 11 12.25C10.5 12.5 10.25 13 10.25 13.5C10.25 14.75 11 15.5 12 16C13 15.5 13.75 14.75 13.75 13.5C13.75 13 13.5 12.5 13 12.25C13.5 11.75 14 11 14 10C14 8 12 6 12 6Z" fill="#00d4aa"/>
+              <path d="M12 2C12 2 8 6 8 10C8 12 9 13.5 10 14.5C9 15 8.5 16 8.5 17C8.5 19.5 10 21 12 22C14 21 15.5 19.5 15.5 17C15.5 16 15 15 14 14.5C15 13.5 16 12 16 10C16 6 12 2 12 2Z" fill="var(--accent-primary)"/>
+              <path d="M12 6C12 6 10 8 10 10C10 11 10.5 11.75 11 12.25C10.5 12.5 10.25 13 10.25 13.5C10.25 14.75 11 15.5 12 16C13 15.5 13.75 14.75 13.75 13.5C13.75 13 13.5 12.5 13 12.25C13.5 11.75 14 11 14 10C14 8 12 6 12 6Z" fill="var(--accent-secondary)"/>
             </svg>
             <h1>Fire Brain</h1>
           </div>
           
           <div className="user-info">
+            <ThemeSwitcher />
             <span>operator:</span>
             <span className={`user-badge ${isJohn ? 'john' : 'steph'}`}>
               {displayName}
@@ -204,9 +207,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ThemeProvider>
   );
 }
 
