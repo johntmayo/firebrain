@@ -75,7 +75,7 @@ export function AppProvider({ children }: AppProviderProps) {
   
   // UI state
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>('john');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('buckets');
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
