@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput } from '../types';
 import { PRIORITY_ORDER } from '../types';
-import { api, setCurrentUserEmail } from '../api/client';
+import { api, setCurrentUserEmail, type BulkImportResponse } from '../api/client';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
 const STEPH_EMAIL = import.meta.env.VITE_STEPH_EMAIL || 'steph@example.com';
@@ -38,7 +38,7 @@ interface AppContextType {
   createTask: (input: CreateTaskInput) => Promise<void>;
   updateTask: (input: UpdateTaskInput) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
-  bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<void>;
+  bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
   assignToday: (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
@@ -165,6 +165,7 @@ export function AppProvider({ children }: AppProviderProps) {
         await refreshTasks();
       }
       showToast(`Imported ${result.success_count} tasks${result.error_count > 0 ? ` (${result.error_count} failed)` : ''}`, 'success');
+      return result;
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to import tasks', 'error');
       throw err;
