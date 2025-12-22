@@ -38,6 +38,7 @@ interface AppContextType {
   createTask: (input: CreateTaskInput) => Promise<void>;
   updateTask: (input: UpdateTaskInput) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
+  bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<void>;
   assignToday: (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
@@ -155,6 +156,20 @@ export function AppProvider({ children }: AppProviderProps) {
       throw err;
     }
   }, [closeModal, showToast]);
+
+  const bulkCreateTasks = useCallback(async (inputs: CreateTaskInput[]) => {
+    try {
+      const result = await api.bulkCreateTasks(inputs);
+      if (result.success_count > 0) {
+        // Refresh tasks to get the newly created ones
+        await refreshTasks();
+      }
+      showToast(`Imported ${result.success_count} tasks${result.error_count > 0 ? ` (${result.error_count} failed)` : ''}`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to import tasks', 'error');
+      throw err;
+    }
+  }, [refreshTasks, showToast]);
   
   const updateTask = useCallback(async (input: UpdateTaskInput) => {
     const previousTasks = tasks;
@@ -321,6 +336,7 @@ export function AppProvider({ children }: AppProviderProps) {
     createTask,
     updateTask,
     completeTask,
+    bulkCreateTasks,
     assignToday,
     clearToday,
     showToast,

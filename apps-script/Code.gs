@@ -98,7 +98,10 @@ function handleRequest(e, method) {
       
       case 'clearToday':
         return clearToday(body, callerEmail);
-      
+
+      case 'bulkCreateTasks':
+        return bulkCreateTasks(body, callerEmail);
+
       default:
         return jsonResponse({ error: 'Unknown action: ' + path }, 404);
     }
@@ -371,9 +374,97 @@ function clearToday(body, callerEmail) {
   
   sheet.getRange(rowIndex, 1, 1, HEADERS.length).setValues([row]);
   
-  return jsonResponse({ 
-    success: true, 
-    task: rowToTask(row) 
+  return jsonResponse({
+    success: true,
+    task: rowToTask(row)
+  });
+}
+
+/**
+ * POST /tasks/bulk - Create multiple tasks at once
+ */
+function bulkCreateTasks(body, callerEmail) {
+  if (!body.tasks || !Array.isArray(body.tasks)) {
+    return jsonResponse({ error: 'tasks array is required' }, 400);
+  }
+
+  if (body.tasks.length > 50) {
+    return jsonResponse({ error: 'Maximum 50 tasks per request' }, 400);
+  }
+
+  const sheet = getSheet();
+  const now = new Date().toISOString();
+  const results = [];
+
+  for (let i = 0; i < body.tasks.length; i++) {
+    const taskData = body.tasks[i];
+
+    if (!taskData.title || !taskData.title.trim()) {
+      results.push({
+        index: i,
+        success: false,
+        error: 'Title is required',
+        task: taskData
+      });
+      continue;
+    }
+
+    if (taskData.priority && !VALID_PRIORITIES.includes(taskData.priority)) {
+      results.push({
+        index: i,
+        success: false,
+        error: 'Invalid priority: ' + taskData.priority,
+        task: taskData
+      });
+      continue;
+    }
+
+    try {
+      const taskId = generateUUID();
+      const newRow = [
+        taskId,                              // task_id
+        now,                                 // created_at
+        callerEmail,                         // created_by
+        now,                                 // updated_at
+        callerEmail,                         // updated_by
+        taskData.title.trim(),               // title
+        taskData.notes || '',                // notes
+        taskData.priority || 'medium',       // priority
+        taskData.assignee || JOHN_EMAIL,     // assignee
+        'open',                              // status
+        taskData.due_date || '',             // due_date
+        '',                                  // today_slot
+        '',                                  // today_set_at
+        ''                                   // completed_at
+      ];
+
+      sheet.appendRow(newRow);
+
+      results.push({
+        index: i,
+        success: true,
+        task: rowToTask(newRow)
+      });
+
+    } catch (err) {
+      results.push({
+        index: i,
+        success: false,
+        error: err.toString(),
+        task: taskData
+      });
+    }
+  }
+
+  const successCount = results.filter(r => r.success).length;
+  const errorCount = results.filter(r => !r.success).length;
+
+  return jsonResponse({
+    success: true,
+    total: body.tasks.length,
+    success_count: successCount,
+    error_count: errorCount,
+    results: results
   });
 }
 

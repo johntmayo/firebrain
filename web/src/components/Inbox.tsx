@@ -1,22 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
+import { BulkImportModal } from './BulkImportModal';
 import type { Priority, Task } from '../types';
 
 export function Inbox() {
-  const { 
-    inboxTasks, 
+  const {
+    inboxTasks,
     completedTasks,
-    loading, 
-    assigneeFilter, 
+    loading,
+    assigneeFilter,
     setAssigneeFilter,
     viewMode,
     setViewMode,
     showCompleted,
     toggleShowCompleted,
-    openTaskModal 
+    openTaskModal
   } = useApp();
+
+  const [showBulkImport, setShowBulkImport] = useState(false);
   
   const handleAddTask = () => {
     openTaskModal(null, true);
@@ -77,32 +80,43 @@ export function Inbox() {
         </div>
       </div>
       
-      <InboxContent 
+      <InboxContent
         tasks={inboxTasks}
         completedTasks={completedTasks}
         showCompleted={showCompleted}
         loading={loading}
         viewMode={viewMode}
         onAddTask={handleAddTask}
+        showBulkImport={showBulkImport}
+        onToggleBulkImport={() => setShowBulkImport(!showBulkImport)}
+      />
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
       />
     </div>
   );
 }
 
-function InboxContent({ 
-  tasks, 
+function InboxContent({
+  tasks,
   completedTasks,
   showCompleted,
-  loading, 
-  viewMode, 
-  onAddTask 
-}: { 
+  loading,
+  viewMode,
+  onAddTask,
+  showBulkImport,
+  onToggleBulkImport
+}: {
   tasks: Task[];
   completedTasks: Task[];
   showCompleted: boolean;
   loading: boolean;
   viewMode: 'list' | 'buckets';
   onAddTask: () => void;
+  showBulkImport: boolean;
+  onToggleBulkImport: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'inbox-drop-zone',
@@ -155,10 +169,25 @@ function InboxContent({
         </div>
       )}
         
-      <button className="add-task-btn" onClick={onAddTask}>
-        <span>+</span>
-        NEW QUEST
-      </button>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button className="add-task-btn" style={{ flex: 1 }} onClick={onAddTask}>
+          <span>+</span>
+          NEW QUEST
+        </button>
+        <button
+          className="add-task-btn"
+          style={{ flex: 1, background: 'var(--accent-secondary)' }}
+          onClick={onToggleBulkImport}
+        >
+          <span>◆</span>
+          BULK IMPORT
+        </button>
+      </div>
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+      />
     </div>
   );
 }
