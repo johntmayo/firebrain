@@ -481,9 +481,6 @@ body::before {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-md);
-  /* Ensure proper scrolling on mobile */
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
 /* ============================================
@@ -798,11 +795,9 @@ body::before {
   gap: var(--space-sm);
 }
 
-/* Mobile: single column for full card display */
 @media (max-width: 600px) {
   .inventory-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-xs);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -820,15 +815,6 @@ body::before {
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
-  /* Prevent touch scrolling when dragging */
-  touch-action: pan-y;
-}
-
-.task-card.dragging {
-  opacity: 0.5;
-  box-shadow: var(--shadow-lg);
-  transform: rotate(5deg);
-  z-index: 1000;
 }
 
 .task-card::before {
@@ -988,8 +974,6 @@ body::before {
   flex-shrink: 0;
   opacity: 0.4;
   transition: opacity 0.15s ease;
-  /* Ensure touch events work properly */
-  touch-action: none;
 }
 
 .task-card:hover .drag-handle {
@@ -998,41 +982,6 @@ body::before {
 
 .drag-handle:active {
   cursor: grabbing;
-}
-
-/* Mobile: always show drag handles and make them more prominent */
-@media (pointer: coarse) {
-  .drag-handle {
-    opacity: 0.8;
-    width: 24px;
-    height: 24px;
-  }
-
-  .task-card:hover .drag-handle {
-    opacity: 1;
-  }
-
-  /* Ensure proper touch handling on mobile */
-  .task-card {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Make drop zones more obvious on mobile */
-  .slot.drag-over,
-  .task-card.drag-over {
-    animation: mobile-pulse 0.5s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes mobile-pulse {
-  from {
-    transform: scale(1);
-    box-shadow: var(--shadow-md);
-  }
-  to {
-    transform: scale(1.02);
-    box-shadow: var(--shadow-lg);
-  }
 }
 
 /* ============================================

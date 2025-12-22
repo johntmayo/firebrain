@@ -15,24 +15,6 @@ interface ApiResponse<T> {
   task?: Task;
   tasks?: Task[];
   swapped_task?: Task;
-  total?: number;
-  success_count?: number;
-  error_count?: number;
-  results?: any[];
-}
-
-export interface BulkImportResult {
-  index: number;
-  success: boolean;
-  task?: Task;
-  error?: string;
-}
-
-export interface BulkImportResponse {
-  total: number;
-  success_count: number;
-  error_count: number;
-  results: BulkImportResult[];
 }
 
 async function apiCall<T>(action: string, body?: object): Promise<T> {
@@ -100,15 +82,5 @@ export const api = {
   async clearToday(taskId: string): Promise<Task> {
     const data = await apiCall<ApiResponse<Task>>('clearToday', { task_id: taskId });
     return data.task!;
-  },
-
-  async bulkCreateTasks(tasks: CreateTaskInput[]): Promise<BulkImportResponse> {
-    const data = await apiCall<ApiResponse<BulkImportResponse>>('bulkCreateTasks', { tasks });
-    return {
-      total: data.total || 0,
-      success_count: data.success_count || 0,
-      error_count: data.error_count || 0,
-      results: data.results || []
-    };
   },
 };

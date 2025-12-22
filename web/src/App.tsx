@@ -41,8 +41,8 @@ function AppContent() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 100,  // Reduced from 200ms to 100ms for better responsiveness
-        tolerance: 5, // Reduced tolerance for more precise touch
+        delay: 200,
+        tolerance: 8,
       },
     })
   );

@@ -1,25 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { BulkImportModal } from './BulkImportModal';
 import type { Priority, Task } from '../types';
 
 export function Inbox() {
-  const {
-    inboxTasks,
+  const { 
+    inboxTasks, 
     completedTasks,
-    loading,
-    assigneeFilter,
+    loading, 
+    assigneeFilter, 
     setAssigneeFilter,
     viewMode,
     setViewMode,
     showCompleted,
     toggleShowCompleted,
-    openTaskModal
+    openTaskModal 
   } = useApp();
-
-  const [showBulkImport, setShowBulkImport] = useState(false);
   
   const handleAddTask = () => {
     openTaskModal(null, true);
@@ -158,25 +155,10 @@ function InboxContent({
         </div>
       )}
         
-      <div className="flex gap-2">
-        <button className="add-task-btn flex-1" onClick={onAddTask}>
-          <span>+</span>
-          NEW QUEST
-        </button>
-        <button
-          className="add-task-btn flex-1"
-          onClick={() => setShowBulkImport(true)}
-          style={{ background: 'var(--accent-secondary)' }}
-        >
-          <span>◆</span>
-          BULK IMPORT
-        </button>
-      </div>
-
-      <BulkImportModal
-        isOpen={showBulkImport}
-        onClose={() => setShowBulkImport(false)}
-      />
+      <button className="add-task-btn" onClick={onAddTask}>
+        <span>+</span>
+        NEW QUEST
+      </button>
     </div>
   );
 }
