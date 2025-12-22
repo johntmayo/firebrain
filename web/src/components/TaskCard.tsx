@@ -8,19 +8,23 @@ interface TaskCardProps {
   compact?: boolean;
   showDragHandle?: boolean;
   inSlot?: boolean;
+  completed?: boolean;
 }
 
-export function TaskCard({ task, compact = false, showDragHandle = true, inSlot = false }: TaskCardProps) {
+export function TaskCard({ task, compact = false, showDragHandle = true, inSlot = false, completed = false }: TaskCardProps) {
   const { completeTask, openTaskModal, johnEmail, stephEmail } = useApp();
   
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     data: { task, fromSlot: inSlot },
+    disabled: completed, // Disable dragging for completed tasks
   });
   
   const handleDone = (e: React.MouseEvent) => {
     e.stopPropagation();
-    completeTask(task.task_id);
+    if (!completed) {
+      completeTask(task.task_id);
+    }
   };
   
   const handleClick = () => {
@@ -32,13 +36,15 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
                        task.assignee === stephEmail ? 'Stef' : 
                        task.assignee.split('@')[0];
   
+  const isCompleted = completed || task.status === 'done';
+  
   return (
     <div
       ref={setNodeRef}
-      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''}`}
+      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''}`}
       onClick={handleClick}
-      style={{ opacity: isDragging ? 0.5 : 1, cursor: showDragHandle ? 'grab' : 'pointer' }}
-      {...(showDragHandle ? { ...listeners, ...attributes } : {})}
+      style={{ opacity: isDragging ? 0.5 : 1, cursor: showDragHandle && !isCompleted ? 'grab' : 'pointer' }}
+      {...(showDragHandle && !isCompleted ? { ...listeners, ...attributes } : {})}
     >
       <div className="task-card-header">
         <div className="task-content">
@@ -64,17 +70,19 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
           </div>
         </div>
         
-        <div className="task-actions">
-          <button 
-            className="btn-done" 
-            onClick={handleDone}
-            title="Mark as done"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </button>
-        </div>
+        {!isCompleted && (
+          <div className="task-actions">
+            <button 
+              className="btn-done" 
+              onClick={handleDone}
+              title="Mark as done"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

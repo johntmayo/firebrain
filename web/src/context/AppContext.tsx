@@ -46,6 +46,7 @@ interface AppContextType {
   // Computed
   inboxTasks: Task[];
   todayTasks: Map<TodaySlot, Task>;
+  accomplishedToday: Task[];
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -109,10 +110,22 @@ export function AppProvider({ children }: AppProviderProps) {
     setCurrentUserEmail(currentUser);
   }, [currentUser]);
   
+  // Fetch completed tasks for accomplished section
+  const fetchCompletedTasks = useCallback(async () => {
+    try {
+      const doneTasks = await api.getTasks('done');
+      setCompletedTasks(doneTasks);
+    } catch (err) {
+      // Silently fail - not critical for accomplished section
+      console.error('Failed to load completed tasks:', err);
+    }
+  }, []);
+
   // Initial fetch (after setting user email)
   useEffect(() => {
     setCurrentUserEmail(currentUser);
     refreshTasks();
+    fetchCompletedTasks(); // Also fetch completed tasks for accomplished section
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Modal handlers
@@ -204,8 +217,16 @@ export function AppProvider({ children }: AppProviderProps) {
     try {
       const result = await api.completeTask(taskId);
       // Add to completed tasks if we're showing them
+      // Preserve today_slot before backend clears it
       if (completedTask) {
-        setCompletedTasks(prev => [{ ...completedTask, ...result, status: 'done' }, ...prev]);
+        const completedWithSlot = { 
+          ...completedTask, 
+          ...result, 
+          status: 'done' as const,
+          // Preserve the today_slot that was set before completion
+          today_slot: completedTask.today_slot || ''
+        };
+        setCompletedTasks(prev => [completedWithSlot, ...prev]);
       }
       showToast('Task completed! 🎉', 'success');
     } catch (err) {
@@ -296,6 +317,23 @@ export function AppProvider({ children }: AppProviderProps) {
       todayTasks.set(t.today_slot as TodaySlot, t);
     }
   });
+
+  // Tasks accomplished today (completed today, preferably from a slot)
+  const today = new Date().toDateString();
+  const accomplishedToday = completedTasks.filter(t => {
+    if (!t.completed_at) return false;
+    const completedDate = new Date(t.completed_at).toDateString();
+    return completedDate === today;
+  }).sort((a, b) => {
+    // Sort by slot priority first (B1 > M1-M3 > S1-S5), then by completion time
+    const slotOrder: Record<string, number> = { 'B1': 0, 'M1': 1, 'M2': 2, 'M3': 3, 'S1': 4, 'S2': 5, 'S3': 6, 'S4': 7, 'S5': 8 };
+    const aSlot = a.today_slot || '';
+    const bSlot = b.today_slot || '';
+    const slotDiff = (slotOrder[aSlot] ?? 99) - (slotOrder[bSlot] ?? 99);
+    if (slotDiff !== 0) return slotDiff;
+    // Then by completion time (most recent first)
+    return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
+  });
   
   // Allow toggling user for demo purposes (press 'u' key)
   useEffect(() => {
@@ -343,6 +381,7 @@ export function AppProvider({ children }: AppProviderProps) {
     showToast,
     inboxTasks,
     todayTasks,
+    accomplishedToday,
   };
   
   return (

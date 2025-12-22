@@ -5,11 +5,19 @@ import { TaskCard } from './TaskCard';
 import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
 
 export function TodayPlanner() {
-  const { todayTasks, isJohn } = useApp();
+  const { todayTasks, isJohn, accomplishedToday } = useApp();
   
   const bigSlots: TodaySlot[] = ['B1'];
   const mediumSlots: TodaySlot[] = ['M1', 'M2', 'M3'];
   const smallSlots: TodaySlot[] = ['S1', 'S2', 'S3', 'S4', 'S5'];
+  
+  // Format today's date
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  });
   
   return (
     <div className="pane pane-today">
@@ -18,7 +26,12 @@ export function TodayPlanner() {
           <span className="icon">⚔</span>
           THE LOADOUT
         </h2>
-        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+          <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: '500' }}>
+            {dateStr.toUpperCase()}
+          </span>
+        </div>
       </div>
       
       <div className="pane-content">
@@ -55,6 +68,28 @@ export function TodayPlanner() {
             </div>
           </div>
         </div>
+
+        {/* Accomplished Today Section */}
+        {accomplishedToday.length > 0 && (
+          <div className="accomplished-section">
+            <div className="accomplished-header">
+              <span className="accomplished-icon">✓</span>
+              <span>ACCOMPLISHED TODAY</span>
+              <span className="accomplished-count">({accomplishedToday.length})</span>
+            </div>
+            <div className="accomplished-list">
+              {accomplishedToday.map(task => (
+                <TaskCard 
+                  key={task.task_id} 
+                  task={task} 
+                  showDragHandle={false} 
+                  inSlot={false}
+                  completed={true}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
