@@ -6,6 +6,7 @@ interface PasswordScreenProps {
 }
 
 export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,11 +17,13 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
     setLoading(true);
 
     try {
-      const result = await api.login(password);
+      const result = await api.login(email, password);
       setSessionToken(result.token);
+      // Store logged-in user email
+      localStorage.setItem('firebrain_user_email', result.userEmail);
       onAuthenticated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid password');
+      setError(err instanceof Error ? err.message : 'Invalid email or password');
       setPassword('');
     } finally {
       setLoading(false);
@@ -100,7 +103,7 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
           
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !email || !password}
             style={{
               width: '100%',
               padding: '0.75rem',
@@ -113,7 +116,7 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
               fontFamily: 'var(--font-mono, monospace)',
               fontSize: '0.9rem',
               fontWeight: 'bold',
-              cursor: loading || !password ? 'not-allowed' : 'pointer',
+              cursor: loading || !email || !password ? 'not-allowed' : 'pointer',
               transition: 'background 0.2s',
             }}
           >

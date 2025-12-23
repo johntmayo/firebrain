@@ -11,11 +11,15 @@ const STEPH_EMAIL = 'stefanie.lynch@gmail.com';
 const ALLOWED_EMAILS = [JOHN_EMAIL, STEPH_EMAIL];
 const SHEET_NAME = 'Tasks';
 
-// Password for app access - CHANGE THIS to your desired password
-const APP_PASSWORD = 'changeme123';
+// User passwords - CHANGE THESE to your desired passwords
+const USER_PASSWORDS = {
+  [JOHN_EMAIL]: 'johns_password_here',
+  [STEPH_EMAIL]: 'stefs_password_here'
+};
 
 // Session token storage (using PropertiesService)
 const TOKEN_PROPERTY_PREFIX = 'session_token_';
+const TOKEN_USER_PREFIX = 'token_user_';
 const TOKEN_EXPIRY_HOURS = 24 * 30; // 30 days
 
 // Column indices (0-based)
@@ -86,16 +90,10 @@ function handleRequest(e, method) {
       return jsonResponse({ error: 'Unauthorized: Invalid or expired session' }, 401);
     }
     
-    // Get caller email from query parameter (for web app without Google Sign-In)
-    // Falls back to Session for direct authenticated access
-    let callerEmail = e.parameter.userEmail || '';
-    if (!callerEmail) {
-      callerEmail = Session.getActiveUser().getEmail();
-    }
-    
-    // Check authorization (secondary check)
-    if (!ALLOWED_EMAILS.includes(callerEmail)) {
-      return jsonResponse({ error: 'Unauthorized: Email not in allowlist. Got: ' + callerEmail }, 403);
+    // Get caller email from session token (who is logged in)
+    const callerEmail = getTokenUser(providedToken);
+    if (!callerEmail || !ALLOWED_EMAILS.includes(callerEmail)) {
+      return jsonResponse({ error: 'Unauthorized: Invalid session' }, 403);
     }
     
     // Route the request
@@ -590,14 +588,22 @@ function jsonResponse(data, statusCode) {
 // ============== AUTHENTICATION ==============
 
 /**
- * Handle login request - validate password and issue session token
+ * Handle login request - validate email and password, issue session token
  */
 function handleLogin(body) {
-  if (!body.password) {
-    return jsonResponse({ error: 'Password is required' }, 400);
+  if (!body.email || !body.password) {
+    return jsonResponse({ error: 'Email and password are required' }, 400);
   }
   
-  if (body.password !== APP_PASSWORD) {
+  const email = body.email.toLowerCase().trim();
+  
+  // Check if email is allowed
+  if (!ALLOWED_EMAILS.includes(email)) {
+    return jsonResponse({ error: 'Invalid email' }, 401);
+  }
+  
+  // Check password
+  if (body.password !== USER_PASSWORDS[email]) {
     return jsonResponse({ error: 'Invalid password' }, 401);
   }
   
@@ -605,13 +611,15 @@ function handleLogin(body) {
   const token = generateSessionToken();
   const expiryTime = new Date().getTime() + (TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
   
-  // Store token with expiry
+  // Store token with expiry and user email
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(TOKEN_PROPERTY_PREFIX + token, expiryTime.toString());
+  properties.setProperty(TOKEN_USER_PREFIX + token, email);
   
   return jsonResponse({
     success: true,
     token: token,
+    userEmail: email,
     expiresAt: expiryTime
   });
 }
@@ -640,10 +648,20 @@ function isValidSessionToken(token) {
   if (now > expiryTime) {
     // Token expired, clean it up
     properties.deleteProperty(TOKEN_PROPERTY_PREFIX + token);
+    properties.deleteProperty(TOKEN_USER_PREFIX + token);
     return false;
   }
   
   return true;
+}
+
+/**
+ * Get user email from session token
+ */
+function getTokenUser(token) {
+  if (!token) return null;
+  const properties = PropertiesService.getScriptProperties();
+  return properties.getProperty(TOKEN_USER_PREFIX + token);
 }
 
 // ============== SETUP HELPER ==============

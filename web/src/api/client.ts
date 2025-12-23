@@ -41,6 +41,7 @@ interface ApiResponse<T> {
   error_count?: number;
   results?: any[];
   token?: string;
+  userEmail?: string;
   expiresAt?: number;
 }
 
@@ -66,8 +67,8 @@ async function apiCall<T>(action: string, body?: object): Promise<T> {
   
   const url = new URL(API_BASE_URL);
   url.searchParams.set('action', action);
-  url.searchParams.set('userEmail', currentUserEmail);
   url.searchParams.set('token', token);
+  // Note: userEmail is no longer sent - backend gets it from the session token
   
   const requestBody = body ? { ...body, token: token } : undefined;
   
@@ -91,23 +92,23 @@ async function apiCall<T>(action: string, body?: object): Promise<T> {
 }
 
 export const api = {
-  async login(password: string): Promise<{ token: string; expiresAt: number }> {
+  async login(email: string, password: string): Promise<{ token: string; userEmail: string; expiresAt: number }> {
     const url = new URL(API_BASE_URL);
     url.searchParams.set('action', 'login');
     
     const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ email, password }),
     });
     
-    const data: ApiResponse<{ token: string; expiresAt: number }> = await response.json();
+    const data: ApiResponse<{ token: string; userEmail: string; expiresAt: number }> = await response.json();
     
     if (data.error) {
       throw new Error(data.error);
     }
     
-    return { token: data.token!, expiresAt: data.expiresAt! };
+    return { token: data.token!, userEmail: data.userEmail!, expiresAt: data.expiresAt! };
   },
   
   async getTasks(status?: string, assignee?: string): Promise<Task[]> {
@@ -118,8 +119,8 @@ export const api = {
     
     const url = new URL(API_BASE_URL);
     url.searchParams.set('action', 'getTasks');
-    url.searchParams.set('userEmail', currentUserEmail);
     url.searchParams.set('token', token);
+    // Note: userEmail is no longer sent - backend gets it from the session token
     if (status) url.searchParams.set('status', status);
     if (assignee) url.searchParams.set('assignee', assignee);
     

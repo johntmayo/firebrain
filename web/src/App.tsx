@@ -146,9 +146,6 @@ function AppContent() {
             <span className={`user-badge ${isJohn ? 'john' : 'steph'}`}>
               {displayName}
             </span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              [U] SWITCH
-            </span>
           </div>
         </header>
         

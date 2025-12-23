@@ -66,9 +66,10 @@ interface AppProviderProps {
 }
 
 export function AppProvider({ children }: AppProviderProps) {
-  // For demo purposes, we'll simulate the current user
-  // In production, this would come from Google Sign-In
-  const [currentUser, setCurrentUser] = useState<string>(JOHN_EMAIL);
+  // Get logged-in user from localStorage (set during login)
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    return localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
+  });
   const isJohn = currentUser === JOHN_EMAIL;
   
   // Tasks state
@@ -109,8 +110,11 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [showToast]);
   
   // Set current user email for API calls whenever it changes
+  // Note: Backend now gets user from session token, but we keep this for any frontend logic
   useEffect(() => {
     setCurrentUserEmail(currentUser);
+    // Also update localStorage if it changed
+    localStorage.setItem('firebrain_user_email', currentUser);
   }, [currentUser]);
   
   // Fetch completed tasks for accomplished section
@@ -356,23 +360,8 @@ export function AppProvider({ children }: AppProviderProps) {
     return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
   });
   
-  // Dev-only: Allow toggling user for testing (press 'u' key)
-  // In production, users would log in with their own Google account
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only enable in development (check for dev mode or allow disabling)
-      if (e.key === 'u' && !isModalOpen && import.meta.env.DEV) {
-        setCurrentUser(prev => {
-          const newUser = prev === JOHN_EMAIL ? STEPH_EMAIL : JOHN_EMAIL;
-          setCurrentUserEmail(newUser);
-          setViewingLoadoutUser(newUser); // Also switch loadout view
-          return newUser;
-        });
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen]);
+  // User is logged in as themselves - no switching needed
+  // Viewing toggles (JOHN/STEF/ALL buttons and loadout toggle) still work for viewing
   
   const value: AppContextType = {
     currentUser,
