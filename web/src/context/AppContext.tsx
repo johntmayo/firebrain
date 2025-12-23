@@ -236,16 +236,21 @@ export function AppProvider({ children }: AppProviderProps) {
         const completedTaskData = { 
           ...completedTask, 
           ...result, 
-          status: 'done' as const
+          status: 'done' as const,
+          // Ensure today_slot is cleared (backend should do this, but be explicit)
+          today_slot: '' as const,
+          today_set_at: ''
         };
         setCompletedTasks(prev => [completedTaskData, ...prev]);
       }
+      // Refresh tasks to ensure we get the latest state from backend (slot cleared)
+      await refreshTasks();
       showToast('Task completed! 🎉', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to complete task', 'error');
     }
-  }, [tasks, showToast]);
+  }, [tasks, showToast, refreshTasks]);
   
   const assignToday = useCallback(async (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => {
     // Only allow editing if viewing own loadout
