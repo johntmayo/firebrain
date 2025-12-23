@@ -127,14 +127,26 @@ function getTasks(params, callerEmail) {
   
   const tasks = [];
   for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const task = rowToTask(row);
+    let row = data[i];
     
-    // Apply filters
-    if (params.status && task.status !== params.status) continue;
-    if (params.assignee && task.assignee !== params.assignee) continue;
+    // Pad row to HEADERS.length to ensure all columns exist
+    while (row.length < HEADERS.length) {
+      row.push('');
+    }
     
-    tasks.push(task);
+    try {
+      const task = rowToTask(row);
+      
+      // Apply filters
+      if (params.status && task.status !== params.status) continue;
+      if (params.assignee && task.assignee !== params.assignee) continue;
+      
+      tasks.push(task);
+    } catch (err) {
+      // Log error but continue processing other rows
+      Logger.log('Error processing row ' + (i + 1) + ': ' + err.toString());
+      continue;
+    }
   }
   
   return jsonResponse({ tasks: tasks });
@@ -205,8 +217,13 @@ function updateTask(body, callerEmail) {
     return jsonResponse({ error: 'Task not found' }, 404);
   }
   
-  const row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
+  let row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
   const now = new Date().toISOString();
+  
+  // Ensure row is padded to HEADERS.length
+  while (row.length < HEADERS.length) {
+    row.push('');
+  }
   
   // Update fields if provided
   if (body.title !== undefined) row[COLS.TITLE] = body.title.trim();
@@ -243,8 +260,13 @@ function completeTask(body, callerEmail) {
     return jsonResponse({ error: 'Task not found' }, 404);
   }
   
-  const row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
+  let row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
   const now = new Date().toISOString();
+  
+  // Ensure row is padded to HEADERS.length
+  while (row.length < HEADERS.length) {
+    row.push('');
+  }
   
   row[COLS.STATUS] = 'done';
   row[COLS.COMPLETED_AT] = now;
