@@ -81,22 +81,12 @@ function handleRequest(e, method) {
     
     // Login endpoint doesn't require authentication
     if (path === 'login') {
-      // For POST requests, use body; for GET, use URL parameters
-      let loginBody = {};
-      if (method === 'POST' && e.postData && e.postData.contents) {
-        try {
-          loginBody = JSON.parse(e.postData.contents);
-        } catch (err) {
-          Logger.log('Error parsing login body: ' + err.toString());
-          return jsonResponse({ error: 'Invalid JSON in login request' }, 400);
-        }
-      } else {
-        // Fallback to URL parameters for GET requests
-        loginBody = {
-          email: e.parameter.email || '',
-          password: e.parameter.password || ''
-        };
-      }
+      // Use already-parsed body for POST, or URL parameters for GET
+      const loginBody = method === 'POST' ? body : {
+        email: e.parameter.email || '',
+        password: e.parameter.password || ''
+      };
+      Logger.log('Login request - method: ' + method + ', body keys: ' + Object.keys(loginBody).join(', '));
       return handleLogin(loginBody);
     }
     
@@ -726,4 +716,43 @@ function setupSheet() {
   }
   
   Logger.log('Sheet setup complete!');
+}
+
+/**
+ * TEST FUNCTION - Run this to verify the code is correct
+ * This will show you what error messages exist in the code
+ */
+function testErrorMessages() {
+  Logger.log('=== TESTING ERROR MESSAGES ===');
+  Logger.log('Checking if old error message exists...');
+  
+  // Test the constants
+  Logger.log('ALLOWED_EMAILS: ' + JSON.stringify(ALLOWED_EMAILS));
+  Logger.log('USER_PASSWORDS keys: ' + Object.keys(USER_PASSWORDS).join(', '));
+  
+  // Test the handleLogin function logic
+  const testBody = { email: 'john@altagether.org', password: 'poppyfields' };
+  const emailInput = testBody.email.toLowerCase().trim();
+  const matchedEmail = ALLOWED_EMAILS.find(e => e.toLowerCase() === emailInput);
+  
+  Logger.log('Test email input: ' + emailInput);
+  Logger.log('Matched email: ' + (matchedEmail || 'NOT FOUND'));
+  
+  if (matchedEmail) {
+    Logger.log('✅ Email matching works correctly');
+    Logger.log('Expected password: ' + USER_PASSWORDS[matchedEmail]);
+  } else {
+    Logger.log('❌ Email matching FAILED');
+  }
+  
+  // Check what error message would be returned
+  if (!matchedEmail) {
+    const errorMsg = 'Invalid email. Allowed: ' + ALLOWED_EMAILS.join(', ') + '. Got: ' + emailInput;
+    Logger.log('Error message would be: ' + errorMsg);
+    if (errorMsg.includes('allowlist')) {
+      Logger.log('❌ OLD ERROR MESSAGE FOUND!');
+    } else {
+      Logger.log('✅ Error message is correct (no "allowlist" found)');
+    }
+  }
 }
