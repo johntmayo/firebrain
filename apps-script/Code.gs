@@ -292,8 +292,11 @@ function completeTask(body, callerEmail) {
   
   row[COLS.STATUS] = 'done';
   row[COLS.COMPLETED_AT] = now;
-  // Preserve today_slot and today_user for accomplished tracking (frontend will handle display)
-  // Don't clear them here - let frontend filter by completed_at date
+  // Clear today_slot and today_set_at to free up the slot for new tasks
+  // Keep today_user so accomplished section can still filter by user
+  row[COLS.TODAY_SLOT] = '';
+  row[COLS.TODAY_SET_AT] = '';
+  // today_user is preserved so accomplished section knows which user's loadout it belonged to
   row[COLS.UPDATED_AT] = now;
   row[COLS.UPDATED_BY] = callerEmail;
   

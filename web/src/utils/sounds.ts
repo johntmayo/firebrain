@@ -1,6 +1,6 @@
 /**
- * Subtle sound effects for drag and drop operations
- * Uses Web Audio API to generate sounds programmatically
+ * Subtle clicky sound effects for drag and drop operations
+ * Uses Web Audio API to generate percussive click sounds
  */
 
 let audioContext: AudioContext | null = null;
@@ -13,35 +13,48 @@ function getAudioContext(): AudioContext {
 }
 
 /**
- * Play a subtle sound effect
- * @param frequency - Frequency in Hz
- * @param duration - Duration in milliseconds
+ * Play a clicky, percussive sound using filtered noise
+ * @param duration - Duration in milliseconds (very short for clicks)
  * @param volume - Volume (0-1)
- * @param type - Waveform type
+ * @param frequency - Filter frequency in Hz (higher = brighter click)
  */
-function playSound(
-  frequency: number,
-  duration: number = 100,
-  volume: number = 0.1,
-  type: OscillatorType = 'sine'
+function playClick(
+  duration: number = 15,
+  volume: number = 0.15,
+  frequency: number = 2000
 ): void {
   try {
     const ctx = getAudioContext();
-    const oscillator = ctx.createOscillator();
+    const bufferSize = ctx.sampleRate * (duration / 1000);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    // Generate white noise
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const source = ctx.createBufferSource();
     const gainNode = ctx.createGain();
-
-    oscillator.connect(gainNode);
+    const filter = ctx.createBiquadFilter();
+    
+    source.buffer = buffer;
+    filter.type = 'highpass';
+    filter.frequency.value = frequency;
+    filter.Q.value = 1;
+    
+    source.connect(filter);
+    filter.connect(gainNode);
     gainNode.connect(ctx.destination);
-
-    oscillator.type = type;
-    oscillator.frequency.value = frequency;
-
-    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration / 1000);
-
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + duration / 1000);
+    
+    // Very short envelope for clicky sound
+    const now = ctx.currentTime;
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(volume, now + 0.001);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration / 1000);
+    
+    source.start(now);
+    source.stop(now + duration / 1000);
   } catch (err) {
     // Silently fail if audio context is not available
     console.debug('Sound effect failed:', err);
@@ -53,39 +66,39 @@ function playSound(
  */
 export const sounds = {
   /**
-   * Play when starting to drag
+   * Play when starting to drag - subtle click
    */
   dragStart: () => {
-    playSound(200, 50, 0.08, 'sine');
+    playClick(12, 0.12, 2500);
   },
 
   /**
-   * Play when dropping on a valid target
+   * Play when dropping on a valid target - satisfying click
    */
   dropSuccess: () => {
-    playSound(400, 80, 0.12, 'sine');
-    setTimeout(() => playSound(500, 60, 0.1, 'sine'), 30);
+    playClick(20, 0.18, 3000);
+    setTimeout(() => playClick(15, 0.12, 3500), 25);
   },
 
   /**
-   * Play when dropping on an invalid target or canceling
+   * Play when dropping on an invalid target or canceling - softer click
    */
   dropCancel: () => {
-    playSound(150, 100, 0.1, 'sine');
+    playClick(18, 0.1, 1500);
   },
 
   /**
-   * Play when hovering over a valid drop zone
+   * Play when hovering over a valid drop zone - very subtle tick
    */
   hoverOver: () => {
-    playSound(300, 30, 0.06, 'sine');
+    playClick(8, 0.08, 2000);
   },
 
   /**
-   * Play when swapping tasks
+   * Play when swapping tasks - double click
    */
   swap: () => {
-    playSound(350, 60, 0.1, 'sine');
-    setTimeout(() => playSound(450, 50, 0.09, 'sine'), 40);
+    playClick(15, 0.15, 2800);
+    setTimeout(() => playClick(12, 0.12, 3200), 20);
   },
 };

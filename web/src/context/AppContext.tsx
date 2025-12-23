@@ -231,16 +231,14 @@ export function AppProvider({ children }: AppProviderProps) {
     try {
       const result = await api.completeTask(taskId);
       // Add to completed tasks if we're showing them
-      // Preserve today_slot before backend clears it
+      // Backend clears today_slot to free up the slot, but keeps today_user for filtering
       if (completedTask) {
-        const completedWithSlot = { 
+        const completedTaskData = { 
           ...completedTask, 
           ...result, 
-          status: 'done' as const,
-          // Preserve the today_slot that was set before completion
-          today_slot: completedTask.today_slot || ''
+          status: 'done' as const
         };
-        setCompletedTasks(prev => [completedWithSlot, ...prev]);
+        setCompletedTasks(prev => [completedTaskData, ...prev]);
       }
       showToast('Task completed! 🎉', 'success');
     } catch (err) {
