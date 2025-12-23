@@ -288,8 +288,10 @@ function assignToday(body, callerEmail) {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     // Check if slot is occupied by the same user (callerEmail)
+    // Handle rows that might not have today_user column yet
+    const rowTodayUser = row.length > COLS.TODAY_USER ? (row[COLS.TODAY_USER] || '') : '';
     if (row[COLS.TODAY_SLOT] === body.today_slot && 
-        row[COLS.TODAY_USER] === callerEmail && 
+        rowTodayUser === callerEmail && 
         row[COLS.TASK_ID] !== body.task_id) {
       occupyingRowIndex = i + 1; // Sheet rows are 1-indexed
       break;
@@ -302,6 +304,10 @@ function assignToday(body, callerEmail) {
       // Swap logic
       const taskRow = sheet.getRange(taskRowIndex, 1, 1, HEADERS.length).getValues()[0];
       const occupyingRow = sheet.getRange(occupyingRowIndex, 1, 1, HEADERS.length).getValues()[0];
+      
+      // Ensure rows have all columns
+      while (taskRow.length < HEADERS.length) taskRow.push('');
+      while (occupyingRow.length < HEADERS.length) occupyingRow.push('');
       
       const taskOldSlot = taskRow[COLS.TODAY_SLOT];
       
@@ -333,6 +339,9 @@ function assignToday(body, callerEmail) {
   
   // Assign to slot
   const taskRow = sheet.getRange(taskRowIndex, 1, 1, HEADERS.length).getValues()[0];
+  
+  // Ensure row has all columns
+  while (taskRow.length < HEADERS.length) taskRow.push('');
   
   // Assign to slot and set today_user to callerEmail
   taskRow[COLS.TODAY_SLOT] = body.today_slot;
@@ -366,8 +375,12 @@ function clearToday(body, callerEmail) {
   
   const row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
   
+  // Ensure row has all columns
+  while (row.length < HEADERS.length) row.push('');
+  
   // Only allow clearing own slots
-  if (row[COLS.TODAY_USER] && row[COLS.TODAY_USER] !== callerEmail) {
+  const rowTodayUser = row[COLS.TODAY_USER] || '';
+  if (rowTodayUser && rowTodayUser !== callerEmail) {
     return jsonResponse({ error: 'You can only clear your own Today slots' }, 403);
   }
   
@@ -442,7 +455,8 @@ function bulkCreateTasks(body, callerEmail) {
         taskData.due_date || '',             // due_date
         '',                                  // today_slot
         '',                                  // today_set_at
-        ''                                   // completed_at
+        '',                                  // completed_at
+        ''                                   // today_user
       ];
 
       sheet.appendRow(newRow);
@@ -500,22 +514,26 @@ function findTaskRow(sheet, taskId) {
 }
 
 function rowToTask(row) {
+  // Handle rows that might not have all columns (backward compatibility)
+  // Ensure we can safely access all columns
+  const safeRow = row || [];
+  
   return {
-    task_id: row[COLS.TASK_ID],
-    created_at: row[COLS.CREATED_AT],
-    created_by: row[COLS.CREATED_BY],
-    updated_at: row[COLS.UPDATED_AT],
-    updated_by: row[COLS.UPDATED_BY],
-    title: row[COLS.TITLE],
-    notes: row[COLS.NOTES],
-    priority: row[COLS.PRIORITY],
-    assignee: row[COLS.ASSIGNEE],
-    status: row[COLS.STATUS],
-    due_date: row[COLS.DUE_DATE],
-    today_slot: row[COLS.TODAY_SLOT],
-    today_set_at: row[COLS.TODAY_SET_AT],
-    completed_at: row[COLS.COMPLETED_AT],
-    today_user: row[COLS.TODAY_USER] || ''
+    task_id: safeRow[COLS.TASK_ID] || '',
+    created_at: safeRow[COLS.CREATED_AT] || '',
+    created_by: safeRow[COLS.CREATED_BY] || '',
+    updated_at: safeRow[COLS.UPDATED_AT] || '',
+    updated_by: safeRow[COLS.UPDATED_BY] || '',
+    title: safeRow[COLS.TITLE] || '',
+    notes: safeRow[COLS.NOTES] || '',
+    priority: safeRow[COLS.PRIORITY] || 'medium',
+    assignee: safeRow[COLS.ASSIGNEE] || '',
+    status: safeRow[COLS.STATUS] || 'open',
+    due_date: safeRow[COLS.DUE_DATE] || '',
+    today_slot: safeRow[COLS.TODAY_SLOT] || '',
+    today_set_at: safeRow[COLS.TODAY_SET_AT] || '',
+    completed_at: safeRow[COLS.COMPLETED_AT] || '',
+    today_user: safeRow.length > COLS.TODAY_USER ? (safeRow[COLS.TODAY_USER] || '') : ''
   };
 }
 
@@ -559,4 +577,3 @@ function setupSheet() {
   
   Logger.log('Sheet setup complete!');
 }
-
