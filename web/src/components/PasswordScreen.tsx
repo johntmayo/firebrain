@@ -66,13 +66,41 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
               fontSize: '0.9rem',
               color: 'var(--text-secondary, #aaa)',
             }}>
+              EMAIL
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+              placeholder="john@altagether.org"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                background: 'var(--bg-primary, #0a0a0a)',
+                border: '1px solid var(--border-color, #333)',
+                borderRadius: '4px',
+                color: 'var(--text-primary, #e0e0e0)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.9rem',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary, #aaa)',
+            }}>
               PASSWORD
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoFocus
               style={{
                 width: '100%',
                 padding: '0.75rem',
