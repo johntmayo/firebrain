@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -16,6 +16,8 @@ import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
+import { PasswordScreen } from './components/PasswordScreen';
+import { isAuthenticated } from './api/client';
 import type { Task, TodaySlot } from './types';
 
 function AppContent() {
@@ -209,6 +211,33 @@ function AppContent() {
 }
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    if (isAuthenticated()) {
+      setAuthenticated(true);
+    }
+    setChecking(false);
+  }, []);
+
+  const handleAuthenticated = () => {
+    setAuthenticated(true);
+  };
+
+  if (checking) {
+    return null; // Or a loading spinner
+  }
+
+  if (!authenticated) {
+    return (
+      <ThemeProvider>
+        <PasswordScreen onAuthenticated={handleAuthenticated} />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider>
       <AppProvider>

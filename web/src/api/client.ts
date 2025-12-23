@@ -1,12 +1,33 @@
 import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const SESSION_TOKEN_KEY = 'firebrain_session_token';
 
 // Current user email - will be set by the app
 let currentUserEmail = '';
 
 export function setCurrentUserEmail(email: string) {
   currentUserEmail = email;
+}
+
+// Get session token from localStorage
+export function getSessionToken(): string | null {
+  return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+// Set session token in localStorage
+export function setSessionToken(token: string): void {
+  localStorage.setItem(SESSION_TOKEN_KEY, token);
+}
+
+// Clear session token
+export function clearSessionToken(): void {
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
+// Check if user is authenticated
+export function isAuthenticated(): boolean {
+  return !!getSessionToken();
 }
 
 interface ApiResponse<T> {
@@ -19,6 +40,8 @@ interface ApiResponse<T> {
   success_count?: number;
   error_count?: number;
   results?: any[];
+  token?: string;
+  expiresAt?: number;
 }
 
 export interface BulkImportResult {
@@ -36,19 +59,31 @@ export interface BulkImportResponse {
 }
 
 async function apiCall<T>(action: string, body?: object): Promise<T> {
+  const token = getSessionToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+  
   const url = new URL(API_BASE_URL);
   url.searchParams.set('action', action);
   url.searchParams.set('userEmail', currentUserEmail);
+  url.searchParams.set('token', token);
+  
+  const requestBody = body ? { ...body, token: token } : undefined;
   
   const response = await fetch(url.toString(), {
     method: body ? 'POST' : 'GET',
     headers: body ? { 'Content-Type': 'text/plain' } : {},
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? JSON.stringify(requestBody) : undefined,
   });
   
   const data = await response.json();
   
   if (data.error) {
+    // If unauthorized, clear token
+    if (response.status === 401) {
+      clearSessionToken();
+    }
     throw new Error(data.error);
   }
   
@@ -56,10 +91,35 @@ async function apiCall<T>(action: string, body?: object): Promise<T> {
 }
 
 export const api = {
+  async login(password: string): Promise<{ token: string; expiresAt: number }> {
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('action', 'login');
+    
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ password }),
+    });
+    
+    const data: ApiResponse<{ token: string; expiresAt: number }> = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    return { token: data.token!, expiresAt: data.expiresAt! };
+  },
+  
   async getTasks(status?: string, assignee?: string): Promise<Task[]> {
+    const token = getSessionToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    
     const url = new URL(API_BASE_URL);
     url.searchParams.set('action', 'getTasks');
     url.searchParams.set('userEmail', currentUserEmail);
+    url.searchParams.set('token', token);
     if (status) url.searchParams.set('status', status);
     if (assignee) url.searchParams.set('assignee', assignee);
     
@@ -68,6 +128,9 @@ export const api = {
     const data: ApiResponse<Task[]> = await response.json();
     
     if (data.error) {
+      if (response.status === 401) {
+        clearSessionToken();
+      }
       throw new Error(data.error);
     }
     

@@ -11,6 +11,13 @@ const STEPH_EMAIL = 'stefanie.lynch@gmail.com';
 const ALLOWED_EMAILS = [JOHN_EMAIL, STEPH_EMAIL];
 const SHEET_NAME = 'Tasks';
 
+// Password for app access - CHANGE THIS to your desired password
+const APP_PASSWORD = 'changeme123';
+
+// Session token storage (using PropertiesService)
+const TOKEN_PROPERTY_PREFIX = 'session_token_';
+const TOKEN_EXPIRY_HOURS = 24 * 30; // 30 days
+
 // Column indices (0-based)
 const COLS = {
   TASK_ID: 0,
@@ -56,18 +63,6 @@ function handleRequest(e, method) {
   output.setMimeType(ContentService.MimeType.JSON);
   
   try {
-    // Get caller email from query parameter (for web app without Google Sign-In)
-    // Falls back to Session for direct authenticated access
-    let callerEmail = e.parameter.userEmail || '';
-    if (!callerEmail) {
-      callerEmail = Session.getActiveUser().getEmail();
-    }
-    
-    // Check authorization
-    if (!ALLOWED_EMAILS.includes(callerEmail)) {
-      return jsonResponse({ error: 'Unauthorized: Email not in allowlist. Got: ' + callerEmail }, 403);
-    }
-    
     const path = e.parameter.action || '';
     const params = e.parameter;
     let body = {};
@@ -78,6 +73,29 @@ function handleRequest(e, method) {
       } catch (err) {
         return jsonResponse({ error: 'Invalid JSON body' }, 400);
       }
+    }
+    
+    // Login endpoint doesn't require authentication
+    if (path === 'login') {
+      return handleLogin(body);
+    }
+    
+    // All other endpoints require session token
+    const providedToken = e.parameter.token || body.token || null;
+    if (!providedToken || !isValidSessionToken(providedToken)) {
+      return jsonResponse({ error: 'Unauthorized: Invalid or expired session' }, 401);
+    }
+    
+    // Get caller email from query parameter (for web app without Google Sign-In)
+    // Falls back to Session for direct authenticated access
+    let callerEmail = e.parameter.userEmail || '';
+    if (!callerEmail) {
+      callerEmail = Session.getActiveUser().getEmail();
+    }
+    
+    // Check authorization (secondary check)
+    if (!ALLOWED_EMAILS.includes(callerEmail)) {
+      return jsonResponse({ error: 'Unauthorized: Email not in allowlist. Got: ' + callerEmail }, 403);
     }
     
     // Route the request
@@ -567,6 +585,65 @@ function jsonResponse(data, statusCode) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
   return output;
+}
+
+// ============== AUTHENTICATION ==============
+
+/**
+ * Handle login request - validate password and issue session token
+ */
+function handleLogin(body) {
+  if (!body.password) {
+    return jsonResponse({ error: 'Password is required' }, 400);
+  }
+  
+  if (body.password !== APP_PASSWORD) {
+    return jsonResponse({ error: 'Invalid password' }, 401);
+  }
+  
+  // Generate session token
+  const token = generateSessionToken();
+  const expiryTime = new Date().getTime() + (TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+  
+  // Store token with expiry
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(TOKEN_PROPERTY_PREFIX + token, expiryTime.toString());
+  
+  return jsonResponse({
+    success: true,
+    token: token,
+    expiresAt: expiryTime
+  });
+}
+
+/**
+ * Generate a secure session token
+ */
+function generateSessionToken() {
+  return Utilities.getUuid() + '-' + Utilities.getUuid();
+}
+
+/**
+ * Validate session token - check if it exists and hasn't expired
+ */
+function isValidSessionToken(token) {
+  if (!token) return false;
+  
+  const properties = PropertiesService.getScriptProperties();
+  const expiryStr = properties.getProperty(TOKEN_PROPERTY_PREFIX + token);
+  
+  if (!expiryStr) return false;
+  
+  const expiryTime = parseInt(expiryStr, 10);
+  const now = new Date().getTime();
+  
+  if (now > expiryTime) {
+    // Token expired, clean it up
+    properties.deleteProperty(TOKEN_PROPERTY_PREFIX + token);
+    return false;
+  }
+  
+  return true;
 }
 
 // ============== SETUP HELPER ==============
