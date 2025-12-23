@@ -78,8 +78,12 @@ export function AppProvider({ children }: AppProviderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // UI state
-  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>('john');
+  // UI state - default to logged-in user
+  const loggedInUser = localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
+  const defaultFilter: AssigneeFilter = loggedInUser === JOHN_EMAIL ? 'john' : 
+                                        loggedInUser === STEPH_EMAIL ? 'steph' : 'all';
+  
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(defaultFilter);
   const [viewMode, setViewMode] = useState<ViewMode>('buckets');
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -87,7 +91,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(() => {
-    return localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
+    return loggedInUser;
   }); // Start viewing own loadout
   
   // Toast helper

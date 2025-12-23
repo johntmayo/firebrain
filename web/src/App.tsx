@@ -18,6 +18,7 @@ import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
 import { isAuthenticated } from './api/client';
+import { sounds } from './utils/sounds';
 import type { Task, TodaySlot } from './types';
 
 function AppContent() {
@@ -70,8 +71,13 @@ function AppContent() {
       if (fromSlot && isViewingOwnLoadout) {
         const task = active.data.current?.task as Task;
         if (task) {
+          sounds.dropSuccess();
           clearToday(task.task_id);
+        } else {
+          sounds.dropCancel();
         }
+      } else {
+        sounds.dropCancel();
       }
       return;
     }
@@ -82,6 +88,7 @@ function AppContent() {
     if (overId.startsWith('slot-')) {
       if (!isViewingOwnLoadout) {
         showToast('You can only edit your own Today slots', 'error');
+        sounds.dropCancel();
         return;
       }
       
@@ -95,9 +102,11 @@ function AppContent() {
       
       if (occupyingTask && occupyingTask.task_id !== task.task_id) {
         // Slot is occupied - perform swap
+        sounds.swap();
         assignToday(task.task_id, targetSlot, occupyingTask.task_id);
       } else if (!occupyingTask) {
         // Slot is empty
+        sounds.dropSuccess();
         assignToday(task.task_id, targetSlot);
       }
       // If same task dropped on its own slot, do nothing
@@ -106,13 +115,18 @@ function AppContent() {
     else if (overId === 'inbox-drop-zone' && active.data.current?.fromSlot && isViewingOwnLoadout) {
       const task = active.data.current?.task as Task;
       if (task?.today_slot) {
+        sounds.dropSuccess();
         clearToday(task.task_id);
       }
+    } else {
+      // Dropped somewhere invalid
+      sounds.dropCancel();
     }
   };
   
   const handleDragCancel = () => {
     setActiveTask(null);
+    sounds.dropCancel();
   };
   
   const displayName = currentUser === johnEmail ? 'John' : 

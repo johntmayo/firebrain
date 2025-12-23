@@ -73,7 +73,7 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
-              placeholder="john@altagether.org"
+              placeholder="Enter your email"
               style={{
                 width: '100%',
                 padding: '0.75rem',
