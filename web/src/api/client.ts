@@ -98,7 +98,7 @@ export const api = {
     
     const response = await fetch(url.toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     

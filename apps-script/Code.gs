@@ -13,8 +13,8 @@ const SHEET_NAME = 'Tasks';
 
 // User passwords - CHANGE THESE to your desired passwords
 const USER_PASSWORDS = {
-  [JOHN_EMAIL]: 'johns_password_here',
-  [STEPH_EMAIL]: 'stefs_password_here'
+  [JOHN_EMAIL]: 'poppyfields',
+  [STEPH_EMAIL]: 'poppyfields'
 };
 
 // Session token storage (using PropertiesService)
@@ -81,7 +81,23 @@ function handleRequest(e, method) {
     
     // Login endpoint doesn't require authentication
     if (path === 'login') {
-      return handleLogin(body);
+      // For POST requests, use body; for GET, use URL parameters
+      let loginBody = {};
+      if (method === 'POST' && e.postData && e.postData.contents) {
+        try {
+          loginBody = JSON.parse(e.postData.contents);
+        } catch (err) {
+          Logger.log('Error parsing login body: ' + err.toString());
+          return jsonResponse({ error: 'Invalid JSON in login request' }, 400);
+        }
+      } else {
+        // Fallback to URL parameters for GET requests
+        loginBody = {
+          email: e.parameter.email || '',
+          password: e.parameter.password || ''
+        };
+      }
+      return handleLogin(loginBody);
     }
     
     // All other endpoints require session token
@@ -591,19 +607,34 @@ function jsonResponse(data, statusCode) {
  * Handle login request - validate email and password, issue session token
  */
 function handleLogin(body) {
+  // Debug logging
+  Logger.log('handleLogin called with body: ' + JSON.stringify(body));
+  Logger.log('body.email: ' + (body.email || 'MISSING'));
+  Logger.log('body.password: ' + (body.password ? '***' : 'MISSING'));
+  
   if (!body.email || !body.password) {
+    Logger.log('Missing email or password');
     return jsonResponse({ error: 'Email and password are required' }, 400);
   }
   
-  const email = body.email.toLowerCase().trim();
+  const emailInput = body.email.toLowerCase().trim();
+  Logger.log('emailInput (lowercased): ' + emailInput);
+  Logger.log('ALLOWED_EMAILS: ' + JSON.stringify(ALLOWED_EMAILS));
   
-  // Check if email is allowed
-  if (!ALLOWED_EMAILS.includes(email)) {
-    return jsonResponse({ error: 'Invalid email' }, 401);
+  // Find matching email from ALLOWED_EMAILS (case-insensitive)
+  const matchedEmail = ALLOWED_EMAILS.find(e => e.toLowerCase() === emailInput);
+  Logger.log('matchedEmail: ' + (matchedEmail || 'NOT FOUND'));
+  
+  if (!matchedEmail) {
+    Logger.log('Email not found in ALLOWED_EMAILS');
+    return jsonResponse({ error: 'Invalid email. Allowed: ' + ALLOWED_EMAILS.join(', ') + '. Got: ' + emailInput }, 401);
   }
   
-  // Check password
-  if (body.password !== USER_PASSWORDS[email]) {
+  // Check password (use matched email for lookup)
+  const expectedPassword = USER_PASSWORDS[matchedEmail];
+  Logger.log('Checking password for: ' + matchedEmail);
+  if (body.password !== expectedPassword) {
+    Logger.log('Password mismatch');
     return jsonResponse({ error: 'Invalid password' }, 401);
   }
   
@@ -611,15 +642,17 @@ function handleLogin(body) {
   const token = generateSessionToken();
   const expiryTime = new Date().getTime() + (TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
   
-  // Store token with expiry and user email
+  // Store token with expiry and user email (use original case from ALLOWED_EMAILS)
   const properties = PropertiesService.getScriptProperties();
   properties.setProperty(TOKEN_PROPERTY_PREFIX + token, expiryTime.toString());
-  properties.setProperty(TOKEN_USER_PREFIX + token, email);
+  properties.setProperty(TOKEN_USER_PREFIX + token, matchedEmail);
+  
+  Logger.log('Login successful for: ' + matchedEmail);
   
   return jsonResponse({
     success: true,
     token: token,
-    userEmail: email,
+    userEmail: matchedEmail,
     expiresAt: expiryTime
   });
 }
