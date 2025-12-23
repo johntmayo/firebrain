@@ -5,7 +5,15 @@ import { TaskCard } from './TaskCard';
 import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
 
 export function TodayPlanner() {
-  const { todayTasks, isJohn, accomplishedToday } = useApp();
+  const { 
+    todayTasks, 
+    accomplishedToday, 
+    currentUser,
+    johnEmail,
+    stephEmail,
+    viewingLoadoutUser,
+    setViewingLoadoutUser
+  } = useApp();
   
   const bigSlots: TodaySlot[] = ['B1'];
   const mediumSlots: TodaySlot[] = ['M1', 'M2', 'M3'];
@@ -19,6 +27,11 @@ export function TodayPlanner() {
     day: 'numeric' 
   });
   
+  const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
+  const viewingUserName = viewingLoadoutUser === johnEmail ? 'JOHN' : 
+                         viewingLoadoutUser === stephEmail ? 'STEF' : 
+                         viewingLoadoutUser.split('@')[0].toUpperCase();
+  
   return (
     <div className="pane pane-today">
       <div className="pane-header today-header">
@@ -27,6 +40,22 @@ export function TodayPlanner() {
           THE LOADOUT
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+          <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+            <button
+              className={`loadout-user-btn ${viewingLoadoutUser === johnEmail ? 'active' : ''}`}
+              onClick={() => setViewingLoadoutUser(johnEmail)}
+              title="View John's Loadout"
+            >
+              JOHN
+            </button>
+            <button
+              className={`loadout-user-btn ${viewingLoadoutUser === stephEmail ? 'active' : ''}`}
+              onClick={() => setViewingLoadoutUser(stephEmail)}
+              title="View Stef's Loadout"
+            >
+              STEF
+            </button>
+          </div>
           <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>
           <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: '500' }}>
             {dateStr.toUpperCase()}
@@ -35,9 +64,9 @@ export function TodayPlanner() {
       </div>
       
       <div className="pane-content">
-        {!isJohn && (
+        {!isViewingOwnLoadout && (
           <div className="permission-warning">
-            ◈ VIEW ONLY — OPERATOR LOCK ACTIVE
+            ◈ VIEW ONLY — {viewingUserName}'S LOADOUT
           </div>
         )}
         
@@ -101,18 +130,20 @@ interface TodaySlotProps {
 }
 
 function TodaySlot({ slot, task }: TodaySlotProps) {
-  const { isJohn, clearToday } = useApp();
+  const { currentUser, viewingLoadoutUser, clearToday } = useApp();
   const config = SLOT_CONFIG[slot];
+  
+  const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
   
   const { isOver, setNodeRef } = useDroppable({
     id: `slot-${slot}`,
     data: { slot, currentTask: task },
-    disabled: !isJohn,
+    disabled: !isViewingOwnLoadout, // Disable if viewing other user's loadout
   });
   
   const handleClearSlot = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (task && isJohn) {
+    if (task && isViewingOwnLoadout) {
       clearToday(task.task_id);
     }
   };
@@ -120,14 +151,14 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`slot ${config.size} ${task ? 'filled' : 'empty'} ${isOver && isJohn ? 'drag-over' : ''}`}
+      className={`slot ${config.size} ${task ? 'filled' : 'empty'} ${isOver && isViewingOwnLoadout ? 'drag-over' : ''}`}
     >
       <span className="slot-label">{slot}</span>
       
       {task ? (
         <div style={{ position: 'relative', height: '100%' }}>
-          <TaskCard task={task} showDragHandle={isJohn} inSlot />
-          {isJohn && (
+          <TaskCard task={task} showDragHandle={isViewingOwnLoadout} inSlot />
+          {isViewingOwnLoadout && (
             <button
               className="btn-clear-slot"
               onClick={handleClearSlot}

@@ -27,6 +27,7 @@ interface AppContextType {
   isModalOpen: boolean;
   isCreating: boolean;
   toast: { message: string; type: 'success' | 'error' } | null;
+  viewingLoadoutUser: string; // Which user's loadout we're viewing
   
   // Actions
   setAssigneeFilter: (filter: AssigneeFilter) => void;
@@ -34,6 +35,7 @@ interface AppContextType {
   toggleShowCompleted: () => void;
   openTaskModal: (task: Task | null, creating?: boolean) => void;
   closeModal: () => void;
+  setViewingLoadoutUser: (email: string) => void;
   refreshTasks: () => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<void>;
   updateTask: (input: UpdateTaskInput) => Promise<void>;
@@ -83,6 +85,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(JOHN_EMAIL); // Default to John, will update on mount
   
   // Toast helper
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
@@ -124,6 +127,7 @@ export function AppProvider({ children }: AppProviderProps) {
   // Initial fetch (after setting user email)
   useEffect(() => {
     setCurrentUserEmail(currentUser);
+    setViewingLoadoutUser(currentUser); // Start viewing own loadout
     refreshTasks();
     fetchCompletedTasks(); // Also fetch completed tasks for accomplished section
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -236,8 +240,9 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [tasks, showToast]);
   
   const assignToday = useCallback(async (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => {
-    if (!isJohn) {
-      showToast('Only John can edit Today slots', 'error');
+    // Only allow editing if viewing own loadout
+    if (viewingLoadoutUser !== currentUser) {
+      showToast('You can only edit your own Today slots', 'error');
       return;
     }
     
@@ -266,11 +271,12 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to assign to Today', 'error');
     }
-  }, [isJohn, tasks, showToast]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
   
   const clearToday = useCallback(async (taskId: string) => {
-    if (!isJohn) {
-      showToast('Only John can edit Today slots', 'error');
+    // Only allow editing if viewing own loadout
+    if (viewingLoadoutUser !== currentUser) {
+      showToast('You can only edit your own Today slots', 'error');
       return;
     }
     
@@ -290,7 +296,7 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to clear from Today', 'error');
     }
-  }, [isJohn, tasks, showToast]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
   
   // Computed values
   const inboxTasks = tasks
@@ -311,19 +317,21 @@ export function AppProvider({ children }: AppProviderProps) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   
+  // Filter todayTasks by viewingLoadoutUser
   const todayTasks = new Map<TodaySlot, Task>();
   tasks.forEach(t => {
-    if (t.today_slot && t.status === 'open') {
+    if (t.today_slot && t.status === 'open' && t.today_user === viewingLoadoutUser) {
       todayTasks.set(t.today_slot as TodaySlot, t);
     }
   });
 
-  // Tasks accomplished today (completed today, preferably from a slot)
+  // Tasks accomplished today (completed today, filtered by viewingLoadoutUser)
   const today = new Date().toDateString();
   const accomplishedToday = completedTasks.filter(t => {
     if (!t.completed_at) return false;
     const completedDate = new Date(t.completed_at).toDateString();
-    return completedDate === today;
+    // Filter by the user whose loadout we're viewing
+    return completedDate === today && t.today_user === viewingLoadoutUser;
   }).sort((a, b) => {
     // Sort by slot priority first (B1 > M1-M3 > S1-S5), then by completion time
     const slotOrder: Record<string, number> = { 'B1': 0, 'M1': 1, 'M2': 2, 'M3': 3, 'S1': 4, 'S2': 5, 'S3': 6, 'S4': 7, 'S5': 8 };
@@ -335,13 +343,16 @@ export function AppProvider({ children }: AppProviderProps) {
     return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
   });
   
-  // Allow toggling user for demo purposes (press 'u' key)
+  // Dev-only: Allow toggling user for testing (press 'u' key)
+  // In production, users would log in with their own Google account
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'u' && !isModalOpen) {
+      // Only enable in development (check for dev mode or allow disabling)
+      if (e.key === 'u' && !isModalOpen && import.meta.env.DEV) {
         setCurrentUser(prev => {
           const newUser = prev === JOHN_EMAIL ? STEPH_EMAIL : JOHN_EMAIL;
           setCurrentUserEmail(newUser);
+          setViewingLoadoutUser(newUser); // Also switch loadout view
           return newUser;
         });
       }
@@ -382,6 +393,8 @@ export function AppProvider({ children }: AppProviderProps) {
     inboxTasks,
     todayTasks,
     accomplishedToday,
+    viewingLoadoutUser,
+    setViewingLoadoutUser,
   };
   
   return (

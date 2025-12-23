@@ -17,6 +17,7 @@ export interface Task {
   today_slot: TodaySlot | '';
   today_set_at: string;
   completed_at: string;
+  today_user: string;
 }
 
 export interface CreateTaskInput {

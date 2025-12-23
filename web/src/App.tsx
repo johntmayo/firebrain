@@ -24,6 +24,7 @@ function AppContent() {
     isJohn, 
     johnEmail, 
     stephEmail,
+    viewingLoadoutUser,
     assignToday, 
     clearToday,
     showToast,
@@ -59,10 +60,12 @@ function AppContent() {
     
     const { active, over } = event;
     
+    const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
+    
     if (!over) {
-      // Dropped outside any droppable - if from a slot, clear it
+      // Dropped outside any droppable - if from a slot, clear it (only if viewing own loadout)
       const fromSlot = active.data.current?.fromSlot;
-      if (fromSlot && isJohn) {
+      if (fromSlot && isViewingOwnLoadout) {
         const task = active.data.current?.task as Task;
         if (task) {
           clearToday(task.task_id);
@@ -75,8 +78,8 @@ function AppContent() {
     
     // Check if dropped on a Today slot
     if (overId.startsWith('slot-')) {
-      if (!isJohn) {
-        showToast('Only John can edit Today slots', 'error');
+      if (!isViewingOwnLoadout) {
+        showToast('You can only edit your own Today slots', 'error');
         return;
       }
       
@@ -97,8 +100,8 @@ function AppContent() {
       }
       // If same task dropped on its own slot, do nothing
     }
-    // Dropped on inbox - if from slot, clear it
-    else if (overId === 'inbox-drop-zone' && active.data.current?.fromSlot && isJohn) {
+    // Dropped on inbox - if from slot, clear it (only if viewing own loadout)
+    else if (overId === 'inbox-drop-zone' && active.data.current?.fromSlot && isViewingOwnLoadout) {
       const task = active.data.current?.task as Task;
       if (task?.today_slot) {
         clearToday(task.task_id);

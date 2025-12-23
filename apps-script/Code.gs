@@ -26,13 +26,14 @@ const COLS = {
   DUE_DATE: 10,
   TODAY_SLOT: 11,
   TODAY_SET_AT: 12,
-  COMPLETED_AT: 13
+  COMPLETED_AT: 13,
+  TODAY_USER: 14
 };
 
 const HEADERS = [
   'task_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
   'title', 'notes', 'priority', 'assignee', 'status', 'due_date',
-  'today_slot', 'today_set_at', 'completed_at'
+  'today_slot', 'today_set_at', 'completed_at', 'today_user'
 ];
 
 const VALID_SLOTS = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
@@ -169,7 +170,8 @@ function createTask(body, callerEmail) {
     body.due_date || '',                 // due_date
     '',                                  // today_slot
     '',                                  // today_set_at
-    ''                                   // completed_at
+    '',                                  // completed_at
+    ''                                   // today_user
   ];
   
   sheet.appendRow(newRow);
@@ -246,7 +248,8 @@ function completeTask(body, callerEmail) {
   
   row[COLS.STATUS] = 'done';
   row[COLS.COMPLETED_AT] = now;
-  row[COLS.TODAY_SLOT] = '';  // Clear from Today
+  // Preserve today_slot and today_user for accomplished tracking (frontend will handle display)
+  // Don't clear them here - let frontend filter by completed_at date
   row[COLS.UPDATED_AT] = now;
   row[COLS.UPDATED_BY] = callerEmail;
   
@@ -259,14 +262,9 @@ function completeTask(body, callerEmail) {
 }
 
 /**
- * POST /today/assign - Assign task to Today slot (John only)
+ * POST /today/assign - Assign task to Today slot (per-user slots)
  */
 function assignToday(body, callerEmail) {
-  // John-only enforcement
-  if (callerEmail !== JOHN_EMAIL) {
-    return jsonResponse({ error: 'Only John can edit Today slots' }, 403);
-  }
-  
   if (!body.task_id || !body.today_slot) {
     return jsonResponse({ error: 'task_id and today_slot are required' }, 400);
   }
@@ -285,10 +283,14 @@ function assignToday(body, callerEmail) {
   const data = sheet.getDataRange().getValues();
   const now = new Date().toISOString();
   
-  // Check if slot is occupied
+  // Check if slot is occupied BY THIS USER (per-user slots)
   let occupyingRowIndex = -1;
   for (let i = 1; i < data.length; i++) {
-    if (data[i][COLS.TODAY_SLOT] === body.today_slot && data[i][COLS.TASK_ID] !== body.task_id) {
+    const row = data[i];
+    // Check if slot is occupied by the same user (callerEmail)
+    if (row[COLS.TODAY_SLOT] === body.today_slot && 
+        row[COLS.TODAY_USER] === callerEmail && 
+        row[COLS.TASK_ID] !== body.task_id) {
       occupyingRowIndex = i + 1; // Sheet rows are 1-indexed
       break;
     }
@@ -303,14 +305,16 @@ function assignToday(body, callerEmail) {
       
       const taskOldSlot = taskRow[COLS.TODAY_SLOT];
       
-      // Swap slots
+      // Swap slots (both tasks belong to callerEmail)
       taskRow[COLS.TODAY_SLOT] = body.today_slot;
       taskRow[COLS.TODAY_SET_AT] = now;
+      taskRow[COLS.TODAY_USER] = callerEmail;
       taskRow[COLS.UPDATED_AT] = now;
       taskRow[COLS.UPDATED_BY] = callerEmail;
       
       occupyingRow[COLS.TODAY_SLOT] = taskOldSlot || '';
       occupyingRow[COLS.TODAY_SET_AT] = taskOldSlot ? now : '';
+      occupyingRow[COLS.TODAY_USER] = taskOldSlot ? callerEmail : '';
       occupyingRow[COLS.UPDATED_AT] = now;
       occupyingRow[COLS.UPDATED_BY] = callerEmail;
       
@@ -330,9 +334,10 @@ function assignToday(body, callerEmail) {
   // Assign to slot
   const taskRow = sheet.getRange(taskRowIndex, 1, 1, HEADERS.length).getValues()[0];
   
-  // Clear any existing slot for this task first
+  // Assign to slot and set today_user to callerEmail
   taskRow[COLS.TODAY_SLOT] = body.today_slot;
   taskRow[COLS.TODAY_SET_AT] = now;
+  taskRow[COLS.TODAY_USER] = callerEmail;
   taskRow[COLS.UPDATED_AT] = now;
   taskRow[COLS.UPDATED_BY] = callerEmail;
   
@@ -345,14 +350,9 @@ function assignToday(body, callerEmail) {
 }
 
 /**
- * POST /today/clear - Remove task from Today (John only)
+ * POST /today/clear - Remove task from Today (only own slots)
  */
 function clearToday(body, callerEmail) {
-  // John-only enforcement
-  if (callerEmail !== JOHN_EMAIL) {
-    return jsonResponse({ error: 'Only John can edit Today slots' }, 403);
-  }
-  
   if (!body.task_id) {
     return jsonResponse({ error: 'task_id is required' }, 400);
   }
@@ -365,10 +365,17 @@ function clearToday(body, callerEmail) {
   }
   
   const row = sheet.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
+  
+  // Only allow clearing own slots
+  if (row[COLS.TODAY_USER] && row[COLS.TODAY_USER] !== callerEmail) {
+    return jsonResponse({ error: 'You can only clear your own Today slots' }, 403);
+  }
+  
   const now = new Date().toISOString();
   
   row[COLS.TODAY_SLOT] = '';
   row[COLS.TODAY_SET_AT] = '';
+  row[COLS.TODAY_USER] = '';
   row[COLS.UPDATED_AT] = now;
   row[COLS.UPDATED_BY] = callerEmail;
   
@@ -507,7 +514,8 @@ function rowToTask(row) {
     due_date: row[COLS.DUE_DATE],
     today_slot: row[COLS.TODAY_SLOT],
     today_set_at: row[COLS.TODAY_SET_AT],
-    completed_at: row[COLS.COMPLETED_AT]
+    completed_at: row[COLS.COMPLETED_AT],
+    today_user: row[COLS.TODAY_USER] || ''
   };
 }
 

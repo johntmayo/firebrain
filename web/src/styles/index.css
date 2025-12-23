@@ -757,6 +757,35 @@ body::before {
   color: var(--bg-primary);
 }
 
+/* Loadout user toggle buttons (similar to filter-btn but smaller) */
+.loadout-user-btn {
+  padding: 0.15rem 0.35rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loadout-user-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.loadout-user-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
 .view-toggle {
   display: flex;
   background: var(--bg-tertiary);
