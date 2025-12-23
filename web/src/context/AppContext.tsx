@@ -86,7 +86,9 @@ export function AppProvider({ children }: AppProviderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(JOHN_EMAIL); // Default to John, will update on mount
+  const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(() => {
+    return localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
+  }); // Start viewing own loadout
   
   // Toast helper
   const showToast = useCallback((message: string, type: 'success' | 'error') => {

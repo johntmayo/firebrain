@@ -107,7 +107,7 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
             style={{
               width: '100%',
               padding: '0.75rem',
-              background: loading || !password 
+              background: loading || !email || !password 
                 ? 'var(--bg-tertiary, #2a2a2a)' 
                 : 'var(--accent-primary, #8b5cf6)',
               border: 'none',
