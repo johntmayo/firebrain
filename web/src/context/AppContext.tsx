@@ -251,11 +251,11 @@ export function AppProvider({ children }: AppProviderProps) {
     // Optimistic update
     setTasks(prev => prev.map(t => {
       if (t.task_id === taskId) {
-        return { ...t, today_slot: slot, today_set_at: new Date().toISOString() };
+        return { ...t, today_slot: slot, today_set_at: new Date().toISOString(), today_user: currentUser };
       }
       if (swapWithTaskId && t.task_id === swapWithTaskId) {
         const sourceTask = prev.find(x => x.task_id === taskId);
-        return { ...t, today_slot: sourceTask?.today_slot || '' };
+        return { ...t, today_slot: sourceTask?.today_slot || '', today_user: sourceTask?.today_slot ? currentUser : '' };
       }
       return t;
     }));
@@ -263,8 +263,13 @@ export function AppProvider({ children }: AppProviderProps) {
     try {
       const result = await api.assignToday(taskId, slot, swapWithTaskId);
       setTasks(prev => prev.map(t => {
-        if (t.task_id === result.task.task_id) return result.task;
-        if (result.swappedTask && t.task_id === result.swappedTask.task_id) return result.swappedTask;
+        if (t.task_id === result.task.task_id) {
+          // Ensure today_user is set (defensive)
+          return { ...result.task, today_user: result.task.today_user || currentUser };
+        }
+        if (result.swappedTask && t.task_id === result.swappedTask.task_id) {
+          return { ...result.swappedTask, today_user: result.swappedTask.today_user || currentUser };
+        }
         return t;
       }));
     } catch (err) {
@@ -284,7 +289,7 @@ export function AppProvider({ children }: AppProviderProps) {
     
     // Optimistic update
     setTasks(prev => prev.map(t => 
-      t.task_id === taskId ? { ...t, today_slot: '', today_set_at: '' } : t
+      t.task_id === taskId ? { ...t, today_slot: '', today_set_at: '', today_user: '' } : t
     ));
     
     try {
@@ -318,10 +323,18 @@ export function AppProvider({ children }: AppProviderProps) {
     });
   
   // Filter todayTasks by viewingLoadoutUser
+  // For backward compatibility: if today_user is empty, check assignee instead
   const todayTasks = new Map<TodaySlot, Task>();
   tasks.forEach(t => {
-    if (t.today_slot && t.status === 'open' && t.today_user === viewingLoadoutUser) {
-      todayTasks.set(t.today_slot as TodaySlot, t);
+    if (t.today_slot && t.status === 'open') {
+      // Check if task belongs to viewing user
+      const belongsToUser = t.today_user 
+        ? t.today_user === viewingLoadoutUser 
+        : t.assignee === viewingLoadoutUser; // Backward compatibility
+      
+      if (belongsToUser) {
+        todayTasks.set(t.today_slot as TodaySlot, t);
+      }
     }
   });
 
