@@ -1,4 +1,5 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+export type Challenge = 'one' | 'three' | 'five';
 export type Status = 'open' | 'done' | 'archived';
 export type TodaySlot = 'B1' | 'M1' | 'M2' | 'M3' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5';
 
@@ -11,6 +12,7 @@ export interface Task {
   title: string;
   notes: string;
   priority: Priority;
+  challenge: Challenge | '';
   assignee: string;
   status: Status;
   due_date: string;
@@ -24,6 +26,7 @@ export interface CreateTaskInput {
   title: string;
   notes?: string;
   priority?: Priority;
+  challenge?: Challenge;
   assignee?: string;
   due_date?: string;
 }
@@ -33,6 +36,7 @@ export interface UpdateTaskInput {
   title?: string;
   notes?: string;
   priority?: Priority;
+  challenge?: Challenge;
   assignee?: string;
   status?: Status;
   due_date?: string;
@@ -66,5 +70,11 @@ export const PRIORITY_ORDER: Record<Priority, number> = {
   high: 1,
   medium: 2,
   low: 3,
+};
+
+export const CHALLENGE_ORDER: Record<Challenge, number> = {
+  one: 0,
+  three: 1,
+  five: 2,
 };
 

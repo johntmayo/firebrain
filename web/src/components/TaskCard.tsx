@@ -47,29 +47,28 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
       ref={setNodeRef}
       className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''}`}
       onClick={handleClick}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
+      style={{ opacity: isDragging ? 0.5 : 1, position: 'relative' }}
     >
+      {showDragHandle && !isCompleted && (
+        <div 
+          className="drag-handle"
+          {...listeners}
+          {...attributes}
+          onClick={handleDragHandleClick}
+          onTouchStart={handleDragHandleClick}
+          title="Drag to move"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="12" r="1"/>
+            <circle cx="9" cy="5" r="1"/>
+            <circle cx="9" cy="19" r="1"/>
+            <circle cx="15" cy="12" r="1"/>
+            <circle cx="15" cy="5" r="1"/>
+            <circle cx="15" cy="19" r="1"/>
+          </svg>
+        </div>
+      )}
       <div className="task-card-header">
-        {showDragHandle && !isCompleted && (
-          <div 
-            className="drag-handle"
-            {...listeners}
-            {...attributes}
-            onClick={handleDragHandleClick}
-            onTouchStart={handleDragHandleClick}
-            title="Drag to move"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="12" r="1"/>
-              <circle cx="9" cy="5" r="1"/>
-              <circle cx="9" cy="19" r="1"/>
-              <circle cx="15" cy="12" r="1"/>
-              <circle cx="15" cy="5" r="1"/>
-              <circle cx="15" cy="19" r="1"/>
-            </svg>
-          </div>
-        )}
-        
         <div className="task-content">
           <div className="task-title">{task.title}</div>
           <div className="task-meta">

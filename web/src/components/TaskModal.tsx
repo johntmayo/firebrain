@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Priority, CreateTaskInput, UpdateTaskInput, TodaySlot } from '../types';
+import type { Priority, Challenge, CreateTaskInput, UpdateTaskInput, TodaySlot } from '../types';
 import { ALL_SLOTS, SLOT_CONFIG } from '../types';
 
 export function TaskModal() {
@@ -23,10 +23,23 @@ export function TaskModal() {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
+  const [challenge, setChallenge] = useState<Challenge | ''>('');
   const [assignee, setAssignee] = useState(johnEmail);
   const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TodaySlot | ''>('');
+  
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
   
   // Populate form when editing
   useEffect(() => {
@@ -34,6 +47,7 @@ export function TaskModal() {
       setTitle(selectedTask.title);
       setNotes(selectedTask.notes || '');
       setPriority(selectedTask.priority);
+      setChallenge(selectedTask.challenge || '');
       setAssignee(selectedTask.assignee);
       setDueDate(selectedTask.due_date || '');
       // Set current slot if task is assigned to today
@@ -43,6 +57,7 @@ export function TaskModal() {
       setTitle('');
       setNotes('');
       setPriority('medium');
+      setChallenge('');
       setAssignee(johnEmail);
       setDueDate('');
       setSelectedSlot('');
@@ -63,6 +78,7 @@ export function TaskModal() {
           title: title.trim(),
           notes: notes.trim() || undefined,
           priority,
+          challenge: challenge || undefined,
           assignee,
           due_date: dueDate || undefined,
         };
@@ -73,6 +89,7 @@ export function TaskModal() {
           title: title.trim(),
           notes: notes.trim(),
           priority,
+          challenge: challenge || undefined,
           assignee,
           due_date: dueDate,
         };
@@ -176,6 +193,23 @@ export function TaskModal() {
               </div>
               
               <div className="form-group">
+                <label htmlFor="challenge">ESTIMATED CHALLENGE</label>
+                <select
+                  id="challenge"
+                  className="form-select"
+                  value={challenge}
+                  onChange={e => setChallenge(e.target.value as Challenge | '')}
+                >
+                  <option value="">NONE</option>
+                  <option value="one">ONE</option>
+                  <option value="three">THREE</option>
+                  <option value="five">FIVE</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
                 <label htmlFor="assignee">OPERATOR</label>
                 <select
                   id="assignee"
@@ -187,10 +221,9 @@ export function TaskModal() {
                   <option value={stephEmail}>STEF</option>
                 </select>
               </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="dueDate">DEADLINE</label>
+              
+              <div className="form-group">
+                <label htmlFor="dueDate">DEADLINE</label>
               <input
                 id="dueDate"
                 type="date"

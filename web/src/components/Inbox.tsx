@@ -16,6 +16,8 @@ export function Inbox() {
     setViewMode,
     showCompleted,
     toggleShowCompleted,
+    sortBy,
+    setSortBy,
     openTaskModal
   } = useApp();
 
@@ -67,6 +69,23 @@ export function Inbox() {
               title="Grid view"
             >
               ⊞
+            </button>
+          </div>
+          
+          <div className="sort-toggle">
+            <button 
+              className={`filter-btn ${sortBy === 'priority' ? 'active' : ''}`}
+              onClick={() => setSortBy('priority')}
+              title="Sort by Priority"
+            >
+              PRIORITY
+            </button>
+            <button 
+              className={`filter-btn ${sortBy === 'challenge' ? 'active' : ''}`}
+              onClick={() => setSortBy('challenge')}
+              title="Sort by Challenge"
+            >
+              CHALLENGE
             </button>
           </div>
           

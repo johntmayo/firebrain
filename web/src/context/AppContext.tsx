@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput } from '../types';
-import { PRIORITY_ORDER } from '../types';
+import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge } from '../types';
+import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
 import { api, setCurrentUserEmail, type BulkImportResponse } from '../api/client';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
@@ -23,6 +23,7 @@ interface AppContextType {
   assigneeFilter: AssigneeFilter;
   viewMode: ViewMode;
   showCompleted: boolean;
+  sortBy: 'priority' | 'challenge';
   selectedTask: Task | null;
   isModalOpen: boolean;
   isCreating: boolean;
@@ -33,6 +34,8 @@ interface AppContextType {
   setAssigneeFilter: (filter: AssigneeFilter) => void;
   setViewMode: (mode: ViewMode) => void;
   toggleShowCompleted: () => void;
+  setSortBy: (sortBy: 'priority' | 'challenge') => void;
+  setSortBy: (sortBy: 'priority' | 'challenge') => void;
   openTaskModal: (task: Task | null, creating?: boolean) => void;
   closeModal: () => void;
   setViewingLoadoutUser: (email: string) => void;
@@ -86,6 +89,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(defaultFilter);
   const [viewMode, setViewMode] = useState<ViewMode>('buckets');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [sortBy, setSortBy] = useState<'priority' | 'challenge'>('priority');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -329,9 +333,26 @@ export function AppProvider({ children }: AppProviderProps) {
       }
     })
     .sort((a, b) => {
-      // Sort by priority, then by created_at (newest first)
-      const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      if (priorityDiff !== 0) return priorityDiff;
+      if (sortBy === 'challenge') {
+        // Sort by challenge, then by priority, then by created_at
+        const aChallenge = a.challenge || 'five'; // Default to 'five' if no challenge
+        const bChallenge = b.challenge || 'five';
+        const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
+        if (challengeDiff !== 0) return challengeDiff;
+        // Then by priority
+        const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+      } else {
+        // Sort by priority, then by challenge, then by created_at
+        const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        // Then by challenge
+        const aChallenge = a.challenge || 'five';
+        const bChallenge = b.challenge || 'five';
+        const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
+        if (challengeDiff !== 0) return challengeDiff;
+      }
+      // Finally by created_at (newest first)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   
@@ -384,6 +405,7 @@ export function AppProvider({ children }: AppProviderProps) {
     assigneeFilter,
     viewMode,
     showCompleted,
+    sortBy,
     selectedTask,
     isModalOpen,
     isCreating,
@@ -391,6 +413,7 @@ export function AppProvider({ children }: AppProviderProps) {
     setAssigneeFilter,
     setViewMode,
     toggleShowCompleted,
+    setSortBy,
     openTaskModal,
     closeModal,
     refreshTasks,
