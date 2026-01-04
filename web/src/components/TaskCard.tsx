@@ -31,6 +31,10 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
     openTaskModal(task);
   };
   
+  const handleDragHandleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation(); // Prevent opening modal when clicking handle
+  };
+  
   const isOverdue = task.due_date && new Date(task.due_date) < new Date();
   const assigneeName = task.assignee === johnEmail ? 'John' : 
                        task.assignee === stephEmail ? 'Stef' : 
@@ -43,10 +47,29 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
       ref={setNodeRef}
       className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''}`}
       onClick={handleClick}
-      style={{ opacity: isDragging ? 0.5 : 1, cursor: showDragHandle && !isCompleted ? 'grab' : 'pointer' }}
-      {...(showDragHandle && !isCompleted ? { ...listeners, ...attributes } : {})}
+      style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       <div className="task-card-header">
+        {showDragHandle && !isCompleted && (
+          <div 
+            className="drag-handle"
+            {...listeners}
+            {...attributes}
+            onClick={handleDragHandleClick}
+            onTouchStart={handleDragHandleClick}
+            title="Drag to move"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="12" r="1"/>
+              <circle cx="9" cy="5" r="1"/>
+              <circle cx="9" cy="19" r="1"/>
+              <circle cx="15" cy="12" r="1"/>
+              <circle cx="15" cy="5" r="1"/>
+              <circle cx="15" cy="19" r="1"/>
+            </svg>
+          </div>
+        )}
+        
         <div className="task-content">
           <div className="task-title">{task.title}</div>
           <div className="task-meta">

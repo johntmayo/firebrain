@@ -883,6 +883,7 @@ body::before {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-xs);
+  position: relative;
 }
 
 .task-content {
@@ -996,21 +997,54 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   color: var(--text-muted);
   cursor: grab;
   flex-shrink: 0;
-  opacity: 0.4;
-  transition: opacity 0.15s ease;
+  opacity: 0.6;
+  transition: all 0.15s ease;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  padding: 4px;
+  margin-right: var(--space-xs);
 }
 
-.task-card:hover .drag-handle {
+.task-card:hover .drag-handle,
+.task-card:active .drag-handle {
   opacity: 1;
+  color: var(--accent-primary);
 }
 
 .drag-handle:active {
   cursor: grabbing;
+  opacity: 1;
+  color: var(--accent-primary);
+  transform: scale(1.1);
+}
+
+/* Mobile: Always show drag handle more prominently */
+@media (max-width: 768px) {
+  .drag-handle {
+    opacity: 0.8;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+  
+  .task-card .drag-handle {
+    opacity: 0.8;
+  }
+  
+  .task-card:hover .drag-handle,
+  .task-card:active .drag-handle {
+    opacity: 1;
+  }
 }
 
 /* ============================================
@@ -1473,6 +1507,74 @@ body::before {
 
 .form-select {
   cursor: pointer;
+}
+
+/* Slot Selector in Modal */
+.slot-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.slot-select-btn {
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.slot-select-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.slot-select-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 700;
+}
+
+.slot-select-btn.occupied {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--bg-secondary);
+}
+
+.slot-select-btn.slot-big.active {
+  background: var(--slot-legendary);
+  border-color: var(--slot-legendary);
+}
+
+.slot-select-btn.slot-medium.active {
+  background: var(--slot-epic);
+  border-color: var(--slot-epic);
+}
+
+.slot-select-btn.slot-small.active {
+  background: var(--slot-rare);
+  border-color: var(--slot-rare);
+}
+
+.slot-select-btn:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .slot-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ============================================
