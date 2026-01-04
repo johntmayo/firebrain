@@ -50,23 +50,23 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
       style={{ opacity: isDragging ? 0.5 : 1, position: 'relative' }}
     >
       {showDragHandle && !isCompleted && (
-        <div 
-          className="drag-handle"
-          {...listeners}
-          {...attributes}
-          onClick={handleDragHandleClick}
-          onTouchStart={handleDragHandleClick}
-          title="Drag to move"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="12" r="1"/>
-            <circle cx="9" cy="5" r="1"/>
-            <circle cx="9" cy="19" r="1"/>
-            <circle cx="15" cy="12" r="1"/>
-            <circle cx="15" cy="5" r="1"/>
-            <circle cx="15" cy="19" r="1"/>
-          </svg>
-        </div>
+          <div 
+            className="drag-handle"
+            {...listeners}
+            {...attributes}
+            onClick={handleDragHandleClick}
+            onTouchStart={handleDragHandleClick}
+            title="Drag to move"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="12" r="1"/>
+              <circle cx="9" cy="5" r="1"/>
+              <circle cx="9" cy="19" r="1"/>
+              <circle cx="15" cy="12" r="1"/>
+              <circle cx="15" cy="5" r="1"/>
+              <circle cx="15" cy="19" r="1"/>
+            </svg>
+          </div>
       )}
       <div className="task-card-header">
         <div className="task-content">
