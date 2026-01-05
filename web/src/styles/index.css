@@ -899,6 +899,9 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  /* Add padding to account for absolutely positioned drag handle and complete button */
+  padding-left: 20px;
+  padding-right: 26px;
 }
 
 .task-title {
@@ -972,19 +975,23 @@ body::before {
   font-size: 0.7rem;
 }
 
-/* Task actions */
+/* Task actions - positioned absolutely in top-right */
 .task-actions {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
   display: flex;
   gap: var(--space-xs);
-  flex-shrink: 0;
+  z-index: 2;
 }
 
 .btn-done {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   background: transparent;
   border: 1px solid var(--border-color);
   clip-path: var(--chamfer-sm);
@@ -1047,6 +1054,11 @@ body::before {
 
 /* Mobile: Slightly larger for touch but still minimal */
 @media (max-width: 768px) {
+  .task-content {
+    padding-left: 22px; /* Slightly more for larger mobile handle */
+    padding-right: 24px;
+  }
+  
   .drag-handle {
     opacity: 0.4;
     width: 18px;
@@ -1069,6 +1081,11 @@ body::before {
   .task-card:hover .drag-handle,
   .task-card:active .drag-handle {
     opacity: 0.7;
+  }
+  
+  .btn-done {
+    width: 18px;
+    height: 18px;
   }
 }
 
