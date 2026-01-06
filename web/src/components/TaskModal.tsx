@@ -224,13 +224,14 @@ export function TaskModal() {
               
               <div className="form-group">
                 <label htmlFor="dueDate">DEADLINE</label>
-              <input
-                id="dueDate"
-                type="date"
-                className="form-input"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-              />
+                <input
+                  id="dueDate"
+                  type="date"
+                  className="form-input"
+                  value={dueDate}
+                  onChange={e => setDueDate(e.target.value)}
+                />
+              </div>
             </div>
             
             {canAssignToSlots && (
