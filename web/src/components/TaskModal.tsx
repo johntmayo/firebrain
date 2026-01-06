@@ -201,9 +201,9 @@ export function TaskModal() {
                   onChange={e => setChallenge(e.target.value as Challenge | '')}
                 >
                   <option value="">NONE</option>
-                  <option value="one">ONE</option>
-                  <option value="three">THREE</option>
-                  <option value="five">FIVE</option>
+                  <option value="low">LOW</option>
+                  <option value="medium">MEDIUM</option>
+                  <option value="high">HIGH</option>
                 </select>
               </div>
             </div>

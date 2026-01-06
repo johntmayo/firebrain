@@ -335,8 +335,8 @@ export function AppProvider({ children }: AppProviderProps) {
     .sort((a, b) => {
       if (sortBy === 'challenge') {
         // Sort by challenge, then by priority, then by created_at
-        const aChallenge = a.challenge || 'five'; // Default to 'five' if no challenge
-        const bChallenge = b.challenge || 'five';
+        const aChallenge = a.challenge || 'high'; // Default to 'high' if no challenge
+        const bChallenge = b.challenge || 'high';
         const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
         if (challengeDiff !== 0) return challengeDiff;
         // Then by priority

@@ -1,5 +1,5 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type Challenge = 'one' | 'three' | 'five';
+export type Challenge = 'low' | 'medium' | 'high';
 export type Status = 'open' | 'done' | 'archived';
 export type TodaySlot = 'B1' | 'M1' | 'M2' | 'M3' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5';
 
@@ -73,8 +73,8 @@ export const PRIORITY_ORDER: Record<Priority, number> = {
 };
 
 export const CHALLENGE_ORDER: Record<Challenge, number> = {
-  one: 0,
-  three: 1,
-  five: 2,
+  low: 0,
+  medium: 1,
+  high: 2,
 };
 
