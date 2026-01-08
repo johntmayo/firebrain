@@ -10,9 +10,25 @@ interface TaskCardProps {
   showDragHandle?: boolean;
   inSlot?: boolean;
   completed?: boolean;
+  showTimerButton?: boolean;
+  showRemoveButton?: boolean;
+  onTimerClick?: () => void;
+  onRemoveClick?: () => void;
+  isTimerActive?: boolean;
 }
 
-export function TaskCard({ task, compact = false, showDragHandle = true, inSlot = false, completed = false }: TaskCardProps) {
+export function TaskCard({
+  task,
+  compact = false,
+  showDragHandle = true,
+  inSlot = false,
+  completed = false,
+  showTimerButton = false,
+  showRemoveButton = false,
+  onTimerClick,
+  onRemoveClick,
+  isTimerActive = false
+}: TaskCardProps) {
   const { completeTask, openTaskModal, johnEmail, stephEmail } = useApp();
   const { activeTimer, getTimerProgress } = useTimer();
 
@@ -110,6 +126,18 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
         
         {!isCompleted && (
           <div className="task-actions">
+            {showTimerButton && onTimerClick && (
+              <button
+                className={`btn-timer-icon ${isTimerActive ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTimerClick();
+                }}
+                title={isTimerActive ? "Timer active" : "Start timer"}
+              >
+                ⏱️
+              </button>
+            )}
             <button
               className="btn-done"
               onClick={handleDone}
@@ -119,6 +147,18 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </button>
+            {showRemoveButton && onRemoveClick && (
+              <button
+                className="btn-remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveClick();
+                }}
+                title="Remove from Today"
+              >
+                ×
+              </button>
+            )}
           </div>
         )}
       </div>

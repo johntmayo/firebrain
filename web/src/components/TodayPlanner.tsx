@@ -162,20 +162,19 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
       
       {task ? (
         <div style={{ position: 'relative', height: '100%' }}>
-          <TaskCard task={task} showDragHandle={isViewingOwnLoadout} inSlot />
-
-          {/* Timer Icon */}
-          <button
-            className={`btn-timer-icon ${isActiveTimer ? 'active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
+          <TaskCard
+            task={task}
+            showDragHandle={isViewingOwnLoadout}
+            inSlot
+            showTimerButton
+            showRemoveButton={isViewingOwnLoadout}
+            onTimerClick={() => {
               console.log('Timer button clicked, opening modal'); // Debug
               setShowTimerModal(true);
             }}
-            title={isActiveTimer ? "Timer active" : "Start timer"}
-          >
-            ⏱️
-          </button>
+            onRemoveClick={handleClearSlot}
+            isTimerActive={isActiveTimer}
+          />
 
           {/* Timer Modal */}
           <TimerModal
@@ -184,16 +183,6 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
             taskId={task.task_id}
             taskTitle={task.title}
           />
-
-          {isViewingOwnLoadout && (
-            <button
-              className="btn-clear-slot"
-              onClick={handleClearSlot}
-              title="Remove from Today"
-            >
-              ×
-            </button>
-          )}
         </div>
       ) : (
         <span>[ EMPTY SLOT ]</span>
