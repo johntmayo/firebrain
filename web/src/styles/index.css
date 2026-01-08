@@ -1120,6 +1120,96 @@ body::before {
   justify-content: center;
 }
 
+/* Timer Icon Button */
+.btn-timer-icon {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  color: var(--accent-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.btn-timer-icon:hover {
+  border-color: var(--accent-secondary);
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent-primary);
+}
+
+.btn-timer-icon.active {
+  background: var(--accent-secondary);
+  color: var(--bg-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Timer Dropdown */
+.timer-dropdown-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.timer-dropdown {
+  position: absolute;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  padding: var(--space-sm);
+  min-width: 120px;
+  z-index: 1001;
+  box-shadow: var(--shadow-lg);
+}
+
+.timer-dropdown-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.timer-icon-small {
+  font-size: 0.8rem;
+}
+
+.timer-dropdown-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timer-dropdown-option {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  clip-path: var(--chamfer-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.timer-dropdown-option:hover {
+  border-color: var(--accent-secondary);
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent-primary);
+}
+
 /* Drag handle - positioned absolutely in top-left corner, minimal size */
 .drag-handle {
   position: absolute;

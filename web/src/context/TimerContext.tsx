@@ -1,22 +1,22 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task } from '../types';
 
 interface ActiveTimer {
   taskId: string;
-  startTime: Date;
+  taskTitle: string;
+  startTime: number; // timestamp
   durationMinutes: number;
-  remainingSeconds: number;
 }
 
 interface TimerContextType {
-  activeTimers: Map<string, ActiveTimer>;
-  startTimer: (task: Task) => void;
-  pauseTimer: (taskId: string) => void;
-  stopTimer: (taskId: string) => void;
-  getTimerProgress: (taskId: string) => { progress: number; remainingSeconds: number } | null;
+  activeTimer: ActiveTimer | null;
+  startTimer: (taskId: string, taskTitle: string, durationMinutes: number) => void;
+  stopTimer: () => void;
+  getTimerProgress: () => { progress: number; remainingSeconds: number; taskTitle: string } | null;
 }
 
 const TimerContext = createContext<TimerContextType | null>(null);
+
+const TIMER_STORAGE_KEY = 'firebrain-active-timer';
 
 export function useTimer() {
   const context = useContext(TimerContext);
@@ -31,91 +31,82 @@ interface TimerProviderProps {
 }
 
 export function TimerProvider({ children }: TimerProviderProps) {
-  const [activeTimers, setActiveTimers] = useState<Map<string, ActiveTimer>>(new Map());
+  const [activeTimer, setActiveTimer] = useState<ActiveTimer | null>(() => {
+    // Load from localStorage on init
+    try {
+      const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+      if (saved) {
+        const timer: ActiveTimer = JSON.parse(saved);
+        // Check if timer hasn't expired (within 24 hours)
+        const elapsed = (Date.now() - timer.startTime) / 1000 / 60; // minutes
+        if (elapsed < timer.durationMinutes + 60) { // +1 hour grace period
+          return timer;
+        }
+      }
+    } catch (e) {
+      // Invalid data, clear it
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    }
+    return null;
+  });
 
-  // Timer update interval
+  // Save to localStorage whenever activeTimer changes
   useEffect(() => {
+    if (activeTimer) {
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(activeTimer));
+    } else {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    }
+  }, [activeTimer]);
+
+  // Timer update interval - auto-stop when complete
+  useEffect(() => {
+    if (!activeTimer) return;
+
     const interval = setInterval(() => {
-      setActiveTimers(prev => {
-        const updated = new Map(prev);
-        let hasChanges = false;
-
-        updated.forEach((timer, taskId) => {
-          const elapsedSeconds = Math.floor((Date.now() - timer.startTime.getTime()) / 1000);
-          const totalSeconds = timer.durationMinutes * 60;
-          const newRemaining = Math.max(0, totalSeconds - elapsedSeconds);
-
-          if (newRemaining !== timer.remainingSeconds) {
-            updated.set(taskId, { ...timer, remainingSeconds: newRemaining });
-            hasChanges = true;
-
-            // Auto-stop timer when it reaches 0
-            if (newRemaining === 0) {
-              updated.delete(taskId);
-            }
-          }
-        });
-
-        return hasChanges ? updated : prev;
-      });
+      const elapsedMinutes = (Date.now() - activeTimer.startTime) / 1000 / 60;
+      if (elapsedMinutes >= activeTimer.durationMinutes) {
+        // Timer completed
+        setActiveTimer(null);
+        // Could add completion sound/notification here
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTimer]);
 
-  const startTimer = useCallback((task: Task) => {
-    if (!task.timer_start || !task.timer_duration || !task.timer_active) {
-      return;
-    }
-
-    const startTime = new Date(task.timer_start);
-    const totalSeconds = task.timer_duration * 60;
-    const elapsedSeconds = Math.floor((Date.now() - startTime.getTime()) / 1000);
-    const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
-
-    if (remainingSeconds > 0) {
-      setActiveTimers(prev => new Map(prev).set(task.task_id, {
-        taskId: task.task_id,
-        startTime,
-        durationMinutes: task.timer_duration,
-        remainingSeconds
-      }));
-    }
-  }, []);
-
-  const pauseTimer = useCallback((taskId: string) => {
-    setActiveTimers(prev => {
-      const updated = new Map(prev);
-      updated.delete(taskId);
-      return updated;
+  const startTimer = useCallback((taskId: string, taskTitle: string, durationMinutes: number) => {
+    // Stop any existing timer
+    setActiveTimer({
+      taskId,
+      taskTitle,
+      startTime: Date.now(),
+      durationMinutes
     });
   }, []);
 
-  const stopTimer = useCallback((taskId: string) => {
-    setActiveTimers(prev => {
-      const updated = new Map(prev);
-      updated.delete(taskId);
-      return updated;
-    });
+  const stopTimer = useCallback(() => {
+    setActiveTimer(null);
   }, []);
 
-  const getTimerProgress = useCallback((taskId: string) => {
-    const timer = activeTimers.get(taskId);
-    if (!timer) return null;
+  const getTimerProgress = useCallback(() => {
+    if (!activeTimer) return null;
 
-    const totalSeconds = timer.durationMinutes * 60;
-    const progress = ((totalSeconds - timer.remainingSeconds) / totalSeconds) * 100;
+    const elapsedMinutes = (Date.now() - activeTimer.startTime) / 1000 / 60;
+    const remainingMinutes = Math.max(0, activeTimer.durationMinutes - elapsedMinutes);
+    const progress = ((activeTimer.durationMinutes - remainingMinutes) / activeTimer.durationMinutes) * 100;
+    const remainingSeconds = Math.floor(remainingMinutes * 60);
 
     return {
       progress: Math.min(100, Math.max(0, progress)),
-      remainingSeconds: timer.remainingSeconds
+      remainingSeconds,
+      taskTitle: activeTimer.taskTitle
     };
-  }, [activeTimers]);
+  }, [activeTimer]);
 
   const value: TimerContextType = {
-    activeTimers,
+    activeTimer,
     startTimer,
-    pauseTimer,
     stopTimer,
     getTimerProgress
   };

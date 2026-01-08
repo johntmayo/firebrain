@@ -20,9 +20,6 @@ export interface Task {
   today_set_at: string;
   completed_at: string;
   today_user: string;
-  timer_start: string;
-  timer_duration: number; // in minutes
-  timer_active: boolean;
 }
 
 export interface CreateTaskInput {
@@ -32,7 +29,6 @@ export interface CreateTaskInput {
   challenge?: Challenge;
   assignee?: string;
   due_date?: string;
-  timer_duration?: number;
 }
 
 export interface UpdateTaskInput {
@@ -44,9 +40,6 @@ export interface UpdateTaskInput {
   assignee?: string;
   status?: Status;
   due_date?: string;
-  timer_start?: string;
-  timer_duration?: number;
-  timer_active?: boolean;
 }
 
 export interface AssignTodayInput {

@@ -38,17 +38,13 @@ const COLS = {
   TODAY_SLOT: 11,
   TODAY_SET_AT: 12,
   COMPLETED_AT: 13,
-  TODAY_USER: 14,
-  TIMER_START: 15,
-  TIMER_DURATION: 16,
-  TIMER_ACTIVE: 17
+  TODAY_USER: 14
 };
 
 const HEADERS = [
   'task_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
   'title', 'notes', 'priority', 'assignee', 'status', 'due_date',
-  'today_slot', 'today_set_at', 'completed_at', 'today_user',
-  'timer_start', 'timer_duration', 'timer_active'
+  'today_slot', 'today_set_at', 'completed_at', 'today_user'
 ];
 
 const VALID_SLOTS = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
@@ -209,10 +205,7 @@ function createTask(body, callerEmail) {
     '',                                  // today_slot
     '',                                  // today_set_at
     '',                                  // completed_at
-    '',                                  // today_user
-    '',                                  // timer_start
-    body.timer_duration || 0,            // timer_duration
-    false                                // timer_active
+    ''                                   // today_user
   ];
   
   sheet.appendRow(newRow);
@@ -261,9 +254,6 @@ function updateTask(body, callerEmail) {
   if (body.assignee !== undefined) row[COLS.ASSIGNEE] = body.assignee;
   if (body.status !== undefined) row[COLS.STATUS] = body.status;
   if (body.due_date !== undefined) row[COLS.DUE_DATE] = body.due_date;
-  if (body.timer_start !== undefined) row[COLS.TIMER_START] = body.timer_start;
-  if (body.timer_duration !== undefined) row[COLS.TIMER_DURATION] = body.timer_duration;
-  if (body.timer_active !== undefined) row[COLS.TIMER_ACTIVE] = body.timer_active;
   
   // Update timestamps
   row[COLS.UPDATED_AT] = now;
@@ -590,10 +580,7 @@ function rowToTask(row) {
     today_slot: safeRow[COLS.TODAY_SLOT] || '',
     today_set_at: safeRow[COLS.TODAY_SET_AT] || '',
     completed_at: safeRow[COLS.COMPLETED_AT] || '',
-    today_user: safeRow.length > COLS.TODAY_USER ? (safeRow[COLS.TODAY_USER] || '') : '',
-    timer_start: safeRow.length > COLS.TIMER_START ? (safeRow[COLS.TIMER_START] || '') : '',
-    timer_duration: safeRow.length > COLS.TIMER_DURATION ? (safeRow[COLS.TIMER_DURATION] || 0) : 0,
-    timer_active: safeRow.length > COLS.TIMER_ACTIVE ? Boolean(safeRow[COLS.TIMER_ACTIVE]) : false
+    today_user: safeRow.length > COLS.TODAY_USER ? (safeRow[COLS.TODAY_USER] || '') : ''
   };
 }
 

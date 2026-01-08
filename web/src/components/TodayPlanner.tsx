@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
+import { TimerDropdown } from './TimerDropdown';
 import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
+import { useTimer } from '../context/TimerContext';
 
 export function TodayPlanner() {
   const { 
@@ -131,9 +133,13 @@ interface TodaySlotProps {
 
 function TodaySlot({ slot, task }: TodaySlotProps) {
   const { currentUser, viewingLoadoutUser, clearToday } = useApp();
+  const { activeTimer } = useTimer();
+  const [showTimerDropdown, setShowTimerDropdown] = useState(false);
+  const timerButtonRef = useRef<HTMLButtonElement>(null);
+
   const config = SLOT_CONFIG[slot];
-  
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
+  const isActiveTimer = activeTimer && task && activeTimer.taskId === task.task_id;
   
   const { isOver, setNodeRef } = useDroppable({
     id: `slot-${slot}`,
@@ -158,6 +164,29 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
       {task ? (
         <div style={{ position: 'relative', height: '100%' }}>
           <TaskCard task={task} showDragHandle={isViewingOwnLoadout} inSlot />
+
+          {/* Timer Icon */}
+          <button
+            ref={timerButtonRef}
+            className={`btn-timer-icon ${isActiveTimer ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTimerDropdown(!showTimerDropdown);
+            }}
+            title={isActiveTimer ? "Timer active" : "Start timer"}
+          >
+            ⏱️
+          </button>
+
+          {/* Timer Dropdown */}
+          <TimerDropdown
+            taskId={task.task_id}
+            taskTitle={task.title}
+            isOpen={showTimerDropdown}
+            onClose={() => setShowTimerDropdown(false)}
+            triggerRef={timerButtonRef}
+          />
+
           {isViewingOwnLoadout && (
             <button
               className="btn-clear-slot"
