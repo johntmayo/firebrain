@@ -22,7 +22,7 @@ export function TimerModal({ isOpen, onClose, taskId, taskTitle }: TimerModalPro
   const { startTimer } = useTimer();
 
   const handleSelectDuration = (duration: number) => {
-    console.log('Starting timer:', taskId, taskTitle, duration); // Debug
+    console.log('TimerModal: handleSelectDuration called', { taskId, taskTitle, duration }); // Debug
     startTimer(taskId, taskTitle, duration);
     onClose();
   };

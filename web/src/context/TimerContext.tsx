@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 
 interface ActiveTimer {
   taskId: string;
@@ -50,6 +50,9 @@ export function TimerProvider({ children }: TimerProviderProps) {
     return null;
   });
 
+  // Force re-renders every second when timer is active
+  const [, forceUpdate] = useState(0);
+
   // Save to localStorage whenever activeTimer changes
   useEffect(() => {
     if (activeTimer) {
@@ -59,7 +62,7 @@ export function TimerProvider({ children }: TimerProviderProps) {
     }
   }, [activeTimer]);
 
-  // Timer update interval - auto-stop when complete
+  // Timer update interval - force re-renders and auto-stop when complete
   useEffect(() => {
     if (!activeTimer) return;
 
@@ -69,6 +72,10 @@ export function TimerProvider({ children }: TimerProviderProps) {
         // Timer completed
         setActiveTimer(null);
         // Could add completion sound/notification here
+      } else {
+        // Force re-render to update countdown display
+        forceUpdate(prev => prev + 1);
+        console.log('Timer tick - forcing update'); // Debug
       }
     }, 1000);
 
@@ -77,13 +84,15 @@ export function TimerProvider({ children }: TimerProviderProps) {
 
   const startTimer = useCallback((taskId: string, taskTitle: string, durationMinutes: number) => {
     console.log('TimerContext: Starting timer', { taskId, taskTitle, durationMinutes }); // Debug
-    // Stop any existing timer
-    setActiveTimer({
+    const newTimer = {
       taskId,
       taskTitle,
       startTime: Date.now(),
       durationMinutes
-    });
+    };
+    console.log('TimerContext: Setting activeTimer to:', newTimer); // Debug
+    // Stop any existing timer
+    setActiveTimer(newTimer);
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -93,10 +102,19 @@ export function TimerProvider({ children }: TimerProviderProps) {
   const getTimerProgress = useCallback(() => {
     if (!activeTimer) return null;
 
-    const elapsedMinutes = (Date.now() - activeTimer.startTime) / 1000 / 60;
+    const elapsedMs = Date.now() - activeTimer.startTime;
+    const elapsedMinutes = elapsedMs / 1000 / 60;
     const remainingMinutes = Math.max(0, activeTimer.durationMinutes - elapsedMinutes);
     const progress = ((activeTimer.durationMinutes - remainingMinutes) / activeTimer.durationMinutes) * 100;
     const remainingSeconds = Math.floor(remainingMinutes * 60);
+
+    console.log('getTimerProgress:', {
+      elapsedMs,
+      elapsedMinutes,
+      remainingMinutes,
+      progress,
+      remainingSeconds
+    }); // Debug
 
     return {
       progress: Math.min(100, Math.max(0, progress)),
