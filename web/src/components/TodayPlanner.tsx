@@ -171,6 +171,7 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
             className={`btn-timer-icon ${isActiveTimer ? 'active' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
+              console.log('Timer button clicked, toggling dropdown:', !showTimerDropdown); // Debug
               setShowTimerDropdown(!showTimerDropdown);
             }}
             title={isActiveTimer ? "Timer active" : "Start timer"}

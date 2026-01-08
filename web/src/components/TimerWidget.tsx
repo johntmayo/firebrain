@@ -6,6 +6,8 @@ export function TimerWidget() {
   const { getTimerProgress, stopTimer } = useTimer();
 
   const timerProgress = getTimerProgress();
+  console.log('TimerWidget: timerProgress', timerProgress); // Debug
+
   if (!timerProgress) return null;
 
   const formatTime = (seconds: number) => {

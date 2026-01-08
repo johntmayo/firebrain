@@ -76,6 +76,7 @@ export function TimerProvider({ children }: TimerProviderProps) {
   }, [activeTimer]);
 
   const startTimer = useCallback((taskId: string, taskTitle: string, durationMinutes: number) => {
+    console.log('TimerContext: Starting timer', { taskId, taskTitle, durationMinutes }); // Debug
     // Stop any existing timer
     setActiveTimer({
       taskId,

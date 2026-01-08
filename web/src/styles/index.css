@@ -369,7 +369,7 @@ body::before {
   flex-direction: column;
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  overflow: hidden;
+  overflow: visible; /* Allow dropdowns to show outside */
   position: relative;
 }
 
@@ -1158,17 +1158,17 @@ body::before {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .timer-dropdown {
-  position: absolute;
+  position: fixed !important;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   clip-path: var(--chamfer-sm);
   padding: var(--space-sm);
   min-width: 120px;
-  z-index: 1001;
+  z-index: 2001;
   box-shadow: var(--shadow-lg);
 }
 
