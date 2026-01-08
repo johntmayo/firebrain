@@ -369,7 +369,7 @@ body::before {
   flex-direction: column;
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  overflow: visible; /* Allow dropdowns to show outside */
+  overflow: hidden;
   position: relative;
 }
 
@@ -1151,64 +1151,68 @@ body::before {
   border-color: var(--accent-primary);
 }
 
-/* Timer Dropdown */
-.timer-dropdown-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2000;
+/* Timer Modal */
+.timer-modal {
+  max-width: 400px;
+  width: 90vw;
 }
 
-.timer-dropdown {
-  position: fixed !important;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  clip-path: var(--chamfer-sm);
-  padding: var(--space-sm);
-  min-width: 120px;
-  z-index: 2001;
-  box-shadow: var(--shadow-lg);
+.timer-task-info {
+  text-align: center;
+  margin-bottom: var(--space-lg);
 }
 
-.timer-dropdown-header {
-  font-size: 0.75rem;
+.timer-task-title {
+  font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   margin-bottom: var(--space-xs);
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
 }
 
-.timer-icon-small {
-  font-size: 0.8rem;
+.timer-task-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-.timer-dropdown-options {
+.timer-duration-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.timer-duration-option {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.timer-dropdown-option {
-  background: transparent;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  padding: 4px 8px;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   clip-path: var(--chamfer-sm);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.15s ease;
-  font-size: 0.75rem;
   text-align: center;
 }
 
-.timer-dropdown-option:hover {
+.timer-duration-option:hover {
   border-color: var(--accent-secondary);
   background: rgba(0, 212, 170, 0.1);
   color: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
+
+.duration-label {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.duration-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 
 /* Drag handle - positioned absolutely in top-left corner, minimal size */
 .drag-handle {

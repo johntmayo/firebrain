@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { TimerDropdown } from './TimerDropdown';
+import { TimerModal } from './TimerModal';
 import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
 import { useTimer } from '../context/TimerContext';
 
@@ -134,8 +134,7 @@ interface TodaySlotProps {
 function TodaySlot({ slot, task }: TodaySlotProps) {
   const { currentUser, viewingLoadoutUser, clearToday } = useApp();
   const { activeTimer } = useTimer();
-  const [showTimerDropdown, setShowTimerDropdown] = useState(false);
-  const timerButtonRef = useRef<HTMLButtonElement>(null);
+  const [showTimerModal, setShowTimerModal] = useState(false);
 
   const config = SLOT_CONFIG[slot];
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
@@ -167,25 +166,23 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
 
           {/* Timer Icon */}
           <button
-            ref={timerButtonRef}
             className={`btn-timer-icon ${isActiveTimer ? 'active' : ''}`}
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Timer button clicked, toggling dropdown:', !showTimerDropdown); // Debug
-              setShowTimerDropdown(!showTimerDropdown);
+              console.log('Timer button clicked, opening modal'); // Debug
+              setShowTimerModal(true);
             }}
             title={isActiveTimer ? "Timer active" : "Start timer"}
           >
             ⏱️
           </button>
 
-          {/* Timer Dropdown */}
-          <TimerDropdown
+          {/* Timer Modal */}
+          <TimerModal
+            isOpen={showTimerModal}
+            onClose={() => setShowTimerModal(false)}
             taskId={task.task_id}
             taskTitle={task.title}
-            isOpen={showTimerDropdown}
-            onClose={() => setShowTimerDropdown(false)}
-            triggerRef={timerButtonRef}
           />
 
           {isViewingOwnLoadout && (
