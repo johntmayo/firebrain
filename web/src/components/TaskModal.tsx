@@ -28,6 +28,7 @@ export function TaskModal() {
   const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<TodaySlot | ''>('');
+  const [timerDuration, setTimerDuration] = useState(0);
   
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -50,6 +51,7 @@ export function TaskModal() {
       setChallenge(selectedTask.challenge || '');
       setAssignee(selectedTask.assignee);
       setDueDate(selectedTask.due_date || '');
+      setTimerDuration(selectedTask.timer_duration || 0);
       // Set current slot if task is assigned to today
       setSelectedSlot(selectedTask.today_slot || '');
     } else {
@@ -60,6 +62,7 @@ export function TaskModal() {
       setChallenge('');
       setAssignee(johnEmail);
       setDueDate('');
+      setTimerDuration(0);
       setSelectedSlot('');
     }
   }, [selectedTask, johnEmail]);
@@ -81,6 +84,7 @@ export function TaskModal() {
           challenge: challenge || undefined,
           assignee,
           due_date: dueDate || undefined,
+          timer_duration: timerDuration || undefined,
         };
         await createTask(input);
       } else if (selectedTask) {
@@ -92,6 +96,7 @@ export function TaskModal() {
           challenge: challenge || undefined,
           assignee,
           due_date: dueDate,
+          timer_duration: timerDuration,
         };
         await updateTask(input);
       }
@@ -208,7 +213,7 @@ export function TaskModal() {
               </div>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
               <div className="form-group">
                 <label htmlFor="assignee">OPERATOR</label>
                 <select
@@ -221,7 +226,7 @@ export function TaskModal() {
                   <option value={stephEmail}>STEF</option>
                 </select>
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="dueDate">DEADLINE</label>
                 <input
@@ -231,6 +236,25 @@ export function TaskModal() {
                   value={dueDate}
                   onChange={e => setDueDate(e.target.value)}
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="timerDuration">TIMER (MIN)</label>
+                <select
+                  id="timerDuration"
+                  className="form-select"
+                  value={timerDuration}
+                  onChange={e => setTimerDuration(Number(e.target.value))}
+                >
+                  <option value={0}>NONE</option>
+                  <option value={5}>5 min</option>
+                  <option value={10}>10 min</option>
+                  <option value={15}>15 min</option>
+                  <option value={20}>20 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={45}>45 min</option>
+                  <option value={60}>60 min</option>
+                </select>
               </div>
             </div>
             

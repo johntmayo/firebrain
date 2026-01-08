@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Task } from '../types';
 import { useApp } from '../context/AppContext';
+import { useTimer } from '../context/TimerContext';
 
 interface TaskCardProps {
   task: Task;
@@ -12,13 +13,23 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, compact = false, showDragHandle = true, inSlot = false, completed = false }: TaskCardProps) {
-  const { completeTask, openTaskModal, johnEmail, stephEmail } = useApp();
+  const { completeTask, openTaskModal, johnEmail, stephEmail, startTimer, pauseTimer, stopTimer } = useApp();
+  const { startTimer: startClientTimer, getTimerProgress } = useTimer();
   
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     data: { task, fromSlot: inSlot },
     disabled: completed, // Disable dragging for completed tasks
   });
+
+  // Initialize client-side timer if task has an active timer
+  useEffect(() => {
+    if (task.timer_active && task.timer_start && task.timer_duration > 0) {
+      startClientTimer(task);
+    }
+  }, [task.timer_active, task.timer_start, task.timer_duration, startClientTimer, task]);
+
+  const timerProgress = getTimerProgress(task.task_id);
   
   const handleDone = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -68,6 +79,19 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
             </svg>
           </div>
       )}
+      {/* Timer Progress Bar */}
+      {timerProgress && (
+        <div
+          className="task-timer-progress"
+          style={{
+            width: `${timerProgress.progress}%`,
+            background: task.timer_active
+              ? 'linear-gradient(90deg, var(--accent-secondary), var(--accent-primary))'
+              : 'var(--text-muted)'
+          }}
+        />
+      )}
+
       <div className="task-card-header">
         <div className="task-content">
           <div className="task-title">{task.title}</div>
@@ -94,8 +118,52 @@ export function TaskCard({ task, compact = false, showDragHandle = true, inSlot 
         
         {!isCompleted && (
           <div className="task-actions">
-            <button 
-              className="btn-done" 
+            {/* Timer Controls */}
+            {task.timer_active ? (
+              <>
+                <button
+                  className="btn-timer-pause"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pauseTimer(task.task_id);
+                  }}
+                  title="Pause timer"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                  </svg>
+                </button>
+                <button
+                  className="btn-timer-stop"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    stopTimer(task.task_id);
+                  }}
+                  title="Stop timer"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  </svg>
+                </button>
+              </>
+            ) : task.timer_duration > 0 ? (
+              <button
+                className="btn-timer-start"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startTimer(task.task_id, task.timer_duration);
+                }}
+                title={`Start ${task.timer_duration}min timer`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              </button>
+            ) : null}
+
+            <button
+              className="btn-done"
               onClick={handleDone}
               title="Mark as done"
             >

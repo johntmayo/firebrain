@@ -47,6 +47,11 @@ interface AppContextType {
   assignToday: (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
+
+  // Timer actions
+  startTimer: (taskId: string, durationMinutes: number) => Promise<void>;
+  pauseTimer: (taskId: string) => Promise<void>;
+  stopTimer: (taskId: string) => Promise<void>;
   
   // Computed
   inboxTasks: Task[];
@@ -319,7 +324,39 @@ export function AppProvider({ children }: AppProviderProps) {
       showToast(err instanceof Error ? err.message : 'Failed to clear from Today', 'error');
     }
   }, [viewingLoadoutUser, currentUser, tasks, showToast]);
-  
+
+  // Timer functions
+  const startTimer = useCallback(async (taskId: string, durationMinutes: number) => {
+    const now = new Date().toISOString();
+    const input: UpdateTaskInput = {
+      task_id: taskId,
+      timer_start: now,
+      timer_duration: durationMinutes,
+      timer_active: true
+    };
+
+    await updateTask(input);
+  }, [updateTask]);
+
+  const pauseTimer = useCallback(async (taskId: string) => {
+    const input: UpdateTaskInput = {
+      task_id: taskId,
+      timer_active: false
+    };
+
+    await updateTask(input);
+  }, [updateTask]);
+
+  const stopTimer = useCallback(async (taskId: string) => {
+    const input: UpdateTaskInput = {
+      task_id: taskId,
+      timer_start: '',
+      timer_active: false
+    };
+
+    await updateTask(input);
+  }, [updateTask]);
+
   // Computed values
   const inboxTasks = tasks
     .filter(t => {
@@ -424,6 +461,9 @@ export function AppProvider({ children }: AppProviderProps) {
     assignToday,
     clearToday,
     showToast,
+    startTimer,
+    pauseTimer,
+    stopTimer,
     inboxTasks,
     todayTasks,
     accomplishedToday,

@@ -11,12 +11,14 @@ import {
 } from '@dnd-kit/core';
 import { AppProvider, useApp } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { TimerProvider } from './context/TimerContext';
 import { Inbox } from './components/Inbox';
 import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
+import { TimerWidget } from './components/TimerWidget';
 import { isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
 import type { Task, TodaySlot } from './types';
@@ -201,6 +203,7 @@ function AppContent() {
         
         <TaskModal />
         <Toast />
+        <TimerWidget />
       </div>
       
       <DragOverlay>
@@ -251,9 +254,11 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <TimerProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </TimerProvider>
     </ThemeProvider>
   );
 }

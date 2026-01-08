@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ThemeName = 'default' | 'sakura' | 'cyberpunk' | 'grimoire' | 'studio' | 'retro' | 'vaporwave';
+export type ThemeName = 'default' | 'grimoire' | 'studio';
 
 interface ThemeInfo {
   id: ThemeName;
@@ -10,12 +10,8 @@ interface ThemeInfo {
 
 export const THEMES: ThemeInfo[] = [
   { id: 'default', name: 'Arcane Void', icon: '🔮' },
-  { id: 'sakura', name: 'Sakura Shrine', icon: '🌸' },
-  { id: 'cyberpunk', name: 'Cyberpunk Terminal', icon: '⚡' },
   { id: 'grimoire', name: 'Ancient Grimoire', icon: '📜' },
   { id: 'studio', name: 'Clean Studio', icon: '☀️' },
-  { id: 'retro', name: 'Retro Terminal', icon: '💾' },
-  { id: 'vaporwave', name: 'Vaporwave Dream', icon: '🌈' },
 ];
 
 interface ThemeContextType {

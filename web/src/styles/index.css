@@ -864,6 +864,19 @@ body::before {
   transition: opacity 0.15s ease;
 }
 
+/* Timer progress bar that overlays the priority stripe */
+.task-timer-progress {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 1px;
+  z-index: 1;
+  transition: width 1s linear;
+  box-shadow: 0 0 4px currentColor;
+}
+
 /* Priority indicator stripe */
 .task-card.priority-urgent::before { background: var(--priority-urgent); }
 .task-card.priority-high::before { background: var(--priority-high); }
@@ -1000,6 +1013,111 @@ body::before {
   border-color: var(--success);
   color: var(--success);
   background: rgba(0, 212, 170, 0.1);
+}
+
+/* Timer buttons */
+.btn-timer-start,
+.btn-timer-pause,
+.btn-timer-stop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  color: var(--accent-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 4px;
+}
+
+.btn-timer-start:hover {
+  border-color: var(--accent-secondary);
+  background: rgba(0, 212, 170, 0.1);
+  color: var(--accent-primary);
+}
+
+.btn-timer-pause:hover {
+  border-color: var(--warning);
+  background: rgba(212, 168, 75, 0.1);
+  color: var(--warning);
+}
+
+.btn-timer-stop:hover {
+  border-color: var(--error);
+  background: rgba(255, 71, 87, 0.1);
+  color: var(--error);
+}
+
+/* Timer Widget */
+.timer-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  clip-path: var(--chamfer-sm);
+  padding: var(--space-sm);
+  min-width: 250px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+}
+
+.timer-widget-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.timer-icon {
+  font-size: 1.2rem;
+}
+
+.timer-info {
+  flex: 1;
+}
+
+.timer-task-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  font-family: var(--font-display);
+}
+
+.timer-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--space-xs);
+}
+
+.timer-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
+  transition: width 1s linear;
+  border-radius: 2px;
+}
+
+.timer-controls {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;
 }
 
 /* Drag handle - positioned absolutely in top-left corner, minimal size */
@@ -1897,13 +2015,6 @@ body::before {
   background: linear-gradient(135deg, #7b68ee 50%, #00d4aa 50%);
 }
 
-.theme-btn[data-theme="sakura"] {
-  background: linear-gradient(135deg, #ff9eb5 50%, #ffeef2 50%);
-}
-
-.theme-btn[data-theme="cyberpunk"] {
-  background: linear-gradient(135deg, #ff00ff 50%, #00ffff 50%);
-}
 
 .theme-btn[data-theme="grimoire"] {
   background: linear-gradient(135deg, #8b0000 50%, #d4a84b 50%);
@@ -1914,263 +2025,11 @@ body::before {
   border-color: #dadce0;
 }
 
-.theme-btn[data-theme="retro"] {
-  background: linear-gradient(135deg, #33ff33 50%, #000000 50%);
-}
 
-.theme-btn[data-theme="vaporwave"] {
-  background: linear-gradient(135deg, #ff71ce 50%, #01cdfe 50%);
-}
+
 
 /* ============================================
-   🌸 SAKURA SHRINE THEME
-   Soft pinks, warm cream, cherry blossom
-   ============================================ */
-[data-theme="sakura"] {
-  /* Backgrounds - Warm paper and wood */
-  --bg-primary: #1a1215;
-  --bg-secondary: #231a1d;
-  --bg-tertiary: #2d2226;
-  --bg-elevated: #382b30;
-  --bg-hover: #433339;
-  --bg-panel: #261e21;
-  
-  /* Text - Warm cream */
-  --text-primary: #f5ede8;
-  --text-secondary: #c9b8b0;
-  --text-muted: #8a7670;
-  --text-bright: #fff8f5;
-  
-  /* Accent - Cherry blossom */
-  --accent-primary: #ff9eb5;
-  --accent-secondary: #ffb7c5;
-  --accent-tertiary: #ffd1dc;
-  --accent-glow: #ff7a9e;
-  
-  /* Slot colors - Blossom tiers */
-  --slot-legendary: #ff6b8a;
-  --slot-epic: #ff9eb5;
-  --slot-rare: #ffb7c5;
-  
-  /* Priority */
-  --priority-urgent: #ff4d6d;
-  --priority-high: #ff7a9e;
-  --priority-medium: #ffb7c5;
-  --priority-low: #8a7670;
-  
-  /* Borders */
-  --border-color: #4a3a3f;
-  --border-subtle: #3a2d32;
-  --border-glow: #ff9eb5;
-  
-  /* Status */
-  --success: #7ed9a6;
-  --error: #ff4d6d;
-  --warning: #ffc078;
-  
-  /* Grid - Soft petals */
-  --grid-color: rgba(255, 158, 181, 0.04);
-  --grid-accent: rgba(255, 158, 181, 0.08);
-  
-  /* Shadows */
-  --shadow-glow-purple: 0 0 20px rgba(255, 158, 181, 0.3);
-  --shadow-glow-teal: 0 0 20px rgba(255, 183, 197, 0.3);
-  --shadow-glow-gold: 0 0 20px rgba(255, 107, 138, 0.3);
-}
-
-/* Sakura-specific flourishes */
-[data-theme="sakura"] body::before {
-  background: 
-    radial-gradient(ellipse at 20% 10%, rgba(255, 158, 181, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 90%, rgba(255, 183, 197, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 10% 80%, rgba(255, 107, 138, 0.06) 0%, transparent 30%),
-    linear-gradient(var(--grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-  background-size: 
-    100% 100%,
-    100% 100%,
-    100% 100%,
-    30px 30px,
-    30px 30px;
-}
-
-[data-theme="sakura"] .app-header::before {
-  background: linear-gradient(90deg, 
-    transparent, 
-    var(--accent-primary) 30%, 
-    var(--accent-secondary) 50%, 
-    var(--accent-primary) 70%, 
-    transparent
-  );
-}
-
-[data-theme="sakura"] .today-header {
-  background: linear-gradient(135deg, rgba(255, 107, 138, 0.15), rgba(255, 158, 181, 0.08));
-}
-
-[data-theme="sakura"] .scan-bar::after {
-  background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
-}
-
-/* ============================================
-   ⚡ CYBERPUNK TERMINAL THEME
-   Hot magenta, electric cyan, glitch aesthetic
-   ============================================ */
-[data-theme="cyberpunk"] {
-  /* Backgrounds - Deep void */
-  --bg-primary: #0a0a12;
-  --bg-secondary: #0d0d18;
-  --bg-tertiary: #12121f;
-  --bg-elevated: #181828;
-  --bg-hover: #1e1e32;
-  --bg-panel: #0f0f1a;
-  
-  /* Text - Electric white */
-  --text-primary: #e0f0ff;
-  --text-secondary: #8899bb;
-  --text-muted: #4a5577;
-  --text-bright: #ffffff;
-  
-  /* Accent - Neon */
-  --accent-primary: #ff00ff;
-  --accent-secondary: #00ffff;
-  --accent-tertiary: #ffff00;
-  --accent-glow: #ff44ff;
-  
-  /* Slot colors - Neon tiers */
-  --slot-legendary: #ff00ff;
-  --slot-epic: #00ffff;
-  --slot-rare: #00ff88;
-  
-  /* Priority */
-  --priority-urgent: #ff0055;
-  --priority-high: #ff6600;
-  --priority-medium: #ffcc00;
-  --priority-low: #4a5577;
-  
-  /* Borders */
-  --border-color: #2a2a44;
-  --border-subtle: #1a1a2e;
-  --border-glow: #ff00ff;
-  
-  /* Status */
-  --success: #00ff88;
-  --error: #ff0055;
-  --warning: #ffcc00;
-  
-  /* Grid - Cyber */
-  --grid-color: rgba(0, 255, 255, 0.04);
-  --grid-accent: rgba(255, 0, 255, 0.06);
-  
-  /* Shadows */
-  --shadow-glow-purple: 0 0 25px rgba(255, 0, 255, 0.5);
-  --shadow-glow-teal: 0 0 25px rgba(0, 255, 255, 0.5);
-  --shadow-glow-gold: 0 0 25px rgba(255, 0, 255, 0.5);
-}
-
-/* Cyberpunk-specific flourishes */
-[data-theme="cyberpunk"] body::before {
-  background: 
-    radial-gradient(ellipse at 0% 0%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 100% 100%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
-    linear-gradient(var(--grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
-    linear-gradient(var(--grid-accent) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-accent) 1px, transparent 1px);
-  background-size: 
-    100% 100%,
-    100% 100%,
-    15px 15px,
-    15px 15px,
-    75px 75px,
-    75px 75px;
-}
-
-[data-theme="cyberpunk"] .app-header::before {
-  background: linear-gradient(90deg, 
-    var(--accent-primary), 
-    var(--accent-secondary), 
-    var(--accent-primary)
-  );
-  opacity: 0.8;
-  animation: glitch-line 3s ease-in-out infinite;
-}
-
-@keyframes glitch-line {
-  0%, 100% { opacity: 0.8; }
-  92% { opacity: 0.8; }
-  93% { opacity: 0; }
-  94% { opacity: 0.8; }
-  95% { opacity: 0; }
-  96% { opacity: 0.8; }
-}
-
-[data-theme="cyberpunk"] .today-header {
-  background: linear-gradient(135deg, rgba(255, 0, 255, 0.15), rgba(0, 255, 255, 0.08));
-}
-
-[data-theme="cyberpunk"] .today-header::after {
-  background: linear-gradient(90deg, var(--slot-legendary), var(--slot-epic), var(--slot-rare), var(--slot-epic), var(--slot-legendary));
-  animation: cyber-gradient 4s linear infinite;
-}
-
-@keyframes cyber-gradient {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-[data-theme="cyberpunk"] .today-header::after {
-  background-size: 200% 100%;
-}
-
-[data-theme="cyberpunk"] .pane::before,
-[data-theme="cyberpunk"] .pane::after {
-  animation: corner-pulse 2s ease-in-out infinite alternate;
-}
-
-@keyframes corner-pulse {
-  from { opacity: 0.3; }
-  to { opacity: 0.8; }
-}
-
-[data-theme="cyberpunk"] .scan-bar::after {
-  background: linear-gradient(90deg, transparent, var(--accent-secondary), var(--accent-primary), transparent);
-  animation: scan 1.5s linear infinite;
-}
-
-[data-theme="cyberpunk"] .slot {
-  position: relative;
-}
-
-[data-theme="cyberpunk"] .slot::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 255, 255, 0.03) 2px,
-    rgba(0, 255, 255, 0.03) 4px
-  );
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-[data-theme="cyberpunk"] .task-card {
-  border-left: 2px solid var(--accent-secondary);
-}
-
-[data-theme="cyberpunk"] .task-card:hover {
-  border-left-color: var(--accent-primary);
-  box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.1);
-}
-
-/* ============================================
-   📜 ANCIENT GRIMOIRE THEME  
+   =��� ANCIENT GRIMOIRE THEME  
    Aged parchment, burgundy, gold leaf
    ============================================ */
 [data-theme="grimoire"] {
@@ -2317,7 +2176,7 @@ body::before {
 }
 
 /* ============================================
-   ☀️ CLEAN STUDIO THEME (Light Mode)
+   G��n+� CLEAN STUDIO THEME (Light Mode)
    Minimalist, professional, airy
    ============================================ */
 [data-theme="studio"] {
@@ -2604,98 +2463,8 @@ body::before {
   border-radius: 100px;
 }
 
-/* ============================================
-   💾 RETRO TERMINAL THEME
-   DOS/CRT aesthetic, monochrome green
-   ============================================ */
-[data-theme="retro"] {
-  /* Backgrounds - Pure black */
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #111111;
-  --bg-elevated: #1a1a1a;
-  --bg-hover: #222222;
-  --bg-panel: #050505;
-  
-  /* Text - Phosphor green */
-  --text-primary: #33ff33;
-  --text-secondary: #22cc22;
-  --text-muted: #118811;
-  --text-bright: #55ff55;
-  
-  /* Accent - All green, all the time */
-  --accent-primary: #33ff33;
-  --accent-secondary: #33ff33;
-  --accent-tertiary: #33ff33;
-  --accent-glow: #33ff33;
-  
-  /* Slot colors - Intensity levels */
-  --slot-legendary: #55ff55;
-  --slot-epic: #33ff33;
-  --slot-rare: #22cc22;
-  
-  /* Priority - Green intensity */
-  --priority-urgent: #ff3333;
-  --priority-high: #ffaa33;
-  --priority-medium: #33ff33;
-  --priority-low: #118811;
-  
-  /* Borders */
-  --border-color: #33ff33;
-  --border-subtle: #115511;
-  --border-glow: #33ff33;
-  
-  /* Status */
-  --success: #33ff33;
-  --error: #ff3333;
-  --warning: #ffaa33;
-  
-  /* Grid - Scanlines */
-  --grid-color: rgba(51, 255, 51, 0.03);
-  --grid-accent: rgba(51, 255, 51, 0.05);
-  
-  /* Shadows - CRT glow */
-  --shadow-sm: 0 0 5px rgba(51, 255, 51, 0.3);
-  --shadow-md: 0 0 10px rgba(51, 255, 51, 0.4);
-  --shadow-lg: 0 0 20px rgba(51, 255, 51, 0.5);
-  --shadow-glow-purple: 0 0 15px rgba(51, 255, 51, 0.6);
-  --shadow-glow-teal: 0 0 15px rgba(51, 255, 51, 0.6);
-  --shadow-glow-gold: 0 0 15px rgba(51, 255, 51, 0.6);
-  
-  /* Override shapes - SQUARE */
-  --chamfer-sm: none;
-  --chamfer-md: none;
-  --chamfer-lg: none;
-  
-  /* Typography - Chunky pixel font */
-  --font-mono: 'VT323', 'Courier New', monospace;
-  --font-display: 'VT323', 'Courier New', monospace;
-}
 
-/* Retro Terminal - CRT Effects */
-[data-theme="retro"] body {
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-}
 
-[data-theme="retro"] body::before {
-  background: 
-    repeating-linear-gradient(
-      0deg,
-      rgba(0, 0, 0, 0.15),
-      rgba(0, 0, 0, 0.15) 1px,
-      transparent 1px,
-      transparent 2px
-    );
-  background-size: 100% 2px;
-  animation: crt-flicker 0.1s infinite;
-}
-
-@keyframes crt-flicker {
-  0% { opacity: 0.97; }
-  50% { opacity: 1; }
-  100% { opacity: 0.98; }
-}
 
 [data-theme="retro"] .app {
   text-shadow: 0 0 5px rgba(51, 255, 51, 0.5);
@@ -2957,7 +2726,7 @@ body::before {
 /* Blinking cursor effect for inputs */
 [data-theme="retro"] .form-input:focus::after,
 [data-theme="retro"] .form-textarea:focus::after {
-  content: '█';
+  content: 'G��';
   animation: blink 1s step-end infinite;
 }
 
@@ -2966,7 +2735,7 @@ body::before {
 }
 
 /* ============================================
-   🌈 VAPORWAVE DREAM THEME
+   =��� VAPORWAVE DREAM THEME
    Pastel pink/cyan, bubbly, 80s aesthetic
    ============================================ */
 [data-theme="vaporwave"] {
