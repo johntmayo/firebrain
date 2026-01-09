@@ -167,12 +167,10 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
             showDragHandle={isViewingOwnLoadout}
             inSlot
             showTimerButton
-            showRemoveButton={isViewingOwnLoadout}
             onTimerClick={() => {
               console.log('Timer button clicked, opening modal'); // Debug
               setShowTimerModal(true);
             }}
-            onRemoveClick={handleClearSlot}
             isTimerActive={isActiveTimer}
           />
 

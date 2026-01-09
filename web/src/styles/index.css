@@ -1016,30 +1016,6 @@ body::before {
   background: rgba(0, 212, 170, 0.1);
 }
 
-/* Remove button */
-.btn-remove {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  font-size: 0.6rem;
-  cursor: pointer;
-  opacity: 0.7;
-  transition: all 0.15s ease;
-  clip-path: var(--chamfer-sm);
-}
-
-.btn-remove:hover {
-  opacity: 1 !important;
-  background: var(--error);
-  border-color: var(--error);
-  color: white;
-}
 
 /* Timer buttons */
 .btn-timer-start,

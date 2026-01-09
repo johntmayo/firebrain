@@ -11,9 +11,7 @@ interface TaskCardProps {
   inSlot?: boolean;
   completed?: boolean;
   showTimerButton?: boolean;
-  showRemoveButton?: boolean;
   onTimerClick?: () => void;
-  onRemoveClick?: () => void;
   isTimerActive?: boolean;
 }
 
@@ -24,9 +22,7 @@ export function TaskCard({
   inSlot = false,
   completed = false,
   showTimerButton = false,
-  showRemoveButton = false,
   onTimerClick,
-  onRemoveClick,
   isTimerActive = false
 }: TaskCardProps) {
   const { completeTask, openTaskModal, johnEmail, stephEmail } = useApp();
@@ -147,18 +143,6 @@ export function TaskCard({
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </button>
-            {showRemoveButton && onRemoveClick && (
-              <button
-                className="btn-remove"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveClick();
-                }}
-                title="Remove from Today"
-              >
-                ×
-              </button>
-            )}
           </div>
         )}
       </div>
