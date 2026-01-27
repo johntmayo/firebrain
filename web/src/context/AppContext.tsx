@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge } from '../types';
+import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
 import { api, setCurrentUserEmail, type BulkImportResponse } from '../api/client';
 
@@ -13,11 +13,18 @@ interface AppContextType {
   johnEmail: string;
   stephEmail: string;
   
-  // Tasks
+  // Tasks (Missions)
   tasks: Task[];
   completedTasks: Task[];
   loading: boolean;
   error: string | null;
+  
+  // Quests
+  quests: Quest[];
+  loadingQuests: boolean;
+  selectedQuest: Quest | null;
+  isQuestModalOpen: boolean;
+  isCreatingQuest: boolean;
   
   // UI State
   assigneeFilter: AssigneeFilter;
@@ -48,10 +55,20 @@ interface AppContextType {
   clearToday: (taskId: string) => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
   
+  // Quest Actions
+  refreshQuests: () => Promise<void>;
+  createQuest: (input: CreateQuestInput) => Promise<void>;
+  updateQuest: (input: UpdateQuestInput) => Promise<void>;
+  toggleQuestTracked: (questId: string) => Promise<void>;
+  completeQuest: (questId: string) => Promise<void>;
+  openQuestModal: (quest: Quest | null, creating?: boolean) => void;
+  closeQuestModal: () => void;
+  
   // Computed
   inboxTasks: Task[];
   todayTasks: Map<TodaySlot, Task>;
   accomplishedToday: Task[];
+  trackedQuests: Quest[];
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -80,6 +97,13 @@ export function AppProvider({ children }: AppProviderProps) {
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Quests state
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [loadingQuests, setLoadingQuests] = useState(true);
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
+  const [isCreatingQuest, setIsCreatingQuest] = useState(false);
   
   // UI state - default to logged-in user
   const loggedInUser = localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
@@ -138,12 +162,27 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, []);
 
+  // Fetch quests
+  const refreshQuests = useCallback(async () => {
+    try {
+      setLoadingQuests(true);
+      const fetchedQuests = await api.getQuests('open');
+      setQuests(fetchedQuests);
+    } catch (err) {
+      console.error('Failed to fetch quests:', err);
+      showToast('Failed to load quests', 'error');
+    } finally {
+      setLoadingQuests(false);
+    }
+  }, [showToast]);
+  
   // Initial fetch (after setting user email)
   useEffect(() => {
     setCurrentUserEmail(currentUser);
     setViewingLoadoutUser(currentUser); // Start viewing own loadout
     refreshTasks();
     fetchCompletedTasks(); // Also fetch completed tasks for accomplished section
+    refreshQuests(); // Fetch quests
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Modal handlers
@@ -320,6 +359,107 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [viewingLoadoutUser, currentUser, tasks, showToast]);
 
+  // Quest modal handlers
+  const openQuestModal = useCallback((quest: Quest | null, creating = false) => {
+    setSelectedQuest(quest);
+    setIsCreatingQuest(creating);
+    setIsQuestModalOpen(true);
+  }, []);
+  
+  const closeQuestModal = useCallback(() => {
+    setIsQuestModalOpen(false);
+    setSelectedQuest(null);
+    setIsCreatingQuest(false);
+  }, []);
+
+  // Quest actions
+  const createQuest = useCallback(async (input: CreateQuestInput) => {
+    try {
+      const newQuest = await api.createQuest(input);
+      setQuests(prev => [newQuest, ...prev]);
+      showToast('Quest created', 'success');
+      closeQuestModal();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to create quest', 'error');
+      throw err;
+    }
+  }, [closeQuestModal, showToast]);
+
+  const updateQuest = useCallback(async (input: UpdateQuestInput) => {
+    const previousQuests = quests;
+    
+    // Optimistic update
+    setQuests(prev => prev.map(q => 
+      q.quest_id === input.quest_id ? { ...q, ...input } : q
+    ));
+    
+    try {
+      const updatedQuest = await api.updateQuest(input);
+      setQuests(prev => prev.map(q => 
+        q.quest_id === updatedQuest.quest_id ? updatedQuest : q
+      ));
+      showToast('Quest updated', 'success');
+      closeQuestModal();
+    } catch (err) {
+      setQuests(previousQuests); // Rollback
+      showToast(err instanceof Error ? err.message : 'Failed to update quest', 'error');
+      throw err;
+    }
+  }, [quests, closeQuestModal, showToast]);
+
+  const toggleQuestTracked = useCallback(async (questId: string) => {
+    const previousQuests = quests;
+    const quest = quests.find(q => q.quest_id === questId);
+    
+    if (!quest) return;
+    
+    const newTrackedStatus = !quest.is_tracked;
+    
+    // Check limit if trying to track
+    if (newTrackedStatus) {
+      const trackedCount = quests.filter(q => q.is_tracked && q.status === 'open' && q.assignee === quest.assignee).length;
+      if (trackedCount >= 3) {
+        showToast('Maximum 3 tracked quests allowed. Untrack another quest first.', 'error');
+        return;
+      }
+    }
+    
+    // Optimistic update
+    setQuests(prev => prev.map(q => 
+      q.quest_id === questId 
+        ? { ...q, is_tracked: newTrackedStatus, tracked_at: newTrackedStatus ? new Date().toISOString() : '' }
+        : q
+    ));
+    
+    try {
+      const updatedQuest = await api.toggleQuestTracked(questId);
+      setQuests(prev => prev.map(q => 
+        q.quest_id === updatedQuest.quest_id ? updatedQuest : q
+      ));
+      showToast(newTrackedStatus ? 'Quest tracked' : 'Quest untracked', 'success');
+    } catch (err) {
+      setQuests(previousQuests); // Rollback
+      showToast(err instanceof Error ? err.message : 'Failed to toggle quest tracking', 'error');
+      throw err;
+    }
+  }, [quests, showToast]);
+
+  const completeQuest = useCallback(async (questId: string) => {
+    const previousQuests = quests;
+    
+    // Optimistic update - remove from list
+    setQuests(prev => prev.filter(q => q.quest_id !== questId));
+    
+    try {
+      await api.completeQuest(questId);
+      await refreshQuests(); // Refresh to get updated state
+      showToast('Quest completed! 🎉', 'success');
+    } catch (err) {
+      setQuests(previousQuests); // Rollback
+      showToast(err instanceof Error ? err.message : 'Failed to complete quest', 'error');
+    }
+  }, [quests, showToast, refreshQuests]);
+
   // Computed values
   const inboxTasks = tasks
     .filter(t => {
@@ -389,6 +529,11 @@ export function AppProvider({ children }: AppProviderProps) {
     // Then by completion time (most recent first)
     return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
   });
+
+  // Tracked quests (filtered by current user)
+  const trackedQuests = quests.filter(q => 
+    q.is_tracked && q.status === 'open' && q.assignee === currentUser
+  );
   
   // User is logged in as themselves - no switching needed
   // Viewing toggles (JOHN/STEF/ALL buttons and loadout toggle) still work for viewing
@@ -402,6 +547,11 @@ export function AppProvider({ children }: AppProviderProps) {
     completedTasks,
     loading,
     error,
+    quests,
+    loadingQuests,
+    selectedQuest,
+    isQuestModalOpen,
+    isCreatingQuest,
     assigneeFilter,
     viewMode,
     showCompleted,
@@ -424,9 +574,17 @@ export function AppProvider({ children }: AppProviderProps) {
     assignToday,
     clearToday,
     showToast,
+    refreshQuests,
+    createQuest,
+    updateQuest,
+    toggleQuestTracked,
+    completeQuest,
+    openQuestModal,
+    closeQuestModal,
     inboxTasks,
     todayTasks,
     accomplishedToday,
+    trackedQuests,
     viewingLoadoutUser,
     setViewingLoadoutUser,
   };

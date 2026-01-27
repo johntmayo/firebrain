@@ -1,4 +1,4 @@
-import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot, Quest, CreateQuestInput, UpdateQuestInput } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const SESSION_TOKEN_KEY = 'firebrain_session_token';
@@ -35,6 +35,8 @@ interface ApiResponse<T> {
   error?: string;
   task?: Task;
   tasks?: Task[];
+  quest?: Quest;
+  quests?: Quest[];
   swapped_task?: Task;
   total?: number;
   success_count?: number;
@@ -173,5 +175,52 @@ export const api = {
       error_count: data.error_count || 0,
       results: data.results || []
     };
+  },
+
+  // Quest endpoints
+  async getQuests(status?: string, assignee?: string): Promise<Quest[]> {
+    const token = getSessionToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+    
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('action', 'getQuests');
+    url.searchParams.set('token', token);
+    if (status) url.searchParams.set('status', status);
+    if (assignee) url.searchParams.set('assignee', assignee);
+    
+    const response = await fetch(url.toString());
+    
+    const data: ApiResponse<Quest[]> = await response.json();
+    
+    if (data.error) {
+      if (response.status === 401) {
+        clearSessionToken();
+      }
+      throw new Error(data.error);
+    }
+    
+    return data.quests || [];
+  },
+
+  async createQuest(input: CreateQuestInput): Promise<Quest> {
+    const data = await apiCall<ApiResponse<Quest>>('createQuest', input);
+    return data.quest!;
+  },
+
+  async updateQuest(input: UpdateQuestInput): Promise<Quest> {
+    const data = await apiCall<ApiResponse<Quest>>('updateQuest', input);
+    return data.quest!;
+  },
+
+  async toggleQuestTracked(questId: string): Promise<Quest> {
+    const data = await apiCall<ApiResponse<Quest>>('toggleQuestTracked', { quest_id: questId });
+    return data.quest!;
+  },
+
+  async completeQuest(questId: string): Promise<Quest> {
+    const data = await apiCall<ApiResponse<Quest>>('completeQuest', { quest_id: questId });
+    return data.quest!;
   },
 };

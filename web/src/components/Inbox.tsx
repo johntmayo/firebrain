@@ -175,7 +175,7 @@ function InboxContent({
           {completedTasks.length === 0 ? (
             <div className="empty-state" style={{ padding: '1rem' }}>
               <div className="empty-state-text" style={{ fontSize: '0.7rem' }}>
-                NO CLEARED QUESTS
+                NO CLEARED MISSIONS
               </div>
             </div>
           ) : (
@@ -191,7 +191,7 @@ function InboxContent({
       <div style={{ display: 'flex', gap: '8px' }}>
         <button className="add-task-btn" style={{ flex: 1 }} onClick={onAddTask}>
           <span>+</span>
-          NEW QUEST
+          NEW MISSION
         </button>
         <button
           className="add-task-btn"

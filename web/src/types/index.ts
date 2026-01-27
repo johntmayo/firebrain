@@ -3,6 +3,7 @@ export type Challenge = 'low' | 'medium' | 'high';
 export type Status = 'open' | 'done' | 'archived';
 export type TodaySlot = 'B1' | 'M1' | 'M2' | 'M3' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5';
 
+// Mission (formerly Task) - things that can be added to daily loadout
 export interface Task {
   task_id: string;
   created_at: string;
@@ -22,6 +23,9 @@ export interface Task {
   today_user: string;
 }
 
+// Alias for clarity - Task is now Mission
+export type Mission = Task;
+
 export interface CreateTaskInput {
   title: string;
   notes?: string;
@@ -40,6 +44,36 @@ export interface UpdateTaskInput {
   assignee?: string;
   status?: Status;
   due_date?: string;
+}
+
+// Quest - longer-term abstract goals that can be tracked
+export interface Quest {
+  quest_id: string;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+  title: string;
+  notes: string;
+  is_tracked: boolean;
+  tracked_at: string;
+  assignee: string;
+  status: Status;
+  completed_at: string;
+}
+
+export interface CreateQuestInput {
+  title: string;
+  notes?: string;
+  assignee?: string;
+}
+
+export interface UpdateQuestInput {
+  quest_id: string;
+  title?: string;
+  notes?: string;
+  assignee?: string;
+  status?: Status;
 }
 
 export interface AssignTodayInput {

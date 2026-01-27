@@ -15,13 +15,14 @@ import { TimerProvider } from './context/TimerContext';
 import { Inbox } from './components/Inbox';
 import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
+import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
 import { TimerWidget } from './components/TimerWidget';
 import { isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
-import type { Task, TodaySlot } from './types';
+import type { Task, TodaySlot, Quest } from './types';
 
 function AppContent() {
   const { 
@@ -35,6 +36,7 @@ function AppContent() {
     showToast,
     todayTasks,
     tasks,
+    createTask,
   } = useApp();
   
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
@@ -55,12 +57,27 @@ function AppContent() {
   
   const handleDragStart = (event: DragStartEvent) => {
     const task = event.active.data.current?.task as Task | undefined;
+    const quest = event.active.data.current?.quest as Quest | undefined;
     if (task) {
       setActiveTask(task);
+    } else if (quest) {
+      // For quests, we'll show the quest title in the drag preview
+      setActiveTask({
+        ...quest,
+        task_id: quest.quest_id,
+        title: `Quest: ${quest.title}`,
+        priority: 'medium',
+        challenge: '',
+        due_date: '',
+        today_slot: '',
+        today_set_at: '',
+        completed_at: '',
+        today_user: '',
+      } as Task);
     }
   };
   
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
     
     const { active, over } = event;
@@ -86,7 +103,54 @@ function AppContent() {
     
     const overId = over.id as string;
     
-    // Check if dropped on a Today slot
+    // Check if dragging a quest
+    if (active.data.current?.type === 'quest') {
+      const quest = active.data.current?.quest as Quest;
+      
+      if (!over || !overId.startsWith('slot-')) {
+        sounds.dropCancel();
+        return;
+      }
+      
+      if (!isViewingOwnLoadout) {
+        showToast('You can only edit your own Today slots', 'error');
+        sounds.dropCancel();
+        return;
+      }
+      
+      // Create a new mission from the quest
+      const targetSlot = overId.replace('slot-', '') as TodaySlot;
+      const missionTitle = `Quest: ${quest.title}`;
+      
+      // Check if slot is occupied
+      const occupyingTask = todayTasks.get(targetSlot);
+      
+      try {
+        // Create the mission
+        const newMission = await createTask({
+          title: missionTitle,
+          notes: `Created from quest: ${quest.title}${quest.notes ? `\n\n${quest.notes}` : ''}`,
+          priority: 'medium',
+          assignee: quest.assignee,
+        });
+        
+        // Assign to slot (handle swap if needed)
+        if (occupyingTask) {
+          sounds.swap();
+          await assignToday(newMission.task_id, targetSlot, occupyingTask.task_id);
+        } else {
+          sounds.dropSuccess();
+          await assignToday(newMission.task_id, targetSlot);
+        }
+      } catch (err) {
+        sounds.dropCancel();
+        showToast('Failed to create mission from quest', 'error');
+      }
+      
+      return;
+    }
+    
+    // Check if dropped on a Today slot (for regular tasks/missions)
     if (overId.startsWith('slot-')) {
       if (!isViewingOwnLoadout) {
         showToast('You can only edit your own Today slots', 'error');
@@ -167,6 +231,7 @@ function AppContent() {
         
         <main className="app-main">
           <TodayPlanner />
+          <QuestsPanel />
           <Inbox />
         </main>
         

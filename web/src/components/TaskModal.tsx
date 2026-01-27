@@ -143,7 +143,7 @@ export function TaskModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreating ? '◈ NEW QUEST' : '◇ EDIT QUEST'}</h3>
+          <h3>{isCreating ? '◈ NEW MISSION' : '◇ EDIT MISSION'}</h3>
           <button className="modal-close" onClick={closeModal}>
             ×
           </button>
@@ -159,7 +159,7 @@ export function TaskModal() {
                 className="form-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Enter quest objective..."
+                placeholder="Enter mission objective..."
                 autoFocus
                 required
               />
@@ -287,7 +287,7 @@ export function TaskModal() {
               className="btn btn-primary"
               disabled={saving || !title.trim()}
             >
-              {saving ? 'PROCESSING...' : isCreating ? 'DEPLOY QUEST' : 'CONFIRM'}
+              {saving ? 'PROCESSING...' : isCreating ? 'DEPLOY MISSION' : 'CONFIRM'}
             </button>
           </div>
         </form>
