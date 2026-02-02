@@ -21,6 +21,7 @@ export interface Task {
   today_set_at: string;
   completed_at: string;
   today_user: string;
+  quest_id: string; // when set, mission is nested in this quest and uses quest color
 }
 
 // Alias for clarity - Task is now Mission
@@ -33,6 +34,7 @@ export interface CreateTaskInput {
   challenge?: Challenge;
   assignee?: string;
   due_date?: string;
+  quest_id?: string;
 }
 
 export interface UpdateTaskInput {
@@ -44,6 +46,7 @@ export interface UpdateTaskInput {
   assignee?: string;
   status?: Status;
   due_date?: string;
+  quest_id?: string;
 }
 
 // Quest - longer-term abstract goals that can be tracked
@@ -60,12 +63,14 @@ export interface Quest {
   assignee: string;
   status: Status;
   completed_at: string;
+  color: string; // hex or preset id; missions in this quest use this color
 }
 
 export interface CreateQuestInput {
   title: string;
   notes?: string;
   assignee?: string;
+  color?: string;
 }
 
 export interface UpdateQuestInput {
@@ -74,6 +79,7 @@ export interface UpdateQuestInput {
   notes?: string;
   assignee?: string;
   status?: Status;
+  color?: string;
 }
 
 export interface AssignTodayInput {

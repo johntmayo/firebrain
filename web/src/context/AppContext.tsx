@@ -465,6 +465,7 @@ export function AppProvider({ children }: AppProviderProps) {
     .filter(t => {
       if (t.status !== 'open') return false;
       if (t.today_slot) return false; // In Today, not Inbox
+      if (t.quest_id) return false; // In a Quest, show under that quest not in Cache
       
       switch (assigneeFilter) {
         case 'john': return t.assignee === JOHN_EMAIL;

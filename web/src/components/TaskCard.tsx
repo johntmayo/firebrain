@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import type { Task } from '../types';
+import type { Task, Quest } from '../types';
 import { useApp } from '../context/AppContext';
 import { useTimer } from '../context/TimerContext';
 
@@ -13,6 +13,8 @@ interface TaskCardProps {
   showTimerButton?: boolean;
   onTimerClick?: () => void;
   isTimerActive?: boolean;
+  /** When set (e.g. from nested quest), mission uses this color instead of priority */
+  questColor?: string;
 }
 
 export function TaskCard({
@@ -23,10 +25,15 @@ export function TaskCard({
   completed = false,
   showTimerButton = false,
   onTimerClick,
-  isTimerActive = false
+  isTimerActive = false,
+  questColor: questColorProp,
 }: TaskCardProps) {
-  const { completeTask, openTaskModal, johnEmail, stephEmail } = useApp();
+  const { completeTask, openTaskModal, johnEmail, stephEmail, quests } = useApp();
   const { activeTimer, getTimerProgress } = useTimer();
+
+  // Resolve quest color: prop override, or from task.quest_id
+  const questColor = questColorProp ?? (task.quest_id ? quests.find((q: Quest) => q.quest_id === task.quest_id)?.color : undefined);
+  const hasQuestColor = Boolean(questColor && questColor.trim());
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.task_id,
@@ -62,9 +69,13 @@ export function TaskCard({
   return (
     <div
       ref={setNodeRef}
-      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''}`}
+      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''} ${hasQuestColor ? 'quest-colored' : ''}`}
       onClick={handleClick}
-      style={{ opacity: isDragging ? 0.5 : 1, position: 'relative' }}
+      style={{
+        opacity: isDragging ? 0.5 : 1,
+        position: 'relative',
+        ...(hasQuestColor && questColor ? ({ '--task-accent': questColor } as React.CSSProperties) : {}),
+      }}
     >
       {showDragHandle && !isCompleted && (
           <div 

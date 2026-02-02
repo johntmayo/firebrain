@@ -37,6 +37,7 @@ function AppContent() {
     todayTasks,
     tasks,
     createTask,
+    updateTask,
   } = useApp();
   
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
@@ -132,6 +133,7 @@ function AppContent() {
           notes: `Created from quest: ${quest.title}${quest.notes ? `\n\n${quest.notes}` : ''}`,
           priority: 'medium',
           assignee: quest.assignee,
+          quest_id: quest.quest_id,
         });
         
         // Assign to slot (handle swap if needed)
@@ -177,13 +179,39 @@ function AppContent() {
       }
       // If same task dropped on its own slot, do nothing
     }
-    // Dropped on inbox - if from slot, clear it (only if viewing own loadout)
-    else if (overId === 'inbox-drop-zone' && active.data.current?.fromSlot && isViewingOwnLoadout) {
+    // Dropped on a Quest - assign mission to that quest
+    else if (overId.startsWith('quest-drop-')) {
       const task = active.data.current?.task as Task;
-      if (task?.today_slot) {
-        sounds.dropSuccess();
-        clearToday(task.task_id);
+      if (!task) {
+        sounds.dropCancel();
+        return;
       }
+      const questId = overId.replace('quest-drop-', '');
+      try {
+        sounds.dropSuccess();
+        await updateTask({ task_id: task.task_id, quest_id: questId });
+      } catch {
+        sounds.dropCancel();
+      }
+      return;
+    }
+    // Dropped on Cache (inbox) - clear from loadout and clear from quest so it uses priority color again
+    else if (overId === 'inbox-drop-zone') {
+      const task = active.data.current?.task as Task;
+      if (!task) {
+        sounds.dropCancel();
+        return;
+      }
+      try {
+        if (task.today_slot && isViewingOwnLoadout) {
+          await clearToday(task.task_id);
+        }
+        await updateTask({ task_id: task.task_id, quest_id: '' });
+        sounds.dropSuccess();
+      } catch {
+        sounds.dropCancel();
+      }
+      return;
     } else {
       // Dropped somewhere invalid
       sounds.dropCancel();

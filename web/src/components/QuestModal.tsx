@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { CreateQuestInput, UpdateQuestInput } from '../types';
 
+const QUEST_PRESET_COLORS = [
+  '#7b68ee', '#00d4aa', '#d4a84b', '#ff4757', '#ff7b4a',
+  '#9b59b6', '#3498db', '#2ecc71', '#e74c3c', '#1abc9c',
+  '#e67e22', '#95a5a6',
+];
+
 export function QuestModal() {
   const { 
     isQuestModalOpen, 
@@ -20,6 +26,7 @@ export function QuestModal() {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [assignee, setAssignee] = useState(johnEmail);
+  const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
   
   // Prevent body scroll when modal is open
@@ -40,11 +47,13 @@ export function QuestModal() {
       setTitle(selectedQuest.title);
       setNotes(selectedQuest.notes || '');
       setAssignee(selectedQuest.assignee);
+      setColor(selectedQuest.color || '');
     } else {
       // Reset for new quest
       setTitle('');
       setNotes('');
       setAssignee(johnEmail);
+      setColor('');
     }
   }, [selectedQuest, johnEmail]);
   
@@ -62,6 +71,7 @@ export function QuestModal() {
           title: title.trim(),
           notes: notes.trim() || undefined,
           assignee,
+          color: color.trim() || undefined,
         };
         await createQuest(input);
       } else if (selectedQuest) {
@@ -70,6 +80,7 @@ export function QuestModal() {
           title: title.trim(),
           notes: notes.trim(),
           assignee,
+          color: color.trim() || undefined,
         };
         await updateQuest(input);
       }
@@ -155,6 +166,36 @@ export function QuestModal() {
                 <option value={johnEmail}>JOHN</option>
                 <option value={stephEmail}>STEF</option>
               </select>
+            </div>
+            
+            <div className="form-group">
+              <label>QUEST COLOR</label>
+              <div className="quest-color-picker">
+                {QUEST_PRESET_COLORS.map(hex => (
+                  <button
+                    key={hex}
+                    type="button"
+                    className={`quest-color-swatch ${color === hex ? 'active' : ''}`}
+                    style={{ background: hex }}
+                    onClick={() => setColor(hex)}
+                    title={hex}
+                  />
+                ))}
+                <input
+                  type="text"
+                  className="quest-color-hex"
+                  placeholder="#hex"
+                  value={color && !QUEST_PRESET_COLORS.includes(color) ? color : ''}
+                  onChange={e => {
+                    const v = e.target.value.trim().replace(/^#/, '');
+                    setColor(v ? '#' + v.slice(0, 6) : '');
+                  }}
+                  maxLength={7}
+                />
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Missions in this quest use this color; drag to Cache to reset to Threat Level color.
+              </div>
             </div>
             
             {!isCreatingQuest && selectedQuest && isViewingOwnQuest && (

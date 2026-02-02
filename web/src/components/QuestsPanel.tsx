@@ -1,12 +1,15 @@
 import React from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
 import { QuestModal } from './QuestModal';
+import { TaskCard } from './TaskCard';
+import type { Task, Quest } from '../types';
 
 export function QuestsPanel() {
   const {
     quests,
-    trackedQuests,
+    tasks,
     openQuestModal,
     assigneeFilter,
     johnEmail,
@@ -26,6 +29,10 @@ export function QuestsPanel() {
 
   const activeQuests = filteredQuests.filter(q => q.is_tracked);
   const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
+
+  // Missions nested in a quest (open only)
+  const missionsInQuest = (questId: string): Task[] =>
+    tasks.filter(t => t.status === 'open' && t.quest_id === questId);
 
   return (
     <div className="pane pane-quests">
@@ -51,7 +58,7 @@ export function QuestsPanel() {
           <div className="quests-tracked-list">
             {activeQuests.length > 0 ? (
               activeQuests.map(quest => (
-                <QuestCard key={quest.quest_id} quest={quest} />
+                <QuestWithMissions key={quest.quest_id} quest={quest} missions={missionsInQuest(quest.quest_id)} />
               ))
             ) : (
               <div className="empty-state">
@@ -70,7 +77,7 @@ export function QuestsPanel() {
             </div>
             <div className="quests-inactive-list">
               {inactiveQuests.map(quest => (
-                <QuestCard key={quest.quest_id} quest={quest} isCollapsed />
+                <QuestWithMissions key={quest.quest_id} quest={quest} missions={missionsInQuest(quest.quest_id)} isCollapsed />
               ))}
             </div>
           </div>
@@ -78,6 +85,52 @@ export function QuestsPanel() {
       </div>
 
       <QuestModal />
+    </div>
+  );
+}
+
+interface QuestWithMissionsProps {
+  quest: Quest;
+  missions: Task[];
+  isCollapsed?: boolean;
+}
+
+function QuestWithMissions({ quest, missions, isCollapsed = false }: QuestWithMissionsProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `quest-drop-${quest.quest_id}`,
+    data: { questId: quest.quest_id },
+  });
+
+  const questColor = quest.color || undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`quest-with-missions ${isOver ? 'drag-over' : ''}`}
+    >
+      <QuestCard quest={quest} isCollapsed={isCollapsed} />
+      {/* Droppable area for missions - show when expanded (tracked or inactive expanded) */}
+      {!isCollapsed && (
+        <div className="quest-missions-drop-zone">
+          {missions.length > 0 ? (
+            <div className="quest-missions-list">
+              {missions.map(task => (
+                <TaskCard
+                  key={task.task_id}
+                  task={task}
+                  showDragHandle
+                  inSlot={false}
+                  questColor={questColor}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="quest-missions-empty">
+              <span className="quest-missions-empty-text">Drop missions here</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

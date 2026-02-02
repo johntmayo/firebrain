@@ -40,13 +40,14 @@ const TASK_COLS = {
   TODAY_SLOT: 11,
   TODAY_SET_AT: 12,
   COMPLETED_AT: 13,
-  TODAY_USER: 14
+  TODAY_USER: 14,
+  QUEST_ID: 15
 };
 
 const TASK_HEADERS = [
   'task_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
   'title', 'notes', 'priority', 'assignee', 'status', 'due_date',
-  'today_slot', 'today_set_at', 'completed_at', 'today_user'
+  'today_slot', 'today_set_at', 'completed_at', 'today_user', 'quest_id'
 ];
 
 // Column indices for Quests sheet (0-based)
@@ -62,12 +63,13 @@ const QUEST_COLS = {
   TRACKED_AT: 8,
   ASSIGNEE: 9,
   STATUS: 10,
-  COMPLETED_AT: 11
+  COMPLETED_AT: 11,
+  COLOR: 12
 };
 
 const QUEST_HEADERS = [
   'quest_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
-  'title', 'notes', 'is_tracked', 'tracked_at', 'assignee', 'status', 'completed_at'
+  'title', 'notes', 'is_tracked', 'tracked_at', 'assignee', 'status', 'completed_at', 'color'
 ];
 
 const VALID_SLOTS = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
@@ -225,7 +227,8 @@ function createQuest(body, callerEmail) {
     '',                                   // tracked_at
     body.assignee || JOHN_EMAIL,          // assignee
     'open',                               // status
-    ''                                    // completed_at
+    '',                                   // completed_at
+    body.color || ''                      // color
   ];
   
   sheet.appendRow(newRow);
@@ -268,6 +271,7 @@ function updateQuest(body, callerEmail) {
   if (body.notes !== undefined) row[QUEST_COLS.NOTES] = body.notes;
   if (body.assignee !== undefined) row[QUEST_COLS.ASSIGNEE] = body.assignee;
   if (body.status !== undefined) row[QUEST_COLS.STATUS] = body.status;
+  if (body.color !== undefined) row[QUEST_COLS.COLOR] = body.color || '';
   
   // Update timestamps
   row[QUEST_COLS.UPDATED_AT] = now;
@@ -438,7 +442,8 @@ function createTask(body, callerEmail) {
     '',                                  // today_slot
     '',                                  // today_set_at
     '',                                  // completed_at
-    ''                                   // today_user
+    '',                                  // today_user
+    body.quest_id || ''                  // quest_id
   ];
   
   sheet.appendRow(newRow);
@@ -485,6 +490,7 @@ function updateTask(body, callerEmail) {
   if (body.assignee !== undefined) row[TASK_COLS.ASSIGNEE] = body.assignee;
   if (body.status !== undefined) row[TASK_COLS.STATUS] = body.status;
   if (body.due_date !== undefined) row[TASK_COLS.DUE_DATE] = body.due_date;
+  if (body.quest_id !== undefined) row[TASK_COLS.QUEST_ID] = body.quest_id || '';
   
   row[TASK_COLS.UPDATED_AT] = now;
   row[TASK_COLS.UPDATED_BY] = callerEmail;
@@ -717,7 +723,8 @@ function bulkCreateTasks(body, callerEmail) {
         '',                                  // today_slot
         '',                                  // today_set_at
         '',                                  // completed_at
-        ''                                   // today_user
+        '',                                  // today_user
+        taskData.quest_id || ''              // quest_id
       ];
 
       sheet.appendRow(newRow);
@@ -836,7 +843,8 @@ function rowToTask(row) {
     today_slot: safeRow[TASK_COLS.TODAY_SLOT] || '',
     today_set_at: safeRow[TASK_COLS.TODAY_SET_AT] || '',
     completed_at: safeRow[TASK_COLS.COMPLETED_AT] || '',
-    today_user: safeRow.length > TASK_COLS.TODAY_USER ? (safeRow[TASK_COLS.TODAY_USER] || '') : ''
+    today_user: safeRow.length > TASK_COLS.TODAY_USER ? (safeRow[TASK_COLS.TODAY_USER] || '') : '',
+    quest_id: safeRow.length > TASK_COLS.QUEST_ID ? (safeRow[TASK_COLS.QUEST_ID] || '') : ''
   };
 }
 
@@ -859,7 +867,8 @@ function rowToQuest(row) {
     tracked_at: safeRow[QUEST_COLS.TRACKED_AT] || '',
     assignee: safeRow[QUEST_COLS.ASSIGNEE] || '',
     status: safeRow[QUEST_COLS.STATUS] || 'open',
-    completed_at: safeRow[QUEST_COLS.COMPLETED_AT] || ''
+    completed_at: safeRow[QUEST_COLS.COMPLETED_AT] || '',
+    color: safeRow.length > QUEST_COLS.COLOR ? (safeRow[QUEST_COLS.COLOR] || '') : ''
   };
 }
 
