@@ -44,8 +44,8 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
       title = title.replace(priorityMatch[0], '').trim();
     }
 
-    // Extract due date markers
-    const dateMatch = title.match(/@\s*(\w+)/);
+    // Extract due date markers — @today, @tomorrow, @nextweek, @2/20/26, @02/20/2026, @2026-02-20
+    const dateMatch = title.match(/@\s*([\w/.-]+)/);
     if (dateMatch) {
       const dateValue = dateMatch[1].toLowerCase();
       if (dateValue === 'today') {
@@ -58,10 +58,21 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
         due_date = nextWeek.toISOString().split('T')[0];
-      }
-      // Also support YYYY-MM-DD format
-      else if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        due_date = dateValue;
+      } else {
+        // Try parsing as a date: MM/DD/YY, MM/DD/YYYY, YYYY-MM-DD, MM-DD-YYYY
+        const parsed = new Date(dateValue);
+        // Handle 2-digit years: e.g. 2/20/26 → Date parses as 2026 in some browsers, but not reliably
+        const slashMatch = dateValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (slashMatch) {
+          let [, month, day, year] = slashMatch;
+          if (year.length === 2) year = '20' + year;
+          const d = new Date(Number(year), Number(month) - 1, Number(day));
+          if (!isNaN(d.getTime())) {
+            due_date = d.toISOString().split('T')[0];
+          }
+        } else if (!isNaN(parsed.getTime()) && dateValue.match(/\d/)) {
+          due_date = parsed.toISOString().split('T')[0];
+        }
       }
       title = title.replace(dateMatch[0], '').trim();
     }

@@ -188,18 +188,14 @@ function InboxContent({
         </div>
       )}
         
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <button className="add-task-btn" style={{ flex: 1 }} onClick={onAddTask}>
-          <span>+</span>
-          NEW MISSION
+      <div className="mission-action-cards">
+        <button className="mission-action-card" onClick={onAddTask}>
+          <span className="mission-action-icon">+</span>
+          <span className="mission-action-label">NEW MISSION</span>
         </button>
-        <button
-          className="add-task-btn"
-          style={{ flex: 1, background: 'var(--accent-secondary)' }}
-          onClick={onToggleBulkImport}
-        >
-          <span>◆</span>
-          BULK IMPORT
+        <button className="mission-action-card" onClick={onToggleBulkImport}>
+          <span className="mission-action-icon">◆</span>
+          <span className="mission-action-label">BULK IMPORT</span>
         </button>
       </div>
 

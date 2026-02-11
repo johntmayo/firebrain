@@ -1912,7 +1912,49 @@ body::before {
   border-color: var(--priority-urgent);
 }
 
-/* Add Task Button */
+/* Mission action cards - styled like task cards */
+.mission-action-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.mission-action-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  clip-path: var(--chamfer-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.mission-action-card:hover {
+  border-style: solid;
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.mission-action-icon {
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+.mission-action-card:hover .mission-action-icon {
+  opacity: 1;
+}
+
+/* Keep old class for backward compat with themed overrides */
 .add-task-btn {
   display: flex;
   align-items: center;
