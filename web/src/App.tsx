@@ -6,6 +6,7 @@ import {
   useSensors,
   PointerSensor,
   TouchSensor,
+  pointerWithin,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -188,8 +189,12 @@ function AppContent() {
       }
       const questId = overId.replace('quest-drop-', '');
       try {
-        sounds.dropSuccess();
+        // If task is currently in a loadout slot, clear it first
+        if (task.today_slot && isViewingOwnLoadout) {
+          await clearToday(task.task_id);
+        }
         await updateTask({ task_id: task.task_id, quest_id: questId });
+        sounds.dropSuccess();
       } catch {
         sounds.dropCancel();
       }
@@ -234,6 +239,7 @@ function AppContent() {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}

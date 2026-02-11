@@ -894,9 +894,11 @@ body::before {
 .task-card.priority-high::before { background: var(--priority-high); }
 .task-card.priority-medium::before { background: var(--priority-medium); }
 .task-card.priority-low::before { background: var(--priority-low); }
-/* Quest color overrides priority when mission is nested in a quest */
+/* Quest color overrides priority accent bar when mission belongs to a quest */
 .task-card.quest-colored::before {
   background: var(--task-accent) !important;
+  opacity: 1 !important;
+  height: 3px !important;
 }
 
 .task-card:hover {
@@ -2170,24 +2172,48 @@ body::before {
   border-color: var(--accent-secondary);
 }
 
-/* Quest with nested missions */
+/* Quest with nested missions - unified card look */
 .quest-with-missions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.quest-with-missions.drag-over .quest-missions-drop-zone {
-  background: rgba(123, 104, 238, 0.08);
+.quest-with-missions:not(.collapsed) {
+  border-left: 3px solid var(--quest-color, var(--accent-primary));
+}
+
+.quest-with-missions.drag-over {
   border-color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(123, 104, 238, 0.25);
 }
 
-.quest-missions-drop-zone {
-  min-height: 44px;
-  padding: var(--space-sm);
-  border: 1px dashed var(--border-subtle);
-  border-radius: 4px;
-  transition: background 0.2s ease, border-color 0.2s ease;
+.quest-with-missions.drag-over .quest-missions-inner {
+  background: rgba(123, 104, 238, 0.06);
+}
+
+/* Remove the quest-card's own border/bg/clip when inside quest-with-missions */
+.quest-with-missions > .quest-card {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  clip-path: none;
+  min-height: auto;
+}
+
+.quest-with-missions > .quest-card::before {
+  display: none; /* Parent container's left border handles the color accent */
+}
+
+/* Missions area nested inside the quest card */
+.quest-missions-inner {
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+  transition: background 0.2s ease;
 }
 
 .quest-missions-list {
@@ -2196,16 +2222,23 @@ body::before {
   gap: var(--space-xs);
 }
 
+/* Make nested task cards more compact and indented */
+.quest-missions-list .task-card {
+  font-size: 0.85em;
+}
+
 .quest-missions-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 32px;
   color: var(--text-muted);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 4px;
 }
 
 .quest-missions-empty-text {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

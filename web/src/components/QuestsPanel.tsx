@@ -30,9 +30,9 @@ export function QuestsPanel() {
   const activeQuests = filteredQuests.filter(q => q.is_tracked);
   const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
 
-  // Missions nested in a quest (open only)
+  // Missions nested in a quest (open only, not currently in Today loadout)
   const missionsInQuest = (questId: string): Task[] =>
-    tasks.filter(t => t.status === 'open' && t.quest_id === questId);
+    tasks.filter(t => t.status === 'open' && t.quest_id === questId && !t.today_slot);
 
   return (
     <div className="pane pane-quests">
@@ -106,12 +106,13 @@ function QuestWithMissions({ quest, missions, isCollapsed = false }: QuestWithMi
   return (
     <div
       ref={setNodeRef}
-      className={`quest-with-missions ${isOver ? 'drag-over' : ''}`}
+      className={`quest-with-missions ${isOver ? 'drag-over' : ''} ${isCollapsed ? 'collapsed' : ''}`}
+      style={questColor ? ({ '--quest-color': questColor } as React.CSSProperties) : undefined}
     >
       <QuestCard quest={quest} isCollapsed={isCollapsed} />
-      {/* Droppable area for missions - show when expanded (tracked or inactive expanded) */}
+      {/* Missions nested inside the quest card */}
       {!isCollapsed && (
-        <div className="quest-missions-drop-zone">
+        <div className="quest-missions-inner">
           {missions.length > 0 ? (
             <div className="quest-missions-list">
               {missions.map(task => (

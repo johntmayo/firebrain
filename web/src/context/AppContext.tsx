@@ -42,12 +42,11 @@ interface AppContextType {
   setViewMode: (mode: ViewMode) => void;
   toggleShowCompleted: () => void;
   setSortBy: (sortBy: 'priority' | 'challenge') => void;
-  setSortBy: (sortBy: 'priority' | 'challenge') => void;
   openTaskModal: (task: Task | null, creating?: boolean) => void;
   closeModal: () => void;
   setViewingLoadoutUser: (email: string) => void;
   refreshTasks: () => Promise<void>;
-  createTask: (input: CreateTaskInput) => Promise<void>;
+  createTask: (input: CreateTaskInput) => Promise<Task>;
   updateTask: (input: UpdateTaskInput) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
@@ -215,12 +214,13 @@ export function AppProvider({ children }: AppProviderProps) {
   }, [showCompleted, completedTasks.length, showToast]);
   
   // Task actions with optimistic updates
-  const createTask = useCallback(async (input: CreateTaskInput) => {
+  const createTask = useCallback(async (input: CreateTaskInput): Promise<Task> => {
     try {
       const newTask = await api.createTask(input);
       setTasks(prev => [newTask, ...prev]);
       showToast('Task created', 'success');
       closeModal();
+      return newTask;
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to create task', 'error');
       throw err;
@@ -252,8 +252,13 @@ export function AppProvider({ children }: AppProviderProps) {
     
     try {
       const updatedTask = await api.updateTask(input);
-      setTasks(prev => prev.map(t => 
-        t.task_id === updatedTask.task_id ? updatedTask : t
+      console.log('[updateTask] input:', input);
+      console.log('[updateTask] backend response:', updatedTask);
+      console.log('[updateTask] response quest_id:', JSON.stringify(updatedTask.quest_id));
+      // Merge backend response with current task state so partial responses
+      // (e.g. backend missing quest_id) don't clobber optimistic fields
+      setTasks(prev => prev.map(t =>
+        t.task_id === updatedTask.task_id ? { ...t, ...updatedTask } : t
       ));
       showToast('Task updated', 'success');
       closeModal();
@@ -488,8 +493,8 @@ export function AppProvider({ children }: AppProviderProps) {
         const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         if (priorityDiff !== 0) return priorityDiff;
         // Then by challenge
-        const aChallenge = a.challenge || 'five';
-        const bChallenge = b.challenge || 'five';
+        const aChallenge = a.challenge || 'high';
+        const bChallenge = b.challenge || 'high';
         const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
         if (challengeDiff !== 0) return challengeDiff;
       }
