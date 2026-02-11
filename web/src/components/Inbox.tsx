@@ -32,7 +32,7 @@ export function Inbox() {
       <div className="pane-header">
         <h2>
           <span className="icon">◈</span>
-          THE CACHE
+          MISSION CACHE
         </h2>
         
         <div className="filter-row">
@@ -92,7 +92,7 @@ export function Inbox() {
           <button 
             className={`filter-btn ${showCompleted ? 'active' : ''}`}
             onClick={toggleShowCompleted}
-            title="Show completed tasks"
+            title="Show completed missions"
           >
             ✓ DONE
           </button>
@@ -158,7 +158,7 @@ function InboxContent({
         <div className="empty-state">
           <div className="empty-state-icon">◇</div>
           <div className="empty-state-text">
-            CACHE EMPTY
+            MISSION CACHE EMPTY
           </div>
         </div>
       ) : viewMode === 'list' ? (

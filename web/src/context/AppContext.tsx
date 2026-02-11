@@ -218,11 +218,11 @@ export function AppProvider({ children }: AppProviderProps) {
     try {
       const newTask = await api.createTask(input);
       setTasks(prev => [newTask, ...prev]);
-      showToast('Task created', 'success');
+      showToast('Mission created', 'success');
       closeModal();
       return newTask;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to create task', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to create mission', 'error');
       throw err;
     }
   }, [closeModal, showToast]);
@@ -234,10 +234,10 @@ export function AppProvider({ children }: AppProviderProps) {
         // Refresh tasks to get the newly created ones
         await refreshTasks();
       }
-      showToast(`Imported ${result.success_count} tasks${result.error_count > 0 ? ` (${result.error_count} failed)` : ''}`, 'success');
+      showToast(`Imported ${result.success_count} missions${result.error_count > 0 ? ` (${result.error_count} failed)` : ''}`, 'success');
       return result;
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to import tasks', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to import missions', 'error');
       throw err;
     }
   }, [refreshTasks, showToast]);
@@ -260,11 +260,11 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(prev => prev.map(t =>
         t.task_id === updatedTask.task_id ? { ...t, ...updatedTask } : t
       ));
-      showToast('Task updated', 'success');
+      showToast('Mission updated', 'success');
       closeModal();
     } catch (err) {
       setTasks(previousTasks); // Rollback
-      showToast(err instanceof Error ? err.message : 'Failed to update task', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to update mission', 'error');
       throw err;
     }
   }, [tasks, closeModal, showToast]);
@@ -293,10 +293,10 @@ export function AppProvider({ children }: AppProviderProps) {
       }
       // Refresh tasks to ensure we get the latest state from backend (slot cleared)
       await refreshTasks();
-      showToast('Task completed! 🎉', 'success');
+      showToast('Mission completed! 🎉', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
-      showToast(err instanceof Error ? err.message : 'Failed to complete task', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to complete mission', 'error');
     }
   }, [tasks, showToast, refreshTasks]);
   
@@ -400,8 +400,10 @@ export function AppProvider({ children }: AppProviderProps) {
     
     try {
       const updatedQuest = await api.updateQuest(input);
-      setQuests(prev => prev.map(q => 
-        q.quest_id === updatedQuest.quest_id ? updatedQuest : q
+      // Merge backend response with current quest state so partial responses
+      // don't clobber optimistic fields (e.g. color)
+      setQuests(prev => prev.map(q =>
+        q.quest_id === updatedQuest.quest_id ? { ...q, ...updatedQuest } : q
       ));
       showToast('Quest updated', 'success');
       closeQuestModal();

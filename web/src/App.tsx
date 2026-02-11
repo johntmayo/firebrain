@@ -37,7 +37,6 @@ function AppContent() {
     showToast,
     todayTasks,
     tasks,
-    createTask,
     updateTask,
   } = useApp();
   
@@ -105,51 +104,10 @@ function AppContent() {
     
     const overId = over.id as string;
     
-    // Check if dragging a quest
+    // Quests cannot be dragged to the loadout - only missions can
     if (active.data.current?.type === 'quest') {
-      const quest = active.data.current?.quest as Quest;
-      
-      if (!over || !overId.startsWith('slot-')) {
-        sounds.dropCancel();
-        return;
-      }
-      
-      if (!isViewingOwnLoadout) {
-        showToast('You can only edit your own Today slots', 'error');
-        sounds.dropCancel();
-        return;
-      }
-      
-      // Create a new mission from the quest
-      const targetSlot = overId.replace('slot-', '') as TodaySlot;
-      const missionTitle = `Quest: ${quest.title}`;
-      
-      // Check if slot is occupied
-      const occupyingTask = todayTasks.get(targetSlot);
-      
-      try {
-        // Create the mission
-        const newMission = await createTask({
-          title: missionTitle,
-          notes: `Created from quest: ${quest.title}${quest.notes ? `\n\n${quest.notes}` : ''}`,
-          priority: 'medium',
-          assignee: quest.assignee,
-          quest_id: quest.quest_id,
-        });
-        
-        // Assign to slot (handle swap if needed)
-        if (occupyingTask) {
-          sounds.swap();
-          await assignToday(newMission.task_id, targetSlot, occupyingTask.task_id);
-        } else {
-          sounds.dropSuccess();
-          await assignToday(newMission.task_id, targetSlot);
-        }
-      } catch (err) {
-        sounds.dropCancel();
-        showToast('Failed to create mission from quest', 'error');
-      }
-      
+      sounds.dropCancel();
+      showToast('Quests can\'t go in the loadout — drag individual missions instead', 'error');
       return;
     }
     

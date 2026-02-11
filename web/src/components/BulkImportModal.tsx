@@ -92,7 +92,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
       if (parsedTasks.length === 1) {
         await createTask(parsedTasks[0]);
         setImportProgress({ current: 1, total: 1, results: [{ index: 0, success: true, task: {} as any }] });
-        showToast(`Successfully imported 1 task!`, 'success');
+        showToast(`Successfully imported 1 mission!`, 'success');
       } else {
         console.log('Sending bulk import request:', parsedTasks); // Debug log
         const result = await bulkCreateTasks(parsedTasks);
@@ -104,9 +104,9 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
         });
 
         if (result.error_count === 0) {
-          showToast(`Successfully imported ${result.success_count} tasks!`, 'success');
+          showToast(`Successfully imported ${result.success_count} missions!`, 'success');
         } else {
-          showToast(`Imported ${result.success_count} tasks, ${result.error_count} failed`, result.error_count > 0 ? 'error' : 'success');
+          showToast(`Imported ${result.success_count} missions, ${result.error_count} failed`, result.error_count > 0 ? 'error' : 'success');
         }
       }
 
@@ -120,7 +120,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
 
     } catch (error) {
       console.error('Bulk import error:', error); // Debug log
-      showToast(`Failed to import tasks: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      showToast(`Failed to import missions: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       setImportProgress(null);
     } finally {
       setIsImporting(false);
@@ -149,7 +149,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>◆ BULK TASK IMPORT</h3>
+          <h3>◆ BULK MISSION IMPORT</h3>
           <button className="modal-close" onClick={handleClose} disabled={isImporting}>
             ×
           </button>
@@ -157,7 +157,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
 
         <div className="modal-body">
           <div className="form-group">
-            <label htmlFor="bulk-input">PASTE TASKS BELOW</label>
+            <label htmlFor="bulk-input">PASTE MISSIONS BELOW</label>
             <textarea
               id="bulk-input"
               className="form-input"
@@ -173,14 +173,14 @@ Fix bug in login flow - Urgent`}
               style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}
             />
             <div className="text-xs text-muted mt-2">
-              Use -priority, @date, #notes syntax. One task per line.
+              Use -priority, @date, #notes syntax. One mission per line.
             </div>
           </div>
 
           {/* Preview Section */}
           {parsedTasks.length > 0 && (
             <div className="form-group">
-              <label>PREVIEW ({parsedTasks.length} tasks)</label>
+              <label>PREVIEW ({parsedTasks.length} missions)</label>
               <div className="bg-tertiary p-3 rounded-md max-h-48 overflow-y-auto">
                 {parsedTasks.map((task, index) => (
                   <div key={index} className="mb-2 pb-2 border-b border-border-subtle last:border-b-0">
@@ -222,7 +222,7 @@ Fix bug in login flow - Urgent`}
 
                 {importProgress.results.some(r => !r.success) && (
                   <div className="mt-3 text-xs text-error">
-                    Some tasks failed to import. Check your input format.
+                    Some missions failed to import. Check your input format.
                   </div>
                 )}
               </div>
@@ -245,7 +245,7 @@ Fix bug in login flow - Urgent`}
             onClick={handleImport}
             disabled={parsedTasks.length === 0 || isImporting}
           >
-            {isImporting ? 'IMPORTING...' : `IMPORT ${parsedTasks.length || 0} TASKS`}
+            {isImporting ? 'IMPORTING...' : `IMPORT ${parsedTasks.length || 0} MISSIONS`}
           </button>
         </div>
       </div>
