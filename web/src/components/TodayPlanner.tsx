@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { TimerModal } from './TimerModal';
 import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
-import { useTimer } from '../context/TimerContext';
 
 export function TodayPlanner() {
   const { 
@@ -133,12 +131,9 @@ interface TodaySlotProps {
 
 function TodaySlot({ slot, task }: TodaySlotProps) {
   const { currentUser, viewingLoadoutUser, clearToday } = useApp();
-  const { activeTimer } = useTimer();
-  const [showTimerModal, setShowTimerModal] = useState(false);
 
   const config = SLOT_CONFIG[slot];
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
-  const isActiveTimer = activeTimer && task && activeTimer.taskId === task.task_id;
   
   const { isOver, setNodeRef } = useDroppable({
     id: `slot-${slot}`,
@@ -161,27 +156,11 @@ function TodaySlot({ slot, task }: TodaySlotProps) {
       <span className="slot-label">{slot}</span>
       
       {task ? (
-        <div style={{ position: 'relative', height: '100%' }}>
-          <TaskCard
-            task={task}
-            showDragHandle={isViewingOwnLoadout}
-            inSlot
-            showTimerButton
-            onTimerClick={() => {
-              console.log('Timer button clicked, opening modal'); // Debug
-              setShowTimerModal(true);
-            }}
-            isTimerActive={isActiveTimer}
-          />
-
-          {/* Timer Modal */}
-          <TimerModal
-            isOpen={showTimerModal}
-            onClose={() => setShowTimerModal(false)}
-            taskId={task.task_id}
-            taskTitle={task.title}
-          />
-        </div>
+        <TaskCard
+          task={task}
+          showDragHandle={isViewingOwnLoadout}
+          inSlot
+        />
       ) : (
         <span>[ EMPTY SLOT ]</span>
       )}

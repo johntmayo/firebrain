@@ -2,7 +2,6 @@ import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Task, Quest } from '../types';
 import { useApp } from '../context/AppContext';
-import { useTimer } from '../context/TimerContext';
 
 interface TaskCardProps {
   task: Task;
@@ -10,9 +9,6 @@ interface TaskCardProps {
   showDragHandle?: boolean;
   inSlot?: boolean;
   completed?: boolean;
-  showTimerButton?: boolean;
-  onTimerClick?: () => void;
-  isTimerActive?: boolean;
   /** When set (e.g. from nested quest), mission uses this color instead of priority */
   questColor?: string;
 }
@@ -23,13 +19,9 @@ export function TaskCard({
   showDragHandle = true,
   inSlot = false,
   completed = false,
-  showTimerButton = false,
-  onTimerClick,
-  isTimerActive = false,
   questColor: questColorProp,
 }: TaskCardProps) {
   const { completeTask, openTaskModal, johnEmail, stephEmail, quests } = useApp();
-  const { activeTimer, getTimerProgress } = useTimer();
 
   // Resolve quest color: prop override, or from task.quest_id
   const questColor = questColorProp ?? (task.quest_id ? quests.find((q: Quest) => q.quest_id === task.quest_id)?.color : undefined);
@@ -41,9 +33,6 @@ export function TaskCard({
     disabled: completed, // Disable dragging for completed tasks
   });
 
-  const timerProgress = getTimerProgress();
-  const isActiveTimer = timerProgress && activeTimer?.taskId === task.task_id;
-  
   const handleDone = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!completed) {
@@ -96,17 +85,6 @@ export function TaskCard({
             </svg>
           </div>
       )}
-      {/* Timer Progress Bar - only show on active timer task */}
-      {isActiveTimer && timerProgress && (
-        <div
-          className="task-timer-progress"
-          style={{
-            width: `${timerProgress.progress}%`,
-            background: 'linear-gradient(90deg, var(--accent-secondary), var(--accent-primary))'
-          }}
-        />
-      )}
-
       <div className="task-card-header">
         <div className="task-content">
           <div className="task-title">{task.title}</div>
@@ -133,18 +111,6 @@ export function TaskCard({
         
         {!isCompleted && (
           <div className="task-actions">
-            {showTimerButton && onTimerClick && (
-              <button
-                className={`btn-timer-icon ${isTimerActive ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTimerClick();
-                }}
-                title={isTimerActive ? "Timer active" : "Start timer"}
-              >
-                ⏱️
-              </button>
-            )}
             <button
               className="btn-done"
               onClick={handleDone}
