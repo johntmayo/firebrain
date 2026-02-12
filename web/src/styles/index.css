@@ -994,7 +994,30 @@ body::before {
 }
 
 .task-due.overdue {
-  color: var(--priority-urgent);
+  color: var(--error);
+  font-weight: 700;
+  font-size: 0.65rem;
+}
+
+.task-due.due-today {
+  color: var(--priority-high);
+}
+
+.task-due.due-tomorrow {
+  color: var(--warning);
+}
+
+/* Card-level due date urgency accents (left border) */
+.task-card.due-overdue {
+  border-left: 3px solid var(--error);
+}
+
+.task-card.due-today {
+  border-left: 3px solid var(--priority-high);
+}
+
+.task-card.due-tomorrow {
+  border-left: 3px solid var(--warning);
 }
 
 .task-notes-icon {
@@ -1313,6 +1336,28 @@ body::before {
     width: 18px;
     height: 18px;
   }
+}
+
+/* ============================================
+   OVERDUE SECTION
+   ============================================ */
+.overdue-section {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-sm);
+  border-top: 2px solid var(--error);
+  background: rgba(255, 71, 87, 0.06);
+}
+
+.overdue-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--error);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 /* ============================================
@@ -2333,6 +2378,92 @@ body::before {
   border-color: var(--accent-primary);
 }
 
+/* Quest Details Modal (wider) */
+.modal-wide {
+  max-width: 600px;
+}
+
+.quest-details-missions {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.quest-details-header {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.quest-overdue-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--error);
+  background: rgba(255, 71, 87, 0.12);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+.quest-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.quest-details-list .task-card {
+  font-size: 0.85em;
+}
+
+.quest-details-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 4px;
+}
+
+.quest-details-empty-text {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quest-quick-add {
+  margin-top: var(--space-sm);
+}
+
+.quest-quick-add-input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.8rem;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  transition: border-color 0.15s ease;
+}
+
+.quest-quick-add-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.quest-quick-add-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--accent-primary);
+}
+
 /* ============================================
    TOAST MESSAGES
    ============================================ */
@@ -2665,6 +2796,22 @@ body::before {
 [data-theme="grimoire"] .modal {
   border-width: 2px;
   border-style: double;
+}
+
+/* Due date left borders need border-image cleared on grimoire theme */
+[data-theme="grimoire"] .task-card.due-overdue,
+[data-theme="grimoire"] .task-card.due-today,
+[data-theme="grimoire"] .task-card.due-tomorrow {
+  border-image: none;
+  border-left: 3px solid var(--error);
+}
+
+[data-theme="grimoire"] .task-card.due-today {
+  border-left-color: var(--priority-high);
+}
+
+[data-theme="grimoire"] .task-card.due-tomorrow {
+  border-left-color: var(--warning);
 }
 
 [data-theme="grimoire"] .filter-btn.active {

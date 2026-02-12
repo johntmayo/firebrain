@@ -88,6 +88,7 @@ export interface AssignTodayInput {
   swap_with_task_id?: string;
 }
 
+export type SortBy = 'priority' | 'challenge' | 'due_date' | 'quest';
 export type AssigneeFilter = 'john' | 'steph' | 'all';
 export type ViewMode = 'list' | 'buckets';
 

@@ -42,7 +42,7 @@ export function TaskModal() {
       setPriority(selectedTask.priority);
       setChallenge(selectedTask.challenge || '');
       setAssignee(selectedTask.assignee);
-      setDueDate(selectedTask.due_date || '');
+      setDueDate(selectedTask.due_date ? selectedTask.due_date.substring(0, 10) : '');
     } else {
       // Reset for new mission
       setTitle('');

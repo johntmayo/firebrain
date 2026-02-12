@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { TaskCard } from './TaskCard';
 import type { CreateQuestInput, UpdateQuestInput } from '../types';
+import { PRIORITY_ORDER } from '../types';
 
 const QUEST_PRESET_COLORS = [
   '#7b68ee', '#00d4aa', '#d4a84b', '#ff4757', '#ff7b4a',
@@ -9,26 +11,30 @@ const QUEST_PRESET_COLORS = [
 ];
 
 export function QuestModal() {
-  const { 
-    isQuestModalOpen, 
-    selectedQuest, 
-    isCreatingQuest, 
-    closeQuestModal, 
-    createQuest, 
+  const {
+    isQuestModalOpen,
+    selectedQuest,
+    isCreatingQuest,
+    closeQuestModal,
+    createQuest,
     updateQuest,
     toggleQuestTracked,
     trackedQuests,
     currentUser,
     johnEmail,
     stephEmail,
+    tasks,
+    createQuestMission,
   } = useApp();
-  
+
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [assignee, setAssignee] = useState(johnEmail);
   const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
-  
+  const [quickAddTitle, setQuickAddTitle] = useState('');
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isQuestModalOpen) {
@@ -40,7 +46,7 @@ export function QuestModal() {
       document.body.style.overflow = '';
     };
   }, [isQuestModalOpen]);
-  
+
   // Populate form when editing
   useEffect(() => {
     if (selectedQuest) {
@@ -55,16 +61,34 @@ export function QuestModal() {
       setAssignee(johnEmail);
       setColor('');
     }
+    setQuickAddTitle('');
   }, [selectedQuest, johnEmail]);
-  
+
   if (!isQuestModalOpen) return null;
-  
+
+  // Missions in this quest (open, not in loadout)
+  const questMissions = selectedQuest
+    ? tasks
+        .filter(t => t.status === 'open' && t.quest_id === selectedQuest.quest_id && !t.today_slot)
+        .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+    : [];
+
+  // Count overdue missions
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const overdueCount = questMissions.filter(t => {
+    if (!t.due_date) return false;
+    const due = new Date(t.due_date);
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    return dueDay.getTime() < today.getTime();
+  }).length;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    
+
     setSaving(true);
-    
+
     try {
       if (isCreatingQuest) {
         const input: CreateQuestInput = {
@@ -90,7 +114,7 @@ export function QuestModal() {
       setSaving(false);
     }
   };
-  
+
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       closeQuestModal();
@@ -99,35 +123,48 @@ export function QuestModal() {
 
   const handleToggleTracked = async () => {
     if (!selectedQuest) return;
-    
+
     const isCurrentlyTracked = selectedQuest.is_tracked;
     const canTrack = !isCurrentlyTracked && trackedQuests.length < 3;
-    
+
     if (!canTrack && !isCurrentlyTracked) {
-      // Show error toast will be handled by context
       return;
     }
-    
+
     try {
       await toggleQuestTracked(selectedQuest.quest_id);
     } catch {
       // Error handled in context
     }
   };
-  
+
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddTitle.trim() || !selectedQuest || quickAddSaving) return;
+
+    setQuickAddSaving(true);
+    try {
+      await createQuestMission(selectedQuest.quest_id, quickAddTitle.trim(), selectedQuest.assignee);
+      setQuickAddTitle('');
+    } finally {
+      setQuickAddSaving(false);
+    }
+  };
+
   const canTrack = !selectedQuest?.is_tracked && trackedQuests.length < 3;
   const isViewingOwnQuest = selectedQuest && selectedQuest.assignee === currentUser;
-  
+  const isEditMode = !isCreatingQuest && selectedQuest;
+
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className={`modal ${isEditMode ? 'modal-wide' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreatingQuest ? '⚔ NEW QUEST' : '⚔ EDIT QUEST'}</h3>
+          <h3>{isCreatingQuest ? '⚔ NEW QUEST' : '⚔ QUEST DETAILS'}</h3>
           <button className="modal-close" onClick={closeQuestModal}>
             ×
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
@@ -143,7 +180,7 @@ export function QuestModal() {
                 required
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="quest-notes">INTEL</label>
               <textarea
@@ -154,7 +191,7 @@ export function QuestModal() {
                 placeholder="Additional intel..."
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="quest-assignee">OPERATOR</label>
               <select
@@ -167,7 +204,7 @@ export function QuestModal() {
                 <option value={stephEmail}>STEF</option>
               </select>
             </div>
-            
+
             <div className="form-group">
               <label>QUEST COLOR</label>
               <div className="quest-color-picker">
@@ -197,7 +234,7 @@ export function QuestModal() {
                 Missions in this quest use this color; drag to Cache to reset to Threat Level color.
               </div>
             </div>
-            
+
             {!isCreatingQuest && selectedQuest && isViewingOwnQuest && (
               <div className="form-group">
                 <label>TRACKING STATUS</label>
@@ -222,19 +259,64 @@ export function QuestModal() {
                 )}
               </div>
             )}
+
+            {/* Missions section - edit mode only */}
+            {isEditMode && (
+              <div className="quest-details-missions">
+                <div className="quest-details-header">
+                  <span>MISSIONS ({questMissions.length})</span>
+                  {overdueCount > 0 && (
+                    <span className="quest-overdue-badge">{overdueCount} overdue</span>
+                  )}
+                </div>
+
+                {questMissions.length > 0 ? (
+                  <div className="quest-details-list">
+                    {questMissions.map(mission => (
+                      <TaskCard
+                        key={mission.task_id}
+                        task={mission}
+                        compact
+                        showDragHandle={false}
+                        questColor={selectedQuest.color || undefined}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="quest-details-empty">
+                    <span className="quest-details-empty-text">No missions in this quest</span>
+                  </div>
+                )}
+
+                <form
+                  className="quest-quick-add"
+                  onSubmit={handleQuickAdd}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <input
+                    type="text"
+                    className="quest-quick-add-input"
+                    placeholder="+ Add mission..."
+                    value={quickAddTitle}
+                    onChange={e => setQuickAddTitle(e.target.value)}
+                    disabled={quickAddSaving}
+                  />
+                </form>
+              </div>
+            )}
           </div>
-          
+
           <div className="modal-footer">
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
+            <button
+              type="button"
+              className="btn btn-secondary"
               onClick={closeQuestModal}
               disabled={saving}
             >
               ABORT
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn btn-primary"
               disabled={saving || !title.trim()}
             >
@@ -246,4 +328,3 @@ export function QuestModal() {
     </div>
   );
 }
-

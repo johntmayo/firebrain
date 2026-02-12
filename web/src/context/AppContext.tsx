@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput } from '../types';
+import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
 import { api, setCurrentUserEmail, type BulkImportResponse } from '../api/client';
 
@@ -30,18 +30,18 @@ interface AppContextType {
   assigneeFilter: AssigneeFilter;
   viewMode: ViewMode;
   showCompleted: boolean;
-  sortBy: 'priority' | 'challenge';
+  sortBy: SortBy;
   selectedTask: Task | null;
   isModalOpen: boolean;
   isCreating: boolean;
   toast: { message: string; type: 'success' | 'error' } | null;
   viewingLoadoutUser: string; // Which user's loadout we're viewing
-  
+
   // Actions
   setAssigneeFilter: (filter: AssigneeFilter) => void;
   setViewMode: (mode: ViewMode) => void;
   toggleShowCompleted: () => void;
-  setSortBy: (sortBy: 'priority' | 'challenge') => void;
+  setSortBy: (sortBy: SortBy) => void;
   openTaskModal: (task: Task | null, creating?: boolean) => void;
   closeModal: () => void;
   setViewingLoadoutUser: (email: string) => void;
@@ -60,11 +60,13 @@ interface AppContextType {
   updateQuest: (input: UpdateQuestInput) => Promise<void>;
   toggleQuestTracked: (questId: string) => Promise<void>;
   completeQuest: (questId: string) => Promise<void>;
+  createQuestMission: (questId: string, title: string, assignee?: string) => Promise<void>;
   openQuestModal: (quest: Quest | null, creating?: boolean) => void;
   closeQuestModal: () => void;
   
   // Computed
   inboxTasks: Task[];
+  overdueTasks: Task[];
   todayTasks: Map<TodaySlot, Task>;
   accomplishedToday: Task[];
   trackedQuests: Quest[];
@@ -112,7 +114,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(defaultFilter);
   const [viewMode, setViewMode] = useState<ViewMode>('buckets');
   const [showCompleted, setShowCompleted] = useState(false);
-  const [sortBy, setSortBy] = useState<'priority' | 'challenge'>('priority');
+  const [sortBy, setSortBy] = useState<SortBy>('priority');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -467,40 +469,92 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [quests, showToast, refreshQuests]);
 
-  // Computed values
-  const inboxTasks = tasks
-    .filter(t => {
-      if (t.status !== 'open') return false;
-      if (t.today_slot) return false; // In Today, not Inbox
-      if (t.quest_id) return false; // In a Quest, show under that quest not in Cache
-      
-      switch (assigneeFilter) {
-        case 'john': return t.assignee === JOHN_EMAIL;
-        case 'steph': return t.assignee === STEPH_EMAIL;
-        case 'all': return true;
-      }
-    })
+  // Create a mission inside a quest without closing the quest modal
+  const createQuestMission = useCallback(async (questId: string, title: string, assignee?: string) => {
+    try {
+      const newTask = await api.createTask({
+        title,
+        quest_id: questId,
+        priority: 'medium',
+        assignee: assignee || currentUser,
+      });
+      setTasks(prev => [newTask, ...prev]);
+      showToast('Mission created', 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to create mission', 'error');
+    }
+  }, [currentUser, showToast]);
+
+  // Helper: check if a due_date is past (overdue)
+  const isOverdue = (dueDateStr: string) => {
+    if (!dueDateStr) return false;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const due = new Date(dueDateStr);
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    return dueDay.getTime() < today.getTime();
+  };
+
+  // Filter: base inbox missions (open, not in loadout, not in a quest, matches assignee)
+  const inboxBase = tasks.filter(t => {
+    if (t.status !== 'open') return false;
+    if (t.today_slot) return false;
+    if (t.quest_id) return false;
+    switch (assigneeFilter) {
+      case 'john': return t.assignee === JOHN_EMAIL;
+      case 'steph': return t.assignee === STEPH_EMAIL;
+      case 'all': return true;
+    }
+  });
+
+  // Overdue tasks: pulled out of the main list, sorted most-overdue first
+  const overdueTasks = inboxBase
+    .filter(t => isOverdue(t.due_date))
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+  const overdueIds = new Set(overdueTasks.map(t => t.task_id));
+
+  // Computed values — inbox minus overdue, sorted by selected sort
+  const inboxTasks = inboxBase
+    .filter(t => !overdueIds.has(t.task_id))
     .sort((a, b) => {
+      if (sortBy === 'due_date') {
+        // Earliest due date first; no due date sorts to bottom
+        const aHas = Boolean(a.due_date);
+        const bHas = Boolean(b.due_date);
+        if (aHas !== bHas) return aHas ? -1 : 1;
+        if (aHas && bHas) {
+          const dateDiff = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          if (dateDiff !== 0) return dateDiff;
+        }
+        // Secondary: priority
+        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      }
+      if (sortBy === 'quest') {
+        // Group by quest_id (unquested last), then priority within groups
+        // Note: quest_id is empty for inbox tasks, so this sort is mainly useful
+        // when applied to the full task set; here it falls back to priority
+        const aQuest = a.quest_id || '\uffff';
+        const bQuest = b.quest_id || '\uffff';
+        if (aQuest !== bQuest) return aQuest.localeCompare(bQuest);
+        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+      }
       if (sortBy === 'challenge') {
-        // Sort by challenge, then by priority, then by created_at
-        const aChallenge = a.challenge || 'high'; // Default to 'high' if no challenge
+        const aChallenge = a.challenge || 'high';
         const bChallenge = b.challenge || 'high';
         const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
         if (challengeDiff !== 0) return challengeDiff;
-        // Then by priority
         const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         if (priorityDiff !== 0) return priorityDiff;
       } else {
-        // Sort by priority, then by challenge, then by created_at
+        // Default: priority
         const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         if (priorityDiff !== 0) return priorityDiff;
-        // Then by challenge
         const aChallenge = a.challenge || 'high';
         const bChallenge = b.challenge || 'high';
         const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
         if (challengeDiff !== 0) return challengeDiff;
       }
-      // Finally by created_at (newest first)
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   
@@ -587,9 +641,11 @@ export function AppProvider({ children }: AppProviderProps) {
     updateQuest,
     toggleQuestTracked,
     completeQuest,
+    createQuestMission,
     openQuestModal,
     closeQuestModal,
     inboxTasks,
+    overdueTasks,
     todayTasks,
     accomplishedToday,
     trackedQuests,

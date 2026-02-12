@@ -3,11 +3,12 @@ import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
 import { BulkImportModal } from './BulkImportModal';
-import type { Priority, Task } from '../types';
+import type { Priority, Task, SortBy } from '../types';
 
 export function Inbox() {
   const {
     inboxTasks,
+    overdueTasks,
     completedTasks,
     loading,
     assigneeFilter,
@@ -73,20 +74,21 @@ export function Inbox() {
           </div>
           
           <div className="sort-toggle">
-            <button 
-              className={`filter-btn ${sortBy === 'priority' ? 'active' : ''}`}
-              onClick={() => setSortBy('priority')}
-              title="Sort by Priority"
-            >
-              PRIORITY
-            </button>
-            <button 
-              className={`filter-btn ${sortBy === 'challenge' ? 'active' : ''}`}
-              onClick={() => setSortBy('challenge')}
-              title="Sort by Challenge"
-            >
-              CHALLENGE
-            </button>
+            {([
+              ['due_date', 'DUE DATE', 'Sort by Due Date'],
+              ['priority', 'PRIORITY', 'Sort by Priority'],
+              ['challenge', 'CHALLENGE', 'Sort by Challenge'],
+              ['quest', 'QUEST', 'Sort by Quest'],
+            ] as [SortBy, string, string][]).map(([key, label, title]) => (
+              <button
+                key={key}
+                className={`filter-btn ${sortBy === key ? 'active' : ''}`}
+                onClick={() => setSortBy(key)}
+                title={title}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           
           <button 
@@ -101,6 +103,7 @@ export function Inbox() {
       
       <InboxContent
         tasks={inboxTasks}
+        overdueTasks={overdueTasks}
         completedTasks={completedTasks}
         showCompleted={showCompleted}
         loading={loading}
@@ -120,6 +123,7 @@ export function Inbox() {
 
 function InboxContent({
   tasks,
+  overdueTasks,
   completedTasks,
   showCompleted,
   loading,
@@ -129,6 +133,7 @@ function InboxContent({
   onToggleBulkImport
 }: {
   tasks: Task[];
+  overdueTasks: Task[];
   completedTasks: Task[];
   showCompleted: boolean;
   loading: boolean;
@@ -141,30 +146,48 @@ function InboxContent({
     id: 'inbox-drop-zone',
   });
 
+  const isEmpty = tasks.length === 0 && overdueTasks.length === 0;
+
   return (
-    <div 
+    <div
       ref={setNodeRef}
       className={`pane-content ${isOver ? 'drag-over-inbox' : ''}`}
-      style={{ 
+      style={{
         transition: 'background 0.2s ease',
-        background: isOver ? 'rgba(255, 107, 53, 0.05)' : undefined 
+        background: isOver ? 'rgba(255, 107, 53, 0.05)' : undefined
       }}
     >
       {loading ? (
         <div className="loading">
           <div className="spinner" />
         </div>
-      ) : tasks.length === 0 && !showCompleted ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">◇</div>
-          <div className="empty-state-text">
-            MISSION CACHE EMPTY
-          </div>
-        </div>
-      ) : viewMode === 'list' ? (
-        <ListView tasks={tasks} />
       ) : (
-        <BucketsView tasks={tasks} />
+        <>
+          {overdueTasks.length > 0 && (
+            <div className="overdue-section">
+              <div className="overdue-header">
+                <span>⚠ OVERDUE ({overdueTasks.length})</span>
+              </div>
+              <div className="task-list">
+                {overdueTasks.map(task => (
+                  <TaskCard key={task.task_id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+          {isEmpty && !showCompleted ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">◇</div>
+              <div className="empty-state-text">
+                MISSION CACHE EMPTY
+              </div>
+            </div>
+          ) : viewMode === 'list' ? (
+            <ListView tasks={tasks} />
+          ) : (
+            <BucketsView tasks={tasks} />
+          )}
+        </>
       )}
       
       {showCompleted && (
@@ -199,10 +222,6 @@ function InboxContent({
         </button>
       </div>
 
-      <BulkImportModal
-        isOpen={showBulkImport}
-        onClose={() => setShowBulkImport(false)}
-      />
     </div>
   );
 }
