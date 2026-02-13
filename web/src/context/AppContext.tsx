@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
-import { api, setCurrentUserEmail, type BulkImportResponse } from '../api/client';
+import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
 const STEPH_EMAIL = import.meta.env.VITE_STEPH_EMAIL || 'steph@example.com';
@@ -137,6 +137,11 @@ export function AppProvider({ children }: AppProviderProps) {
       const fetchedTasks = await api.getTasks('open');
       setTasks(fetchedTasks);
     } catch (err) {
+      // If the token was cleared due to an auth error, reload to show login screen
+      if (!isAuthenticated()) {
+        window.location.reload();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
       showToast('Failed to load tasks', 'error');
     } finally {

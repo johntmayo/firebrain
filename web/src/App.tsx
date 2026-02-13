@@ -19,7 +19,7 @@ import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
-import { isAuthenticated } from './api/client';
+import { isAuthenticated, getSessionToken } from './api/client';
 import { sounds } from './utils/sounds';
 import type { Task, TodaySlot, Quest } from './types';
 

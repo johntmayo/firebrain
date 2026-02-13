@@ -83,13 +83,15 @@ async function apiCall<T>(action: string, body?: object): Promise<T> {
   const data = await response.json();
   
   if (data.error) {
-    // If unauthorized, clear token
-    if (response.status === 401) {
+    // Google Apps Script always returns HTTP 200 after redirect,
+    // so check the error message for auth failures instead of status code
+    const errorStr = String(data.error).toLowerCase();
+    if (response.status === 401 || errorStr.includes('unauthorized') || errorStr.includes('invalid or expired session')) {
       clearSessionToken();
     }
     throw new Error(data.error);
   }
-  
+
   return data;
 }
 
@@ -130,15 +132,16 @@ export const api = {
     const data: ApiResponse<Task[]> = await response.json();
     
     if (data.error) {
-      if (response.status === 401) {
+      const errorStr = String(data.error).toLowerCase();
+      if (response.status === 401 || errorStr.includes('unauthorized') || errorStr.includes('invalid or expired session')) {
         clearSessionToken();
       }
       throw new Error(data.error);
     }
-    
+
     return data.tasks || [];
   },
-  
+
   async createTask(input: CreateTaskInput): Promise<Task> {
     const data = await apiCall<ApiResponse<Task>>('createTask', input);
     return data.task!;
@@ -195,12 +198,13 @@ export const api = {
     const data: ApiResponse<Quest[]> = await response.json();
     
     if (data.error) {
-      if (response.status === 401) {
+      const errorStr = String(data.error).toLowerCase();
+      if (response.status === 401 || errorStr.includes('unauthorized') || errorStr.includes('invalid or expired session')) {
         clearSessionToken();
       }
       throw new Error(data.error);
     }
-    
+
     return data.quests || [];
   },
 
