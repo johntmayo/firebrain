@@ -152,7 +152,7 @@ body::before {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding-bottom: 14px; /* space for collapsed Gizmodroar tab */
+  padding-bottom: 20px; /* space for collapsed Gizmodroar tab */
 }
 
 /* Header - Command Bar */
@@ -893,21 +893,22 @@ body::before {
 
 .gizmodroar-tab {
   width: 100%;
-  height: 14px;
-  min-height: 14px;
+  height: 20px;
+  min-height: 20px;
   padding: 0;
   margin: 0;
   border: none;
   border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
   color: var(--text-muted);
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .gizmodroar-tab:hover {

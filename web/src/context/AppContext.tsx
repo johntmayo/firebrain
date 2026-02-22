@@ -206,6 +206,12 @@ export function AppProvider({ children }: AppProviderProps) {
     } catch (err) {
       if (!isAuthenticated()) return;
       console.error('Failed to load loadout config:', err);
+      // Fallback so SET ENERGY row still shows if backend isn't redeployed yet
+      setLoadoutConfig({
+        energy_level: 'medium',
+        points_used: 0,
+        points_limit: 10,
+      });
     }
   }, []);
 
