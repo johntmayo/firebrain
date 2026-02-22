@@ -75,6 +75,11 @@ const QUEST_HEADERS = [
 ];
 
 const VALID_SLOTS = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
+// Point cost per slot: Big=3, Medium=2, Small=1 (for energy-based loadout limits)
+const SLOT_POINTS = { B1: 3, M1: 2, M2: 2, M3: 2, S1: 1, S2: 1, S3: 1, S4: 1, S5: 1 };
+const VALID_ENERGY_LEVELS = ['light', 'medium', 'heavy'];
+const ENERGY_POINTS_LIMIT = { light: 7, medium: 10, heavy: 12 };
+const ENERGY_PROPERTY_PREFIX = 'loadout_energy_';
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES = ['open', 'done', 'archived'];
 
@@ -142,6 +147,10 @@ function handleRequest(e, method) {
         return assignToday(body, callerEmail);
       case 'clearToday':
         return clearToday(body, callerEmail);
+      case 'getLoadoutConfig':
+        return getLoadoutConfig(callerEmail);
+      case 'setEnergyLevel':
+        return setEnergyLevel(body, callerEmail);
       case 'bulkCreateTasks':
         return bulkCreateTasks(body, callerEmail);
       
@@ -564,6 +573,13 @@ function assignToday(body, callerEmail) {
   const data = sheet.getDataRange().getValues();
   const now = new Date().toISOString();
   
+  const taskRow = sheet.getRange(taskRowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
+  const taskCurrentSlot = (taskRow[TASK_COLS.TODAY_SLOT] || '').toString();
+  
+  const energyLevel = getEnergyLevel(callerEmail);
+  const pointsLimit = getPointsLimit(energyLevel);
+  const currentPoints = getLoadoutPoints(sheet, callerEmail);
+  
   let occupyingRowIndex = -1;
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -611,7 +627,13 @@ function assignToday(body, callerEmail) {
     }
   }
   
-  const taskRow = sheet.getRange(taskRowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
+  // Not swapping: adding to empty slot or moving from another slot. Check energy limit.
+  const pointsAfter = currentPoints - getSlotPoints(taskCurrentSlot) + getSlotPoints(body.today_slot);
+  if (pointsAfter > pointsLimit) {
+    return jsonResponse({
+      error: 'You don\'t have the bandwidth for that today. Your ' + energyLevel + ' day allows ' + pointsLimit + ' points; this would use ' + pointsAfter + '.'
+    }, 409);
+  }
   
   while (taskRow.length < TASK_HEADERS.length) taskRow.push('');
   
@@ -957,6 +979,82 @@ function getTokenUser(token) {
   if (!token) return null;
   const properties = PropertiesService.getScriptProperties();
   return properties.getProperty(TOKEN_USER_PREFIX + token);
+}
+
+// ============== LOADOUT ENERGY ==============
+
+function getSlotPoints(slot) {
+  return SLOT_POINTS[slot] || 0;
+}
+
+function getPointsLimit(energyLevel) {
+  return ENERGY_POINTS_LIMIT[energyLevel] || ENERGY_POINTS_LIMIT.medium;
+}
+
+function getEnergyLevel(email) {
+  const properties = PropertiesService.getScriptProperties();
+  const level = properties.getProperty(ENERGY_PROPERTY_PREFIX + email);
+  return (level && VALID_ENERGY_LEVELS.includes(level)) ? level : 'medium';
+}
+
+function setEnergyLevelProperty(email, level) {
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(ENERGY_PROPERTY_PREFIX + email, level);
+}
+
+/** Sum of slot points for this user's current loadout (open tasks only). */
+function getLoadoutPoints(sheet, email) {
+  const data = sheet.getDataRange().getValues();
+  let total = 0;
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const status = row.length > TASK_COLS.STATUS ? (row[TASK_COLS.STATUS] || '') : '';
+    const todayUser = row.length > TASK_COLS.TODAY_USER ? (row[TASK_COLS.TODAY_USER] || '') : '';
+    const todaySlot = row[TASK_COLS.TODAY_SLOT] || '';
+    if (status === 'open' && todayUser === email && todaySlot) {
+      total += getSlotPoints(todaySlot);
+    }
+  }
+  return total;
+}
+
+/**
+ * GET /getLoadoutConfig - Returns energy level and points for the current user's loadout
+ */
+function getLoadoutConfig(callerEmail) {
+  const sheet = getTasksSheet();
+  const pointsUsed = getLoadoutPoints(sheet, callerEmail);
+  const energyLevel = getEnergyLevel(callerEmail);
+  const pointsLimit = getPointsLimit(energyLevel);
+  return jsonResponse({
+    energy_level: energyLevel,
+    points_used: pointsUsed,
+    points_limit: pointsLimit
+  });
+}
+
+/**
+ * POST /setEnergyLevel - Set loadout energy level (light=7, medium=10, heavy=12 points)
+ */
+function setEnergyLevel(body, callerEmail) {
+  const level = (body.energy_level || '').toLowerCase();
+  if (!VALID_ENERGY_LEVELS.includes(level)) {
+    return jsonResponse({ error: 'Invalid energy_level. Use light, medium, or heavy.' }, 400);
+  }
+  const sheet = getTasksSheet();
+  const pointsUsed = getLoadoutPoints(sheet, callerEmail);
+  const newLimit = getPointsLimit(level);
+  if (pointsUsed > newLimit) {
+    return jsonResponse({
+      error: 'Remove some missions first before you can lower your energy level. Your loadout uses ' + pointsUsed + ' points; ' + level + ' day allows ' + newLimit + '.'
+    }, 409);
+  }
+  setEnergyLevelProperty(callerEmail, level);
+  return jsonResponse({
+    success: true,
+    energy_level: level,
+    points_limit: newLimit
+  });
 }
 
 // ============== SETUP HELPER ==============

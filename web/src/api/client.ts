@@ -1,4 +1,4 @@
-import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot, Quest, CreateQuestInput, UpdateQuestInput } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const SESSION_TOKEN_KEY = 'firebrain_session_token';
@@ -45,6 +45,9 @@ interface ApiResponse<T> {
   token?: string;
   userEmail?: string;
   expiresAt?: number;
+  energy_level?: EnergyLevel;
+  points_used?: number;
+  points_limit?: number;
 }
 
 export interface BulkImportResult {
@@ -168,6 +171,37 @@ export const api = {
   async clearToday(taskId: string): Promise<Task> {
     const data = await apiCall<ApiResponse<Task>>('clearToday', { task_id: taskId });
     return data.task!;
+  },
+
+  async getLoadoutConfig(): Promise<LoadoutConfig> {
+    const token = getSessionToken();
+    if (!token) throw new Error('Not authenticated');
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('action', 'getLoadoutConfig');
+    url.searchParams.set('token', token);
+    const response = await fetch(url.toString());
+    const data: ApiResponse<LoadoutConfig> = await response.json();
+    if (data.error) {
+      const err = String(data.error).toLowerCase();
+      if (response.status === 401 || err.includes('unauthorized') || err.includes('invalid or expired session'))
+        clearSessionToken();
+      throw new Error(data.error);
+    }
+    return {
+      energy_level: data.energy_level!,
+      points_used: data.points_used ?? 0,
+      points_limit: data.points_limit ?? 10,
+    };
+  },
+
+  async setEnergyLevel(energy_level: EnergyLevel): Promise<LoadoutConfig> {
+    const data = await apiCall<ApiResponse<LoadoutConfig>>('setEnergyLevel', { energy_level });
+    if (data.error) throw new Error(data.error);
+    return {
+      energy_level: data.energy_level!,
+      points_used: data.points_used ?? 0,
+      points_limit: data.points_limit ?? 10,
+    };
   },
 
   async bulkCreateTasks(tasks: CreateTaskInput[]): Promise<BulkImportResponse> {

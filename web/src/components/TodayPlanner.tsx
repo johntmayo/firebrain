@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { ALL_SLOTS, SLOT_CONFIG, type TodaySlot } from '../types';
+import { SLOT_CONFIG, ENERGY_POINTS_LIMIT, type TodaySlot, type EnergyLevel } from '../types';
 
 export function TodayPlanner() {
   const { 
@@ -13,14 +13,15 @@ export function TodayPlanner() {
     stephEmail,
     meganEmail,
     viewingLoadoutUser,
-    setViewingLoadoutUser
+    setViewingLoadoutUser,
+    loadoutConfig,
+    setEnergyLevel,
   } = useApp();
   
   const bigSlots: TodaySlot[] = ['B1'];
   const mediumSlots: TodaySlot[] = ['M1', 'M2', 'M3'];
   const smallSlots: TodaySlot[] = ['S1', 'S2', 'S3', 'S4', 'S5'];
   
-  // Format today's date
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-US', { 
     weekday: 'short', 
@@ -33,6 +34,12 @@ export function TodayPlanner() {
                          viewingLoadoutUser === stephEmail ? 'STEF' : 
                          viewingLoadoutUser === meganEmail ? 'MEGAN' :
                          viewingLoadoutUser.split('@')[0].toUpperCase();
+  
+  const energyLevels: { level: EnergyLevel; label: string }[] = [
+    { level: 'light', label: 'Light (7)' },
+    { level: 'medium', label: 'Medium (10)' },
+    { level: 'heavy', label: 'Heavy (12)' },
+  ];
   
   return (
     <div className="pane pane-today">
@@ -65,7 +72,27 @@ export function TodayPlanner() {
               MEGAN
             </button>
           </div>
-          <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>
+          {isViewingOwnLoadout && loadoutConfig && (
+            <div className="energy-level-row">
+              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.08em', marginRight: '0.35rem' }}>SET ENERGY</span>
+              <div className="energy-level-btns">
+                {energyLevels.map(({ level, label }) => (
+                  <button
+                    key={level}
+                    type="button"
+                    className={`energy-level-btn ${loadoutConfig.energy_level === level ? 'active' : ''}`}
+                    onClick={() => setEnergyLevel(level)}
+                    title={`${level} day: ${ENERGY_POINTS_LIMIT[level]} points`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="loadout-points">
+                {loadoutConfig.points_used} / {loadoutConfig.points_limit} pts
+              </span>
+            </div>
+          )}
           <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: '500' }}>
             {dateStr.toUpperCase()}
           </span>
