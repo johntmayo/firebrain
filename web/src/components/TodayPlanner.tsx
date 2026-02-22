@@ -11,6 +11,7 @@ export function TodayPlanner() {
     currentUser,
     johnEmail,
     stephEmail,
+    meganEmail,
     viewingLoadoutUser,
     setViewingLoadoutUser
   } = useApp();
@@ -30,6 +31,7 @@ export function TodayPlanner() {
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
   const viewingUserName = viewingLoadoutUser === johnEmail ? 'JOHN' : 
                          viewingLoadoutUser === stephEmail ? 'STEF' : 
+                         viewingLoadoutUser === meganEmail ? 'MEGAN' :
                          viewingLoadoutUser.split('@')[0].toUpperCase();
   
   return (
@@ -54,6 +56,13 @@ export function TodayPlanner() {
               title="View Stef's Loadout"
             >
               STEF
+            </button>
+            <button
+              className={`loadout-user-btn ${viewingLoadoutUser === meganEmail ? 'active' : ''}`}
+              onClick={() => setViewingLoadoutUser(meganEmail)}
+              title="View Megan's Loadout"
+            >
+              MEGAN
             </button>
           </div>
           <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>1-3-5</span>

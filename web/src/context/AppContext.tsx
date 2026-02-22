@@ -5,6 +5,7 @@ import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } fr
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
 const STEPH_EMAIL = import.meta.env.VITE_STEPH_EMAIL || 'steph@example.com';
+const MEGAN_EMAIL = import.meta.env.VITE_MEGAN_EMAIL || 'megan@example.com';
 
 interface AppContextType {
   // User
@@ -12,6 +13,7 @@ interface AppContextType {
   isJohn: boolean;
   johnEmail: string;
   stephEmail: string;
+  meganEmail: string;
   
   // Tasks (Missions)
   tasks: Task[];
@@ -109,7 +111,8 @@ export function AppProvider({ children }: AppProviderProps) {
   // UI state - default to logged-in user
   const loggedInUser = localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
   const defaultFilter: AssigneeFilter = loggedInUser === JOHN_EMAIL ? 'john' : 
-                                        loggedInUser === STEPH_EMAIL ? 'steph' : 'all';
+                                        loggedInUser === STEPH_EMAIL ? 'steph' :
+                                        loggedInUser === MEGAN_EMAIL ? 'megan' : 'all';
   
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>(defaultFilter);
   const [viewMode, setViewMode] = useState<ViewMode>('buckets');
@@ -163,6 +166,11 @@ export function AppProvider({ children }: AppProviderProps) {
       const doneTasks = await api.getTasks('done');
       setCompletedTasks(doneTasks);
     } catch (err) {
+      // If auth is invalid, force login screen
+      if (!isAuthenticated()) {
+        window.location.reload();
+        return;
+      }
       // Silently fail - not critical for accomplished section
       console.error('Failed to load completed tasks:', err);
     }
@@ -175,6 +183,11 @@ export function AppProvider({ children }: AppProviderProps) {
       const fetchedQuests = await api.getQuests('open');
       setQuests(fetchedQuests);
     } catch (err) {
+      // If auth is invalid, force login screen
+      if (!isAuthenticated()) {
+        window.location.reload();
+        return;
+      }
       console.error('Failed to fetch quests:', err);
       showToast('Failed to load quests', 'error');
     } finally {
@@ -508,6 +521,7 @@ export function AppProvider({ children }: AppProviderProps) {
     switch (assigneeFilter) {
       case 'john': return t.assignee === JOHN_EMAIL;
       case 'steph': return t.assignee === STEPH_EMAIL;
+      case 'megan': return t.assignee === MEGAN_EMAIL;
       case 'all': return true;
     }
   });
@@ -610,6 +624,7 @@ export function AppProvider({ children }: AppProviderProps) {
     isJohn,
     johnEmail: JOHN_EMAIL,
     stephEmail: STEPH_EMAIL,
+    meganEmail: MEGAN_EMAIL,
     tasks,
     completedTasks,
     loading,

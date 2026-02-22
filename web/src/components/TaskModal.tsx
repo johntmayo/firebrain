@@ -12,6 +12,7 @@ export function TaskModal() {
     updateTask,
     johnEmail,
     stephEmail,
+    meganEmail,
   } = useApp();
   
   const [title, setTitle] = useState('');
@@ -175,6 +176,7 @@ export function TaskModal() {
                 >
                   <option value={johnEmail}>JOHN</option>
                   <option value={stephEmail}>STEF</option>
+                  <option value={meganEmail}>MEGAN</option>
                 </select>
               </div>
 

@@ -21,7 +21,7 @@ export function TaskCard({
   completed = false,
   questColor: questColorProp,
 }: TaskCardProps) {
-  const { completeTask, openTaskModal, johnEmail, stephEmail, quests } = useApp();
+  const { completeTask, openTaskModal, johnEmail, stephEmail, meganEmail, quests } = useApp();
 
   // Resolve quest color: prop override, or from task.quest_id
   const questColor = questColorProp ?? (task.quest_id ? quests.find((q: Quest) => q.quest_id === task.quest_id)?.color : undefined);
@@ -51,6 +51,7 @@ export function TaskCard({
   const dueStatus = getDueDateStatus(task.due_date);
   const assigneeName = task.assignee === johnEmail ? 'John' :
                        task.assignee === stephEmail ? 'Stef' :
+                       task.assignee === meganEmail ? 'Megan' :
                        task.assignee.split('@')[0];
   
   const isCompleted = completed || task.status === 'done';

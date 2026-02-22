@@ -89,7 +89,7 @@ export interface AssignTodayInput {
 }
 
 export type SortBy = 'priority' | 'challenge' | 'due_date' | 'quest';
-export type AssigneeFilter = 'john' | 'steph' | 'all';
+export type AssigneeFilter = 'john' | 'steph' | 'megan' | 'all';
 export type ViewMode = 'list' | 'buckets';
 
 export const SLOT_CONFIG = {
