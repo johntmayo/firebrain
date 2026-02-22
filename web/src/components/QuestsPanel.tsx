@@ -14,6 +14,7 @@ export function QuestsPanel() {
     assigneeFilter,
     johnEmail,
     stephEmail,
+    meganEmail,
   } = useApp();
 
   // Filter quests by assignee filter
@@ -23,6 +24,7 @@ export function QuestsPanel() {
     switch (assigneeFilter) {
       case 'john': return q.assignee === johnEmail;
       case 'steph': return q.assignee === stephEmail;
+      case 'megan': return q.assignee === meganEmail;
       case 'all': return true;
     }
   });

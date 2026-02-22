@@ -50,6 +50,12 @@ export function Inbox() {
             STEF
           </button>
           <button 
+            className={`filter-btn ${assigneeFilter === 'megan' ? 'active' : ''}`}
+            onClick={() => setAssigneeFilter('megan')}
+          >
+            MEGAN
+          </button>
+          <button 
             className={`filter-btn ${assigneeFilter === 'all' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('all')}
           >

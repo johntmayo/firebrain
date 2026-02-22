@@ -19,16 +19,16 @@ import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
-import { isAuthenticated, getSessionToken } from './api/client';
+import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
 import type { Task, TodaySlot, Quest } from './types';
 
 function AppContent() {
   const { 
     currentUser, 
-    isJohn, 
     johnEmail, 
     stephEmail,
+    meganEmail,
     viewingLoadoutUser,
     assignToday, 
     clearToday,
@@ -186,11 +186,25 @@ function AppContent() {
   
   const displayName = currentUser === johnEmail ? 'John' : 
                       currentUser === stephEmail ? 'Stef' : 
+                      currentUser === meganEmail ? 'Megan' :
                       currentUser.split('@')[0];
+  const userBadgeClass = currentUser === johnEmail
+    ? 'john'
+    : currentUser === stephEmail
+      ? 'steph'
+      : currentUser === meganEmail
+        ? 'megan'
+        : 'user';
   
   // Calculate some stats for status bar
   const totalSlotsFilled = Array.from(todayTasks.values()).filter(Boolean).length;
   const energyPercent = Math.round((totalSlotsFilled / 9) * 100);
+
+  const handleLogout = () => {
+    clearSessionToken();
+    localStorage.removeItem('firebrain_user_email');
+    window.location.reload();
+  };
   
   return (
     <DndContext
@@ -213,9 +227,12 @@ function AppContent() {
           <div className="user-info">
             <ThemeSwitcher />
             <span>operator:</span>
-            <span className={`user-badge ${isJohn ? 'john' : 'steph'}`}>
+            <span className={`user-badge ${userBadgeClass}`}>
               {displayName}
             </span>
+            <button className="logout-btn" onClick={handleLogout} title="Log out">
+              LOG OUT
+            </button>
           </div>
         </header>
         

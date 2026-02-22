@@ -8,7 +8,8 @@
 // ============== CONFIGURATION ==============
 const JOHN_EMAIL = 'john@altagether.org';
 const STEPH_EMAIL = 'stefanie.lynch@gmail.com';
-const ALLOWED_EMAILS = [JOHN_EMAIL, STEPH_EMAIL];
+const MEGAN_EMAIL = 'megan.m.meo@gmail.com';
+const ALLOWED_EMAILS = [JOHN_EMAIL, STEPH_EMAIL, MEGAN_EMAIL];
 const TASKS_SHEET_NAME = 'Tasks';
 const QUESTS_SHEET_NAME = 'Quests';
 const MAX_TRACKED_QUESTS = 3;
@@ -16,7 +17,8 @@ const MAX_TRACKED_QUESTS = 3;
 // User passwords - CHANGE THESE to your desired passwords
 const USER_PASSWORDS = {
   [JOHN_EMAIL]: 'poppyfields',
-  [STEPH_EMAIL]: 'poppyfields'
+  [STEPH_EMAIL]: 'poppyfields',
+  [MEGAN_EMAIL]: 'poppyfields'
 };
 
 // Session token storage (using PropertiesService)

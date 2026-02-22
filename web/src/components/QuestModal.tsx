@@ -23,6 +23,7 @@ export function QuestModal() {
     currentUser,
     johnEmail,
     stephEmail,
+    meganEmail,
     tasks,
     createQuestMission,
   } = useApp();
@@ -202,6 +203,7 @@ export function QuestModal() {
               >
                 <option value={johnEmail}>JOHN</option>
                 <option value={stephEmail}>STEF</option>
+                <option value={meganEmail}>MEGAN</option>
               </select>
             </div>
 
