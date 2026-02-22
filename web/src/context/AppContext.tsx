@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy } from '../types';
+import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 
@@ -38,6 +38,7 @@ interface AppContextType {
   isCreating: boolean;
   toast: { message: string; type: 'success' | 'error' } | null;
   viewingLoadoutUser: string; // Which user's loadout we're viewing
+  loadoutConfig: LoadoutConfig | null; // Current user's energy level and points (only for own loadout)
 
   // Actions
   setAssigneeFilter: (filter: AssigneeFilter) => void;
@@ -54,6 +55,8 @@ interface AppContextType {
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
   assignToday: (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
+  refreshLoadoutConfig: () => Promise<void>;
+  setEnergyLevel: (level: EnergyLevel) => Promise<void>;
   showToast: (message: string, type: 'success' | 'error') => void;
   
   // Quest Actions
@@ -125,6 +128,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(() => {
     return loggedInUser;
   }); // Start viewing own loadout
+  const [loadoutConfig, setLoadoutConfig] = useState<LoadoutConfig | null>(null);
   
   // Toast helper
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
@@ -195,6 +199,22 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [showToast]);
   
+  const refreshLoadoutConfig = useCallback(async () => {
+    try {
+      const config = await api.getLoadoutConfig();
+      setLoadoutConfig(config);
+    } catch (err) {
+      if (!isAuthenticated()) return;
+      console.error('Failed to load loadout config:', err);
+      // Fallback so SET ENERGY row still shows if backend isn't redeployed yet
+      setLoadoutConfig({
+        energy_level: 'medium',
+        points_used: 0,
+        points_limit: 10,
+      });
+    }
+  }, []);
+
   // Initial fetch (after setting user email)
   useEffect(() => {
     setCurrentUserEmail(currentUser);
@@ -202,6 +222,7 @@ export function AppProvider({ children }: AppProviderProps) {
     refreshTasks();
     fetchCompletedTasks(); // Also fetch completed tasks for accomplished section
     refreshQuests(); // Fetch quests
+    refreshLoadoutConfig();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Modal handlers
@@ -378,11 +399,23 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(prev => prev.map(t => 
         t.task_id === updatedTask.task_id ? updatedTask : t
       ));
+      await refreshLoadoutConfig();
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to clear from Today', 'error');
     }
-  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast, refreshLoadoutConfig]);
+
+  const setEnergyLevel = useCallback(async (level: EnergyLevel) => {
+    try {
+      await api.setEnergyLevel(level);
+      await refreshLoadoutConfig();
+      showToast('Energy level set to ' + level, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to set energy level', 'error');
+      throw err;
+    }
+  }, [showToast, refreshLoadoutConfig]);
 
   // Quest modal handlers
   const openQuestModal = useCallback((quest: Quest | null, creating = false) => {
@@ -655,6 +688,8 @@ export function AppProvider({ children }: AppProviderProps) {
     bulkCreateTasks,
     assignToday,
     clearToday,
+    refreshLoadoutConfig,
+    setEnergyLevel,
     showToast,
     refreshQuests,
     createQuest,
@@ -671,6 +706,7 @@ export function AppProvider({ children }: AppProviderProps) {
     trackedQuests,
     viewingLoadoutUser,
     setViewingLoadoutUser,
+    loadoutConfig,
   };
   
   return (

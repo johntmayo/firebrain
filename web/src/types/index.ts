@@ -3,6 +3,26 @@ export type Challenge = 'low' | 'medium' | 'high';
 export type Status = 'open' | 'done' | 'archived';
 export type TodaySlot = 'B1' | 'M1' | 'M2' | 'M3' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5';
 
+/** Loadout energy level: light=7, medium=10, heavy=12 points */
+export type EnergyLevel = 'light' | 'medium' | 'heavy';
+
+/** Point cost per slot for energy-based loadout limits */
+export const SLOT_POINTS: Record<TodaySlot, number> = {
+  B1: 3, M1: 2, M2: 2, M3: 2, S1: 1, S2: 1, S3: 1, S4: 1, S5: 1,
+};
+
+export const ENERGY_POINTS_LIMIT: Record<EnergyLevel, number> = {
+  light: 7,
+  medium: 10,
+  heavy: 12,
+};
+
+export interface LoadoutConfig {
+  energy_level: EnergyLevel;
+  points_used: number;
+  points_limit: number;
+}
+
 // Mission (formerly Task) - things that can be added to daily loadout
 export interface Task {
   task_id: string;

@@ -19,6 +19,7 @@ import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
+import { Gizmodroar } from './components/Gizmodroar';
 import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
 import type { Task, TodaySlot, Quest } from './types';
@@ -272,6 +273,8 @@ function AppContent() {
             </div>
           </div>
         </footer>
+
+        <Gizmodroar />
         
         <TaskModal />
         <Toast />
