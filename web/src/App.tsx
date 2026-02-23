@@ -26,6 +26,9 @@ import { sounds } from './utils/sounds';
 import type { Task, Quest } from './types';
 import firebrainLogo from './assets/firebrain_logo.svg';
 
+type MobilePane = 'today' | 'quests' | 'inbox';
+const MOBILE_BREAKPOINT_PX = 900;
+
 function AppContent() {
   const { 
     currentUser, 
@@ -42,6 +45,22 @@ function AppContent() {
   } = useApp();
   
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= MOBILE_BREAKPOINT_PX;
+  });
+  const [activeMobilePane, setActiveMobilePane] = React.useState<MobilePane>('quests');
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const query = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`);
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+    };
+    setIsMobileViewport(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -224,7 +243,7 @@ function AppContent() {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="app">
+      <div className={`app ${isMobileViewport ? 'mobile-mode' : ''}`}>
         <header className="app-header">
           <div className="app-logo">
             <img className="app-logo-image" src={firebrainLogo} alt="Fire Brain logo" />
@@ -243,11 +262,51 @@ function AppContent() {
           </div>
         </header>
         
-        <main className="app-main">
-          <TodayPlanner />
-          <QuestsPanel />
-          <Inbox />
-        </main>
+        {isMobileViewport ? (
+          <>
+            <main className="app-main mobile-layout">
+              <section className={`mobile-pane ${activeMobilePane === 'today' ? 'active' : ''}`}>
+                <TodayPlanner />
+              </section>
+              <section className={`mobile-pane ${activeMobilePane === 'quests' ? 'active' : ''}`}>
+                <QuestsPanel />
+              </section>
+              <section className={`mobile-pane ${activeMobilePane === 'inbox' ? 'active' : ''}`}>
+                <Inbox />
+              </section>
+            </main>
+
+            <nav className="mobile-tab-bar" aria-label="Mobile navigation">
+              <button
+                type="button"
+                className={`mobile-tab-btn ${activeMobilePane === 'today' ? 'active' : ''}`}
+                onClick={() => setActiveMobilePane('today')}
+              >
+                Loadout
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${activeMobilePane === 'quests' ? 'active' : ''}`}
+                onClick={() => setActiveMobilePane('quests')}
+              >
+                Quests
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${activeMobilePane === 'inbox' ? 'active' : ''}`}
+                onClick={() => setActiveMobilePane('inbox')}
+              >
+                Cache
+              </button>
+            </nav>
+          </>
+        ) : (
+          <main className="app-main">
+            <TodayPlanner />
+            <QuestsPanel />
+            <Inbox />
+          </main>
+        )}
         
         {/* Status Bar Footer */}
         <footer className="status-bar">
