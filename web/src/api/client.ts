@@ -1,4 +1,4 @@
-import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const SESSION_TOKEN_KEY = 'firebrain_session_token';
@@ -48,6 +48,14 @@ interface ApiResponse<T> {
   energy_level?: EnergyLevel;
   points_used?: number;
   points_limit?: number;
+  completion_mode?: QuestCompletionMode;
+  affected_open_missions?: number;
+}
+
+export interface CompleteQuestResponse {
+  quest: Quest;
+  completion_mode: QuestCompletionMode;
+  affected_open_missions: number;
 }
 
 function toLegacyTodaySlot(slot: string): string | null {
@@ -307,8 +315,12 @@ export const api = {
     return data.quest!;
   },
 
-  async completeQuest(questId: string): Promise<Quest> {
-    const data = await apiCall<ApiResponse<Quest>>('completeQuest', { quest_id: questId });
-    return data.quest!;
+  async completeQuest(questId: string, mode: QuestCompletionMode = 'detach_open'): Promise<CompleteQuestResponse> {
+    const data = await apiCall<ApiResponse<CompleteQuestResponse>>('completeQuest', { quest_id: questId, mode });
+    return {
+      quest: data.quest!,
+      completion_mode: data.completion_mode || mode,
+      affected_open_missions: data.affected_open_missions || 0,
+    };
   },
 };

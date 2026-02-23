@@ -17,6 +17,7 @@ import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
 import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
+import { QuestCompleteModal } from './components/QuestCompleteModal';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { PasswordScreen } from './components/PasswordScreen';
 import { Gizmodroar } from './components/Gizmodroar';
@@ -282,6 +283,7 @@ function AppContent() {
         <Gizmodroar />
         
         <TaskModal />
+        <QuestCompleteModal />
         <Toast />
       </div>
       

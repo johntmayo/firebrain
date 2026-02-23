@@ -19,7 +19,7 @@ export function QuestModal() {
     createQuest,
     updateQuest,
     toggleQuestTracked,
-    completeQuest,
+    requestCompleteQuest,
     trackedQuests,
     johnEmail,
     stephEmail,
@@ -149,12 +149,9 @@ export function QuestModal() {
 
   const handleCompleteQuest = async () => {
     if (!selectedQuest || isCreatingQuest || saving) return;
-    const confirmed = window.confirm('Complete this quest? You can not undo this.');
-    if (!confirmed) return;
-
     setSaving(true);
     try {
-      await completeQuest(selectedQuest.quest_id);
+      await requestCompleteQuest(selectedQuest.quest_id);
       closeQuestModal();
     } catch {
       // Error already handled in context

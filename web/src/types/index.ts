@@ -107,6 +107,8 @@ export interface UpdateQuestInput {
   color?: string;
 }
 
+export type QuestCompletionMode = 'detach_open' | 'cascade_done';
+
 export interface AssignTodayInput {
   task_id: string;
   today_slot?: TodaySlot;

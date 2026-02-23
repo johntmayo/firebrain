@@ -81,6 +81,7 @@ const ENERGY_POINTS_LIMIT = { light: 7, medium: 10, heavy: 12 };
 const ENERGY_PROPERTY_PREFIX = 'loadout_energy_';
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES = ['open', 'done', 'archived', 'canceled'];
+const VALID_QUEST_COMPLETION_MODES = ['detach_open', 'cascade_done'];
 
 // ============== MAIN HANDLERS ==============
 
@@ -351,6 +352,11 @@ function completeQuest(body, callerEmail) {
   if (!body.quest_id) {
     return jsonResponse({ error: 'quest_id is required' }, 400);
   }
+
+  const mode = body.mode || 'detach_open';
+  if (!VALID_QUEST_COMPLETION_MODES.includes(mode)) {
+    return jsonResponse({ error: 'Invalid mode. Use detach_open or cascade_done.' }, 400);
+  }
   
   const sheet = getQuestsSheet();
   const rowIndex = findQuestRow(sheet, body.quest_id);
@@ -376,10 +382,52 @@ function completeQuest(body, callerEmail) {
   row[QUEST_COLS.UPDATED_BY] = callerEmail;
   
   sheet.getRange(rowIndex, 1, 1, QUEST_HEADERS.length).setValues([row]);
+
+  // Apply completion policy to open missions in this quest.
+  const tasksSheet = getTasksSheet();
+  const taskData = tasksSheet.getDataRange().getValues();
+  const taskUpdates = [];
+  let affectedOpenMissions = 0;
+
+  for (let i = 1; i < taskData.length; i++) {
+    let taskRow = taskData[i];
+
+    while (taskRow.length < TASK_HEADERS.length) {
+      taskRow.push('');
+    }
+
+    const taskQuestId = taskRow[TASK_COLS.QUEST_ID] || '';
+    const taskStatus = taskRow[TASK_COLS.STATUS] || '';
+    if (taskQuestId !== body.quest_id || taskStatus !== 'open') {
+      continue;
+    }
+
+    affectedOpenMissions++;
+
+    if (mode === 'cascade_done') {
+      taskRow[TASK_COLS.STATUS] = 'done';
+      taskRow[TASK_COLS.COMPLETED_AT] = now;
+      taskRow[TASK_COLS.TODAY_SLOT] = '';
+      taskRow[TASK_COLS.TODAY_SET_AT] = '';
+    } else {
+      taskRow[TASK_COLS.QUEST_ID] = '';
+    }
+
+    taskRow[TASK_COLS.UPDATED_AT] = now;
+    taskRow[TASK_COLS.UPDATED_BY] = callerEmail;
+    taskUpdates.push({ rowIndex: i + 1, row: taskRow });
+  }
+
+  for (let j = 0; j < taskUpdates.length; j++) {
+    const update = taskUpdates[j];
+    tasksSheet.getRange(update.rowIndex, 1, 1, TASK_HEADERS.length).setValues([update.row]);
+  }
   
   return jsonResponse({ 
     success: true, 
-    quest: rowToQuest(row) 
+    quest: rowToQuest(row),
+    completion_mode: mode,
+    affected_open_missions: affectedOpenMissions
   });
 }
 

@@ -11,7 +11,7 @@ interface QuestCardProps {
 }
 
 export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onToggleCollapse }: QuestCardProps) {
-  const { openQuestModal, completeQuest, johnEmail, stephEmail, meganEmail } = useApp();
+  const { openQuestModal, requestCompleteQuest, johnEmail, stephEmail, meganEmail } = useApp();
   
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `quest-${quest.quest_id}`,
@@ -26,7 +26,7 @@ export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onTogg
   const handleDone = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (quest.status !== 'done') {
-      completeQuest(quest.quest_id);
+      requestCompleteQuest(quest.quest_id);
     }
   };
 

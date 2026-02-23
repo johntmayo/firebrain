@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel } from '../types';
+import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 
@@ -27,6 +27,7 @@ interface AppContextType {
   selectedQuest: Quest | null;
   isQuestModalOpen: boolean;
   isCreatingQuest: boolean;
+  pendingQuestCompletion: { questId: string; questTitle: string; openMissionCount: number } | null;
   
   // UI State
   assigneeFilter: AssigneeFilter;
@@ -65,7 +66,9 @@ interface AppContextType {
   createQuest: (input: CreateQuestInput) => Promise<void>;
   updateQuest: (input: UpdateQuestInput) => Promise<void>;
   toggleQuestTracked: (questId: string) => Promise<void>;
-  completeQuest: (questId: string) => Promise<void>;
+  requestCompleteQuest: (questId: string) => Promise<void>;
+  completeQuest: (questId: string, mode?: QuestCompletionMode) => Promise<void>;
+  cancelQuestCompletion: () => void;
   createQuestMission: (questId: string, title: string, assignee?: string) => Promise<void>;
   openQuestModal: (quest: Quest | null, creating?: boolean) => void;
   closeQuestModal: () => void;
@@ -111,6 +114,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [isQuestModalOpen, setIsQuestModalOpen] = useState(false);
   const [isCreatingQuest, setIsCreatingQuest] = useState(false);
+  const [pendingQuestCompletion, setPendingQuestCompletion] = useState<{ questId: string; questTitle: string; openMissionCount: number } | null>(null);
   
   // UI state - default to logged-in user
   const loggedInUser = localStorage.getItem('firebrain_user_email') || JOHN_EMAIL;
@@ -523,21 +527,62 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [quests, showToast]);
 
-  const completeQuest = useCallback(async (questId: string) => {
+  const completeQuest = useCallback(async (questId: string, mode: QuestCompletionMode = 'detach_open') => {
     const previousQuests = quests;
+    const previousTasks = tasks;
     
     // Optimistic update - remove from list
     setQuests(prev => prev.filter(q => q.quest_id !== questId));
     
     try {
-      await api.completeQuest(questId);
+      const result = await api.completeQuest(questId, mode);
+
+      // Keep frontend task state aligned with completion mode.
+      if (result.completion_mode === 'detach_open') {
+        setTasks(prev => prev.map(t =>
+          t.status === 'open' && t.quest_id === questId
+            ? { ...t, quest_id: '' }
+            : t
+        ));
+      } else {
+        setTasks(prev => prev.filter(t => !(t.status === 'open' && t.quest_id === questId)));
+      }
+
       await refreshQuests(); // Refresh to get updated state
-      showToast('Quest completed! 🎉', 'success');
+
+      if (result.affected_open_missions > 0) {
+        const missionNoun = result.affected_open_missions === 1 ? 'mission' : 'missions';
+        if (result.completion_mode === 'detach_open') {
+          showToast(`Quest completed. ${result.affected_open_missions} ${missionNoun} moved to Inbox.`, 'success');
+        } else {
+          showToast(`Quest completed. ${result.affected_open_missions} ${missionNoun} completed.`, 'success');
+        }
+      } else {
+        showToast('Quest completed! 🎉', 'success');
+      }
     } catch (err) {
       setQuests(previousQuests); // Rollback
+      setTasks(previousTasks);
       showToast(err instanceof Error ? err.message : 'Failed to complete quest', 'error');
     }
-  }, [quests, showToast, refreshQuests]);
+  }, [quests, tasks, showToast, refreshQuests]);
+
+  const requestCompleteQuest = useCallback(async (questId: string) => {
+    const quest = quests.find(q => q.quest_id === questId);
+    if (!quest || quest.status === 'done') return;
+
+    const openMissionCount = tasks.filter(t => t.status === 'open' && t.quest_id === questId).length;
+
+    setPendingQuestCompletion({
+      questId,
+      questTitle: quest.title,
+      openMissionCount,
+    });
+  }, [quests, tasks]);
+
+  const cancelQuestCompletion = useCallback(() => {
+    setPendingQuestCompletion(null);
+  }, []);
 
   // Create a mission inside a quest without closing the quest modal
   const createQuestMission = useCallback(async (questId: string, title: string, assignee?: string) => {
@@ -684,6 +729,7 @@ export function AppProvider({ children }: AppProviderProps) {
     selectedQuest,
     isQuestModalOpen,
     isCreatingQuest,
+    pendingQuestCompletion,
     assigneeFilter,
     viewMode,
     showCompleted,
@@ -713,7 +759,9 @@ export function AppProvider({ children }: AppProviderProps) {
     createQuest,
     updateQuest,
     toggleQuestTracked,
+    requestCompleteQuest,
     completeQuest,
+    cancelQuestCompletion,
     createQuestMission,
     openQuestModal,
     closeQuestModal,
