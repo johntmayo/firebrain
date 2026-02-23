@@ -35,8 +35,8 @@ export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onTogg
     onToggleCollapse?.(quest.quest_id);
   };
 
-  const truncatedTitle = quest.title.length > 30 
-    ? quest.title.substring(0, 30) + '...' 
+  const truncatedTitle = quest.title.length > 36
+    ? quest.title.substring(0, 36) + '...'
     : quest.title;
   const leaderEmail = quest.leader_email || quest.assignee;
   const leaderName = leaderEmail === johnEmail
@@ -56,18 +56,56 @@ export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onTogg
         className="quest-card collapsed"
         onClick={handleClick}
       >
-        <div className="quest-collapsed-main">
-          <span className="quest-title-truncated">{truncatedTitle}</span>
-          <span className="quest-meta-inline">Lead: {leaderName} • {missionCount} missions</span>
+        {quest.is_tracked && (
+          <div className="quest-tracked-indicator">
+            <span>⚡ TRACKED</span>
+          </div>
+        )}
+
+        <div className="quest-content">
+          <div className="quest-title">{truncatedTitle}</div>
+          <div className="quest-leader">LEAD: {leaderName} • {missionCount} missions</div>
         </div>
-        <button
-          type="button"
-          className="quest-collapse-btn"
-          onClick={handleToggleCollapse}
-          title="Expand quest"
-        >
-          ▾
-        </button>
+
+        {!isCompleted && (
+          <div className="quest-actions">
+            <button
+              type="button"
+              className="quest-collapse-btn"
+              onClick={handleToggleCollapse}
+              title="Expand quest"
+            >
+              ▾
+            </button>
+            {quest.is_tracked && (
+              <div
+                className="quest-drag-handle"
+                {...listeners}
+                {...attributes}
+                onClick={(e) => e.stopPropagation()}
+                title="Drag to loadout to create mission"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="12" r="1"/>
+                  <circle cx="9" cy="5" r="1"/>
+                  <circle cx="9" cy="19" r="1"/>
+                  <circle cx="15" cy="12" r="1"/>
+                  <circle cx="15" cy="5" r="1"/>
+                  <circle cx="15" cy="19" r="1"/>
+                </svg>
+              </div>
+            )}
+            <button
+              className="btn-done"
+              onClick={handleDone}
+              title="Mark as done"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     );
   }

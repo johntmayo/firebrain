@@ -19,6 +19,7 @@ export function QuestModal() {
     createQuest,
     updateQuest,
     toggleQuestTracked,
+    completeQuest,
     trackedQuests,
     johnEmail,
     stephEmail,
@@ -144,6 +145,22 @@ export function QuestModal() {
     }
   };
 
+  const handleCompleteQuest = async () => {
+    if (!selectedQuest || isCreatingQuest || saving) return;
+    const confirmed = window.confirm('Complete this quest? You can not undo this.');
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      await completeQuest(selectedQuest.quest_id);
+      closeQuestModal();
+    } catch {
+      // Error already handled in context
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const isEditMode = !isCreatingQuest && selectedQuest;
 
   return (
@@ -151,9 +168,6 @@ export function QuestModal() {
       <div className={`modal ${isEditMode ? 'modal-wide' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{isCreatingQuest ? '⚔ NEW QUEST' : '⚔ QUEST DETAILS'}</h3>
-          <button className="modal-close" onClick={closeQuestModal}>
-            ×
-          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -304,8 +318,18 @@ export function QuestModal() {
               onClick={closeQuestModal}
               disabled={saving}
             >
-              ABORT
+              CLOSE
             </button>
+            {!isCreatingQuest && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleCompleteQuest}
+                disabled={saving}
+              >
+                COMPLETE QUEST
+              </button>
+            )}
             <button
               type="submit"
               className="btn btn-primary"

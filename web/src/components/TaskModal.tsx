@@ -120,7 +120,7 @@ export function TaskModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreating ? '◈ NEW MISSION' : '◇ EDIT MISSION'}</h3>
+          <h3>{isCreating ? '◈ NEW MISSION' : '◇ MISSION BRIEF'}</h3>
         </div>
         
         <form onSubmit={handleSubmit}>

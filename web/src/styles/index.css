@@ -2298,26 +2298,25 @@ body::before {
 
 /* Collapsed quest card */
 .quest-card.collapsed {
-  padding: var(--space-xs) var(--space-sm);
-  min-height: auto;
-  background: var(--bg-tertiary);
-  border-width: 1px;
-  border-color: var(--border-subtle);
+  padding: var(--space-md);
+  min-height: 92px;
+  background: var(--bg-elevated);
+  border-width: 2px;
+  border-color: var(--border-color);
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: space-between;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
 .quest-card.collapsed::before {
-  display: none;
+  display: block;
+  opacity: 0.8;
 }
 
 .quest-card.collapsed:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-color);
-  transform: none;
+  transform: translateY(-2px);
 }
 
 .quest-title-truncated {
