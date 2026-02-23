@@ -2059,8 +2059,8 @@ body::before {
 
 /* Mission action cards - styled like task cards */
 .mission-action-cards {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-xs);
   margin-top: var(--space-sm);
 }
@@ -2081,6 +2081,7 @@ body::before {
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
+  width: 100%;
 }
 
 .mission-action-card:hover {

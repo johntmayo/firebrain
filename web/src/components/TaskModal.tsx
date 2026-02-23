@@ -14,6 +14,7 @@ export function TaskModal() {
     johnEmail,
     stephEmail,
     meganEmail,
+    quests,
   } = useApp();
   
   const [title, setTitle] = useState('');
@@ -22,6 +23,7 @@ export function TaskModal() {
   const [challenge, setChallenge] = useState<Challenge | ''>('');
   const [assignee, setAssignee] = useState(johnEmail);
   const [dueDate, setDueDate] = useState('');
+  const [questId, setQuestId] = useState('');
   const [saving, setSaving] = useState(false);
   
   // Prevent body scroll when modal is open
@@ -36,15 +38,17 @@ export function TaskModal() {
     };
   }, [isModalOpen]);
   
-  // Populate form when editing
+  // Populate form for edit/create; include modal/create flags so repeated "new mission"
+  // openings always reset form state.
   useEffect(() => {
-    if (selectedTask) {
+    if (isModalOpen && selectedTask && !isCreating) {
       setTitle(selectedTask.title);
       setNotes(selectedTask.notes || '');
       setPriority(selectedTask.priority);
       setChallenge(selectedTask.challenge || '');
       setAssignee(selectedTask.assignee);
       setDueDate(selectedTask.due_date ? selectedTask.due_date.substring(0, 10) : '');
+      setQuestId(selectedTask.quest_id || '');
     } else {
       // Reset for new mission
       setTitle('');
@@ -53,8 +57,9 @@ export function TaskModal() {
       setChallenge('medium');
       setAssignee(johnEmail);
       setDueDate('');
+      setQuestId('');
     }
-  }, [selectedTask, johnEmail]);
+  }, [isModalOpen, isCreating, selectedTask, johnEmail]);
   
   if (!isModalOpen) return null;
   
@@ -73,6 +78,7 @@ export function TaskModal() {
           challenge: challenge || undefined,
           assignee,
           due_date: dueDate || undefined,
+          quest_id: questId || undefined,
         };
         await createTask(input);
       } else if (selectedTask) {
@@ -84,6 +90,7 @@ export function TaskModal() {
           challenge: challenge || undefined,
           assignee,
           due_date: dueDate,
+          quest_id: questId,
         };
         await updateTask(input);
       }
@@ -207,6 +214,28 @@ export function TaskModal() {
                   onChange={e => setDueDate(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="questId">QUEST</label>
+              <select
+                id="questId"
+                className="form-select"
+                value={questId}
+                onChange={e => setQuestId(e.target.value)}
+              >
+                <option value="">NO QUEST (INBOX)</option>
+                {quests.map(q => (
+                  <option key={q.quest_id} value={q.quest_id}>
+                    {q.is_tracked ? '⚡ ' : ''}{q.title}
+                  </option>
+                ))}
+                {selectedTask?.quest_id && !quests.some(q => q.quest_id === selectedTask.quest_id) && (
+                  <option value={selectedTask.quest_id}>
+                    (COMPLETED/UNKNOWN QUEST)
+                  </option>
+                )}
+              </select>
             </div>
             
           </div>

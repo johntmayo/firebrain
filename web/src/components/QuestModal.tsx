@@ -256,9 +256,9 @@ export function QuestModal() {
                     ({trackedQuests.length} tracked)
                   </span>
                 </div>
-                {trackedQuests.length > 4 && (
+                {trackedQuests.length > 5 && (
                   <div style={{ marginTop: '8px', fontSize: '0.68rem', color: 'var(--warning)' }}>
-                    Warning: You are tracking {trackedQuests.length} quests. Focus is best with 4 or fewer.
+                    Warning: You are tracking {trackedQuests.length} quests. Focus is best with 5 or fewer.
                   </div>
                 )}
               </div>

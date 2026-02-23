@@ -97,9 +97,9 @@ export function QuestsPanel() {
           <div className="quests-section-header">
             <span>⚡ TRACKED ({activeQuests.length})</span>
           </div>
-          {activeQuests.length > 4 && (
+          {activeQuests.length > 5 && (
             <div className="quests-track-warning">
-              Tracking {activeQuests.length} quests. Recommended: keep 4 or fewer active.
+              Tracking {activeQuests.length} quests. Recommended: keep 5 or fewer active.
             </div>
           )}
           <div className="quests-tracked-list">
