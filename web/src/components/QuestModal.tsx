@@ -95,6 +95,7 @@ export function QuestModal() {
         const input: CreateQuestInput = {
           title: title.trim(),
           notes: notes.trim() || undefined,
+          assignee: leaderEmail,
           leader_email: leaderEmail,
           color: color.trim() || undefined,
         };
@@ -104,6 +105,7 @@ export function QuestModal() {
           quest_id: selectedQuest.quest_id,
           title: title.trim(),
           notes: notes.trim(),
+          assignee: leaderEmail,
           leader_email: leaderEmail,
           color: color.trim() || undefined,
         };
