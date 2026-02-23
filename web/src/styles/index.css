@@ -455,6 +455,8 @@ body::before {
 /* Quests Panel - MIDDLE */
 .pane-quests {
   width: 320px;
+  min-width: 280px;
+  max-width: min(70vw, 900px);
   flex-shrink: 0;
   order: 0;
 }
@@ -2172,15 +2174,66 @@ body::before {
 }
 
 .quests-tracked-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--space-sm);
 }
 
 .quests-inactive-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--space-xs);
+}
+
+.quests-track-warning {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid rgba(212, 168, 75, 0.4);
+  background: rgba(212, 168, 75, 0.12);
+  color: var(--warning);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  clip-path: var(--chamfer-sm);
+}
+
+.quests-pane-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 25;
+}
+
+.quests-pane-resizer::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 2px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--accent-primary), transparent);
+  opacity: 0.35;
+}
+
+.quests-pane-resizer:hover::before {
+  opacity: 0.7;
+}
+
+@media (max-width: 1000px), (orientation: portrait) {
+  .pane-quests {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .quests-pane-resizer {
+    display: none;
+  }
 }
 
 /* Quest Card - Larger and distinct from mission cards */

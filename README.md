@@ -21,7 +21,7 @@ Each user's daily loadout is limited to 9 missions:
 
 ### Quests
 
-Quests are long-term goals that group related missions. Each user can track up to 3 active quests. Quests have custom colors that visually tag their nested missions.
+Quests are long-term goals that group related missions. Users can track as many quests as they want, with a focus warning shown when more than 4 are tracked. Quests have custom colors that visually tag their nested missions.
 
 ## Tech Stack
 
@@ -37,7 +37,7 @@ Quests are long-term goals that group related missions. Each user can track up t
 
 - **Loadout planner** — drag missions from the cache into 1-3-5 slots; swap between slots; view either user's loadout
 - **Mission cache** — create, edit, filter (by assignee), sort (by priority or challenge), and bulk import missions
-- **Quest panel** — create quests, track up to 3, nest missions inside quests via drag & drop, custom quest colors
+- **Quest panel** — create quests, resize the panel width, flow quests into multiple columns when wide, track any number of quests (warning after 4), and nest missions via drag & drop with custom quest colors
 - **Timer widget** — start a timer on any loadout mission; progress bar overlay; persists across page refresh
 - **Accomplished today** — completed missions from today shown below the loadout
 - **Bulk import** — paste multiple missions with syntax: `-priority`, `@date`, `#notes`
@@ -79,7 +79,7 @@ Quests are long-term goals that group related missions. Each user can track up t
 | `updated_by` | string | Email |
 | `title` | string | Quest title |
 | `notes` | string | Optional notes |
-| `is_tracked` | boolean | Whether actively tracked (max 3 per user) |
+| `is_tracked` | boolean | Whether actively tracked |
 | `tracked_at` | string | When tracking started |
 | `assignee` | string | Email |
 | `status` | `open` \| `done` \| `archived` | Current status |

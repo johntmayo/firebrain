@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
@@ -19,6 +19,13 @@ export function QuestsPanel() {
   const activeQuests = filteredQuests.filter(q => q.is_tracked);
   const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
   const [collapsedQuestIds, setCollapsedQuestIds] = useState<Record<string, boolean>>({});
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    const fallback = 360;
+    if (typeof window === 'undefined') return fallback;
+    const saved = Number(localStorage.getItem('firebrain_quests_panel_width') || '');
+    if (Number.isFinite(saved)) return Math.max(280, Math.min(900, saved));
+    return fallback;
+  });
 
   // Missions nested in a quest (open only, not currently in Today loadout)
   const missionsInQuest = (questId: string): Task[] =>
@@ -35,8 +42,35 @@ export function QuestsPanel() {
     setCollapsedQuestIds(prev => ({ ...prev, [questId]: !prev[questId] }));
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem('firebrain_quests_panel_width', String(panelWidth));
+  }, [panelWidth]);
+
+  const startResize = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setPanelWidth(Math.max(280, Math.min(900, startWidth + delta)));
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [panelWidth]);
+
   return (
-    <div className="pane pane-quests">
+    <div className="pane pane-quests" style={{ width: `${panelWidth}px` }}>
       <div className="pane-header">
         <h2>
           <span className="icon">⚔</span>
@@ -49,6 +83,13 @@ export function QuestsPanel() {
           + NEW QUEST
         </button>
       </div>
+      <button
+        type="button"
+        className="quests-pane-resizer"
+        onMouseDown={startResize}
+        aria-label="Resize quests panel"
+        title="Drag to resize quests panel"
+      />
 
       <div className="pane-content">
         {/* Tracked Quests Section */}
@@ -56,6 +97,11 @@ export function QuestsPanel() {
           <div className="quests-section-header">
             <span>⚡ TRACKED ({activeQuests.length})</span>
           </div>
+          {activeQuests.length > 4 && (
+            <div className="quests-track-warning">
+              Tracking {activeQuests.length} quests. Recommended: keep 4 or fewer active.
+            </div>
+          )}
           <div className="quests-tracked-list">
             {activeQuests.length > 0 ? (
               activeQuests.map(quest => (
