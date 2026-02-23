@@ -121,25 +121,28 @@ function AppContent() {
 
       const task = active.data.current?.task as Task;
       if (!task) return;
-
-      sounds.dropSuccess();
       const parseLoadoutSlotOrder = (slotValue: string) => {
         const slot = (slotValue || '').toString().trim();
         if (!slot) return 0;
+
         const numeric = parseInt(slot, 10);
         if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+
         const legacyOrder: Record<string, number> = {
           B1: 1, M1: 2, M2: 3, M3: 4, S1: 5, S2: 6, S3: 7, S4: 8, S5: 9,
         };
-        return legacyOrder[slot] || 0;
+        return legacyOrder[slot.toUpperCase()] || 0;
       };
 
-      const nextSlotOrder = loadoutTasks.reduce((max, t) => {
-        const order = parseLoadoutSlotOrder(t.today_slot || '');
-        return order > max ? order : max;
-      }, 0) + 1;
+      const nextSlot = String(
+        loadoutTasks.reduce((max, loadoutTask) => {
+          const order = parseLoadoutSlotOrder(loadoutTask.today_slot || '');
+          return order > max ? order : max;
+        }, 0) + 1
+      );
 
-      assignToday(task.task_id, String(nextSlotOrder));
+      sounds.dropSuccess();
+      assignToday(task.task_id, nextSlot);
     }
     // Dropped on a Quest - assign mission to that quest
     else if (overId.startsWith('quest-drop-')) {
@@ -223,14 +226,7 @@ function AppContent() {
       <div className="app">
         <header className="app-header">
           <div className="app-logo">
-            <span
-              className="app-logo-mark"
-              aria-hidden="true"
-              style={{
-                WebkitMaskImage: `url(${firebrainLogo})`,
-                maskImage: `url(${firebrainLogo})`,
-              }}
-            />
+            <img className="app-logo-image" src={firebrainLogo} alt="Fire Brain logo" />
             <h1>Fire Brain</h1>
           </div>
           

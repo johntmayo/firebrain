@@ -190,19 +190,13 @@ body::before {
   gap: var(--space-sm);
 }
 
-.app-logo-mark {
+.app-logo-image {
   width: 30px;
   height: 30px;
   flex-shrink: 0;
   display: inline-block;
-  background: linear-gradient(155deg, var(--accent-tertiary) 12%, var(--accent-primary) 52%, var(--accent-secondary) 100%);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  filter: drop-shadow(0 0 10px rgba(123, 104, 238, 0.32)) drop-shadow(0 0 8px rgba(0, 212, 170, 0.22));
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(75%) sepia(13%) saturate(6615%) hue-rotate(218deg) brightness(95%) contrast(95%) drop-shadow(0 0 10px rgba(123, 104, 238, 0.32));
 }
 
 .app-logo h1 {
@@ -3296,9 +3290,8 @@ body::before {
   letter-spacing: 0.3em;
 }
 
-[data-theme="retro"] .app-logo-mark {
-  background: linear-gradient(135deg, var(--accent-primary), #b8ffb8);
-  filter: drop-shadow(0 0 10px rgba(51, 255, 51, 0.8));
+[data-theme="retro"] .app-logo-image {
+  filter: brightness(0) saturate(100%) invert(95%) sepia(33%) saturate(4020%) hue-rotate(36deg) brightness(103%) contrast(97%) drop-shadow(0 0 10px rgba(51, 255, 51, 0.8));
 }
 
 [data-theme="retro"] .pane {
@@ -3649,9 +3642,8 @@ body::before {
   filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.3));
 }
 
-[data-theme="vaporwave"] .app-logo-mark {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary), var(--accent-tertiary));
-  filter: drop-shadow(0 0 15px var(--accent-primary));
+[data-theme="vaporwave"] .app-logo-image {
+  filter: brightness(0) saturate(100%) invert(74%) sepia(56%) saturate(6253%) hue-rotate(286deg) brightness(102%) contrast(101%) drop-shadow(0 0 15px var(--accent-primary));
 }
 
 [data-theme="vaporwave"] .pane {
