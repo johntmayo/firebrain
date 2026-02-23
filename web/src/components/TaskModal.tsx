@@ -10,6 +10,7 @@ export function TaskModal() {
     closeModal,
     createTask,
     updateTask,
+    cancelTask,
     johnEmail,
     stephEmail,
     meganEmail,
@@ -96,6 +97,22 @@ export function TaskModal() {
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       closeModal();
+    }
+  };
+
+  const handleDeleteMission = async () => {
+    if (!selectedTask || isCreating || saving) return;
+    const confirmed = window.confirm('Delete this mission? You can not undo this.');
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      await cancelTask(selectedTask.task_id);
+      closeModal();
+    } catch {
+      // Error already handled in context
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -203,6 +220,16 @@ export function TaskModal() {
             >
               CLOSE
             </button>
+            {!isCreating && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDeleteMission}
+                disabled={saving}
+              >
+                DELETE MISSION
+              </button>
+            )}
             <button 
               type="submit" 
               className="btn btn-primary"

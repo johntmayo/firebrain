@@ -159,6 +159,11 @@ export const api = {
     const data = await apiCall<ApiResponse<Task>>('completeTask', { task_id: taskId });
     return data.task!;
   },
+
+  async cancelTask(taskId: string): Promise<Task> {
+    const data = await apiCall<ApiResponse<Task>>('cancelTask', { task_id: taskId });
+    return data.task!;
+  },
   
   async assignToday(taskId: string, todaySlot?: string, swapWithTaskId?: string): Promise<{ task: Task; swappedTask?: Task }> {
     const body: AssignTodayInput = { task_id: taskId };

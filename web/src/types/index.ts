@@ -1,6 +1,6 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type Challenge = 'low' | 'medium' | 'high';
-export type Status = 'open' | 'done' | 'archived';
+export type Status = 'open' | 'done' | 'archived' | 'canceled';
 export type TodaySlot = string;
 
 /** Loadout energy level: light=7, medium=10, heavy=12 points */
@@ -83,6 +83,7 @@ export interface Quest {
   is_tracked: boolean;
   tracked_at: string;
   assignee: string;
+  leader_email: string;
   status: Status;
   completed_at: string;
   color: string; // hex or preset id; missions in this quest use this color
@@ -92,6 +93,7 @@ export interface CreateQuestInput {
   title: string;
   notes?: string;
   assignee?: string;
+  leader_email?: string;
   color?: string;
 }
 
@@ -100,6 +102,7 @@ export interface UpdateQuestInput {
   title?: string;
   notes?: string;
   assignee?: string;
+  leader_email?: string;
   status?: Status;
   color?: string;
 }

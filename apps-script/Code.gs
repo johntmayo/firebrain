@@ -80,7 +80,7 @@ const VALID_ENERGY_LEVELS = ['light', 'medium', 'heavy'];
 const ENERGY_POINTS_LIMIT = { light: 7, medium: 10, heavy: 12 };
 const ENERGY_PROPERTY_PREFIX = 'loadout_energy_';
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const VALID_STATUSES = ['open', 'done', 'archived'];
+const VALID_STATUSES = ['open', 'done', 'archived', 'canceled'];
 
 // ============== MAIN HANDLERS ==============
 
@@ -142,6 +142,8 @@ function handleRequest(e, method) {
         return updateTask(body, callerEmail);
       case 'completeTask':
         return completeTask(body, callerEmail);
+      case 'cancelTask':
+        return cancelTask(body, callerEmail);
       case 'assignToday':
         return assignToday(body, callerEmail);
       case 'clearToday':
@@ -202,6 +204,7 @@ function getQuests(params, callerEmail) {
       // Apply filters
       if (params.status && quest.status !== params.status) continue;
       if (params.assignee && quest.assignee !== params.assignee) continue;
+      if (params.leader_email && quest.leader_email !== params.leader_email) continue;
       
       quests.push(quest);
     } catch (err) {
@@ -225,6 +228,8 @@ function createQuest(body, callerEmail) {
   const now = new Date().toISOString();
   const questId = generateUUID();
   
+  const leaderEmail = body.leader_email || body.assignee || JOHN_EMAIL;
+
   const newRow = [
     questId,                              // quest_id
     now,                                  // created_at
@@ -235,7 +240,7 @@ function createQuest(body, callerEmail) {
     body.notes || '',                     // notes
     false,                                // is_tracked (default false)
     '',                                   // tracked_at
-    body.assignee || JOHN_EMAIL,          // assignee
+    leaderEmail,                          // assignee (quest leader)
     'open',                               // status
     '',                                   // completed_at
     body.color || ''                      // color
@@ -279,7 +284,11 @@ function updateQuest(body, callerEmail) {
   // Update fields if provided
   if (body.title !== undefined) row[QUEST_COLS.TITLE] = body.title.trim();
   if (body.notes !== undefined) row[QUEST_COLS.NOTES] = body.notes;
-  if (body.assignee !== undefined) row[QUEST_COLS.ASSIGNEE] = body.assignee;
+  if (body.leader_email !== undefined) {
+    row[QUEST_COLS.ASSIGNEE] = body.leader_email;
+  } else if (body.assignee !== undefined) {
+    row[QUEST_COLS.ASSIGNEE] = body.assignee;
+  }
   if (body.status !== undefined) row[QUEST_COLS.STATUS] = body.status;
   if (body.color !== undefined) row[QUEST_COLS.COLOR] = body.color || '';
   
@@ -551,6 +560,43 @@ function completeTask(body, callerEmail) {
 }
 
 /**
+ * POST /tasks/:task_id/cancel - Soft delete task (mission)
+ */
+function cancelTask(body, callerEmail) {
+  if (!body.task_id) {
+    return jsonResponse({ error: 'task_id is required' }, 400);
+  }
+
+  const sheet = getTasksSheet();
+  const rowIndex = findTaskRow(sheet, body.task_id);
+
+  if (rowIndex === -1) {
+    return jsonResponse({ error: 'Task not found' }, 404);
+  }
+
+  let row = sheet.getRange(rowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
+  const now = new Date().toISOString();
+
+  while (row.length < TASK_HEADERS.length) {
+    row.push('');
+  }
+
+  row[TASK_COLS.STATUS] = 'canceled';
+  row[TASK_COLS.TODAY_SLOT] = '';
+  row[TASK_COLS.TODAY_SET_AT] = '';
+  row[TASK_COLS.TODAY_USER] = '';
+  row[TASK_COLS.UPDATED_AT] = now;
+  row[TASK_COLS.UPDATED_BY] = callerEmail;
+
+  sheet.getRange(rowIndex, 1, 1, TASK_HEADERS.length).setValues([row]);
+
+  return jsonResponse({
+    success: true,
+    task: rowToTask(row)
+  });
+}
+
+/**
  * POST /today/assign - Assign task (mission) to Today slot
  */
 function assignToday(body, callerEmail) {
@@ -817,6 +863,7 @@ function rowToQuest(row) {
     is_tracked: isTracked,
     tracked_at: safeRow[QUEST_COLS.TRACKED_AT] || '',
     assignee: safeRow[QUEST_COLS.ASSIGNEE] || '',
+    leader_email: safeRow[QUEST_COLS.ASSIGNEE] || '',
     status: safeRow[QUEST_COLS.STATUS] || 'open',
     completed_at: safeRow[QUEST_COLS.COMPLETED_AT] || '',
     color: safeRow.length > QUEST_COLS.COLOR ? (safeRow[QUEST_COLS.COLOR] || '') : ''

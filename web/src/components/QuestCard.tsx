@@ -6,10 +6,12 @@ import { useApp } from '../context/AppContext';
 interface QuestCardProps {
   quest: Quest;
   isCollapsed?: boolean;
+  missionCount?: number;
+  onToggleCollapse?: (questId: string) => void;
 }
 
-export function QuestCard({ quest, isCollapsed = false }: QuestCardProps) {
-  const { openQuestModal, completeQuest } = useApp();
+export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onToggleCollapse }: QuestCardProps) {
+  const { openQuestModal, completeQuest, johnEmail, stephEmail, meganEmail } = useApp();
   
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `quest-${quest.quest_id}`,
@@ -28,20 +30,44 @@ export function QuestCard({ quest, isCollapsed = false }: QuestCardProps) {
     }
   };
 
+  const handleToggleCollapse = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleCollapse?.(quest.quest_id);
+  };
+
   const truncatedTitle = quest.title.length > 30 
     ? quest.title.substring(0, 30) + '...' 
     : quest.title;
+  const leaderEmail = quest.leader_email || quest.assignee;
+  const leaderName = leaderEmail === johnEmail
+    ? 'John'
+    : leaderEmail === stephEmail
+      ? 'Stef'
+      : leaderEmail === meganEmail
+        ? 'Megan'
+        : leaderEmail.split('@')[0];
 
   const isCompleted = quest.status === 'done';
 
-  // Collapsed view for inactive quests
-  if (isCollapsed && !quest.is_tracked) {
+  // Collapsed view for any quest
+  if (isCollapsed) {
     return (
       <div
         className="quest-card collapsed"
         onClick={handleClick}
       >
-        <span className="quest-title-truncated">{truncatedTitle}</span>
+        <div className="quest-collapsed-main">
+          <span className="quest-title-truncated">{truncatedTitle}</span>
+          <span className="quest-meta-inline">Lead: {leaderName} • {missionCount} missions</span>
+        </div>
+        <button
+          type="button"
+          className="quest-collapse-btn"
+          onClick={handleToggleCollapse}
+          title="Expand quest"
+        >
+          ▾
+        </button>
       </div>
     );
   }
@@ -61,6 +87,7 @@ export function QuestCard({ quest, isCollapsed = false }: QuestCardProps) {
       
       <div className="quest-content">
         <div className="quest-title">{quest.title}</div>
+        <div className="quest-leader">LEAD: {leaderName}</div>
         {quest.notes && (
           <div className="quest-notes">{quest.notes}</div>
         )}
@@ -68,6 +95,14 @@ export function QuestCard({ quest, isCollapsed = false }: QuestCardProps) {
 
       {!isCompleted && (
         <div className="quest-actions">
+          <button
+            type="button"
+            className="quest-collapse-btn"
+            onClick={handleToggleCollapse}
+            title={isCollapsed ? 'Expand quest' : 'Collapse quest'}
+          >
+            {isCollapsed ? '▾' : '▴'}
+          </button>
           {quest.is_tracked && (
             <div 
               className="quest-drag-handle"

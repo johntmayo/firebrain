@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
@@ -18,10 +18,22 @@ export function QuestsPanel() {
 
   const activeQuests = filteredQuests.filter(q => q.is_tracked);
   const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
+  const [collapsedQuestIds, setCollapsedQuestIds] = useState<Record<string, boolean>>({});
 
   // Missions nested in a quest (open only, not currently in Today loadout)
   const missionsInQuest = (questId: string): Task[] =>
     tasks.filter(t => t.status === 'open' && t.quest_id === questId && !t.today_slot);
+
+  const isQuestCollapsed = useCallback((quest: Quest, defaultCollapsed = false) => {
+    if (collapsedQuestIds[quest.quest_id] !== undefined) {
+      return collapsedQuestIds[quest.quest_id];
+    }
+    return defaultCollapsed;
+  }, [collapsedQuestIds]);
+
+  const toggleQuestCollapsed = useCallback((questId: string) => {
+    setCollapsedQuestIds(prev => ({ ...prev, [questId]: !prev[questId] }));
+  }, []);
 
   return (
     <div className="pane pane-quests">
@@ -47,7 +59,13 @@ export function QuestsPanel() {
           <div className="quests-tracked-list">
             {activeQuests.length > 0 ? (
               activeQuests.map(quest => (
-                <QuestWithMissions key={quest.quest_id} quest={quest} missions={missionsInQuest(quest.quest_id)} />
+                <QuestWithMissions
+                  key={quest.quest_id}
+                  quest={quest}
+                  missions={missionsInQuest(quest.quest_id)}
+                  isCollapsed={isQuestCollapsed(quest, false)}
+                  onToggleCollapse={toggleQuestCollapsed}
+                />
               ))
             ) : (
               <div className="empty-state">
@@ -66,7 +84,13 @@ export function QuestsPanel() {
             </div>
             <div className="quests-inactive-list">
               {inactiveQuests.map(quest => (
-                <QuestWithMissions key={quest.quest_id} quest={quest} missions={missionsInQuest(quest.quest_id)} isCollapsed />
+                <QuestWithMissions
+                  key={quest.quest_id}
+                  quest={quest}
+                  missions={missionsInQuest(quest.quest_id)}
+                  isCollapsed={isQuestCollapsed(quest, true)}
+                  onToggleCollapse={toggleQuestCollapsed}
+                />
               ))}
             </div>
           </div>
@@ -82,9 +106,10 @@ interface QuestWithMissionsProps {
   quest: Quest;
   missions: Task[];
   isCollapsed?: boolean;
+  onToggleCollapse: (questId: string) => void;
 }
 
-function QuestWithMissions({ quest, missions, isCollapsed = false }: QuestWithMissionsProps) {
+function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleCollapse }: QuestWithMissionsProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `quest-drop-${quest.quest_id}`,
     data: { questId: quest.quest_id },
@@ -98,7 +123,12 @@ function QuestWithMissions({ quest, missions, isCollapsed = false }: QuestWithMi
       className={`quest-with-missions ${isOver ? 'drag-over' : ''} ${isCollapsed ? 'collapsed' : ''}`}
       style={questColor ? ({ '--quest-color': questColor } as React.CSSProperties) : undefined}
     >
-      <QuestCard quest={quest} isCollapsed={isCollapsed} />
+      <QuestCard
+        quest={quest}
+        isCollapsed={isCollapsed}
+        missionCount={missions.length}
+        onToggleCollapse={onToggleCollapse}
+      />
       {/* Missions nested inside the quest card */}
       {!isCollapsed && (
         <div className="quest-missions-inner">

@@ -29,7 +29,7 @@ export function QuestModal() {
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [assignee, setAssignee] = useState(johnEmail);
+  const [leaderEmail, setLeaderEmail] = useState(johnEmail);
   const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
   const [quickAddTitle, setQuickAddTitle] = useState('');
@@ -52,13 +52,13 @@ export function QuestModal() {
     if (selectedQuest) {
       setTitle(selectedQuest.title);
       setNotes(selectedQuest.notes || '');
-      setAssignee(selectedQuest.assignee);
+      setLeaderEmail(selectedQuest.leader_email || selectedQuest.assignee);
       setColor(selectedQuest.color || '');
     } else {
       // Reset for new quest
       setTitle('');
       setNotes('');
-      setAssignee(johnEmail);
+      setLeaderEmail(johnEmail);
       setColor('');
     }
     setQuickAddTitle('');
@@ -94,7 +94,7 @@ export function QuestModal() {
         const input: CreateQuestInput = {
           title: title.trim(),
           notes: notes.trim() || undefined,
-          assignee,
+          leader_email: leaderEmail,
           color: color.trim() || undefined,
         };
         await createQuest(input);
@@ -103,7 +103,7 @@ export function QuestModal() {
           quest_id: selectedQuest.quest_id,
           title: title.trim(),
           notes: notes.trim(),
-          assignee,
+          leader_email: leaderEmail,
           color: color.trim() || undefined,
         };
         await updateQuest(input);
@@ -137,7 +137,7 @@ export function QuestModal() {
 
     setQuickAddSaving(true);
     try {
-      await createQuestMission(selectedQuest.quest_id, quickAddTitle.trim(), selectedQuest.assignee);
+      await createQuestMission(selectedQuest.quest_id, quickAddTitle.trim(), selectedQuest.leader_email || selectedQuest.assignee);
       setQuickAddTitle('');
     } finally {
       setQuickAddSaving(false);
@@ -184,12 +184,12 @@ export function QuestModal() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="quest-assignee">OPERATOR</label>
+              <label htmlFor="quest-assignee">QUEST LEADER</label>
               <select
                 id="quest-assignee"
                 className="form-select"
-                value={assignee}
-                onChange={e => setAssignee(e.target.value)}
+                value={leaderEmail}
+                onChange={e => setLeaderEmail(e.target.value)}
               >
                 <option value={johnEmail}>JOHN</option>
                 <option value={stephEmail}>STEF</option>

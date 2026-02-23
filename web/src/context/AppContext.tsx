@@ -52,6 +52,7 @@ interface AppContextType {
   createTask: (input: CreateTaskInput) => Promise<Task>;
   updateTask: (input: UpdateTaskInput) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
+  cancelTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
   assignToday: (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
@@ -352,6 +353,22 @@ export function AppProvider({ children }: AppProviderProps) {
       showToast(err instanceof Error ? err.message : 'Failed to complete mission', 'error');
     }
   }, [tasks, showToast, refreshTasks]);
+
+  const cancelTask = useCallback(async (taskId: string) => {
+    const previousTasks = tasks;
+
+    // Optimistic update - remove from open task list immediately
+    setTasks(prev => prev.filter(t => t.task_id !== taskId));
+
+    try {
+      await api.cancelTask(taskId);
+      showToast('Mission deleted', 'success');
+    } catch (err) {
+      setTasks(previousTasks); // Rollback
+      showToast(err instanceof Error ? err.message : 'Failed to delete mission', 'error');
+      throw err;
+    }
+  }, [tasks, showToast]);
   
   const assignToday = useCallback(async (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => {
     // Only allow editing if viewing own loadout
@@ -685,6 +702,7 @@ export function AppProvider({ children }: AppProviderProps) {
     createTask,
     updateTask,
     completeTask,
+    cancelTask,
     bulkCreateTasks,
     assignToday,
     clearToday,
