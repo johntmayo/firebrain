@@ -3,7 +3,8 @@ import type { Priority, CreateTaskInput } from '../types';
 import type { BulkImportResult } from '../api/client';
 import { useApp } from '../context/AppContext';
 
-interface ParsedTask extends CreateTaskInput {
+interface ParsedTask extends Omit<CreateTaskInput, 'priority'> {
+  priority: Priority;
   originalText: string;
 }
 
@@ -105,9 +106,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
         setImportProgress({ current: 1, total: 1, results: [{ index: 0, success: true, task: {} as any }] });
         showToast(`Successfully imported 1 mission!`, 'success');
       } else {
-        console.log('Sending bulk import request:', parsedTasks); // Debug log
         const result = await bulkCreateTasks(parsedTasks);
-        console.log('Bulk import result:', result); // Debug log
         setImportProgress({
           current: result.total,
           total: result.total,
@@ -130,7 +129,6 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
       }, 2000);
 
     } catch (error) {
-      console.error('Bulk import error:', error); // Debug log
       showToast(`Failed to import missions: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       setImportProgress(null);
     } finally {

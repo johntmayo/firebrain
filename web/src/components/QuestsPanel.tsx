@@ -156,6 +156,7 @@ interface QuestWithMissionsProps {
 }
 
 function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleCollapse }: QuestWithMissionsProps) {
+  const { viewingLoadoutUser } = useApp();
   const { setNodeRef, isOver } = useDroppable({
     id: `quest-drop-${quest.quest_id}`,
     data: { questId: quest.quest_id },
@@ -181,13 +182,17 @@ function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleColla
           {missions.length > 0 ? (
             <div className="quest-missions-list">
               {missions.map(task => (
-                <TaskCard
+                <div
                   key={task.task_id}
-                  task={task}
-                  showDragHandle
-                  inSlot={false}
-                  questColor={questColor}
-                />
+                  className={`quest-mission-row ${task.assignee === viewingLoadoutUser ? 'focused' : 'deemphasized'}`}
+                >
+                  <TaskCard
+                    task={task}
+                    showDragHandle
+                    inSlot={false}
+                    questColor={questColor}
+                  />
+                </div>
               ))}
             </div>
           ) : (

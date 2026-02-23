@@ -310,9 +310,6 @@ export function AppProvider({ children }: AppProviderProps) {
     
     try {
       const updatedTask = await api.updateTask(input);
-      console.log('[updateTask] input:', input);
-      console.log('[updateTask] backend response:', updatedTask);
-      console.log('[updateTask] response quest_id:', JSON.stringify(updatedTask.quest_id));
       // Merge backend response with current task state so partial responses
       // (e.g. backend missing quest_id) don't clobber optimistic fields
       setTasks(prev => prev.map(t =>

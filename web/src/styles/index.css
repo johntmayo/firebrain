@@ -2516,6 +2516,20 @@ body::before {
   gap: var(--space-xs);
 }
 
+.quest-mission-row {
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.quest-mission-row.deemphasized {
+  opacity: 0.8;
+  filter: saturate(0.85);
+}
+
+.quest-mission-row.deemphasized:hover {
+  opacity: 0.92;
+  filter: saturate(0.95);
+}
+
 /* Make nested task cards more compact and indented */
 .quest-missions-list .task-card {
   font-size: 0.85em;
