@@ -2174,9 +2174,15 @@ body::before {
 }
 
 .quests-tracked-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-sm);
+  column-width: 280px;
+  column-gap: var(--space-sm);
+}
+
+.quests-tracked-list > * {
+  break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 var(--space-sm);
 }
 
 .quests-inactive-list {
