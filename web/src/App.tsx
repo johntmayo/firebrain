@@ -23,6 +23,7 @@ import { Gizmodroar } from './components/Gizmodroar';
 import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
 import type { Task, Quest } from './types';
+import firebrainLogo from './assets/firebrain_logo.svg';
 
 function AppContent() {
   const { 
@@ -35,6 +36,7 @@ function AppContent() {
     clearToday,
     showToast,
     loadoutConfig,
+    loadoutTasks,
     updateTask,
   } = useApp();
   
@@ -121,7 +123,23 @@ function AppContent() {
       if (!task) return;
 
       sounds.dropSuccess();
-      assignToday(task.task_id);
+      const parseLoadoutSlotOrder = (slotValue: string) => {
+        const slot = (slotValue || '').toString().trim();
+        if (!slot) return 0;
+        const numeric = parseInt(slot, 10);
+        if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+        const legacyOrder: Record<string, number> = {
+          B1: 1, M1: 2, M2: 3, M3: 4, S1: 5, S2: 6, S3: 7, S4: 8, S5: 9,
+        };
+        return legacyOrder[slot] || 0;
+      };
+
+      const nextSlotOrder = loadoutTasks.reduce((max, t) => {
+        const order = parseLoadoutSlotOrder(t.today_slot || '');
+        return order > max ? order : max;
+      }, 0) + 1;
+
+      assignToday(task.task_id, String(nextSlotOrder));
     }
     // Dropped on a Quest - assign mission to that quest
     else if (overId.startsWith('quest-drop-')) {
@@ -205,10 +223,14 @@ function AppContent() {
       <div className="app">
         <header className="app-header">
           <div className="app-logo">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C12 2 8 6 8 10C8 12 9 13.5 10 14.5C9 15 8.5 16 8.5 17C8.5 19.5 10 21 12 22C14 21 15.5 19.5 15.5 17C15.5 16 15 15 14 14.5C15 13.5 16 12 16 10C16 6 12 2 12 2Z" fill="var(--accent-primary)"/>
-              <path d="M12 6C12 6 10 8 10 10C10 11 10.5 11.75 11 12.25C10.5 12.5 10.25 13 10.25 13.5C10.25 14.75 11 15.5 12 16C13 15.5 13.75 14.75 13.75 13.5C13.75 13 13.5 12.5 13 12.25C13.5 11.75 14 11 14 10C14 8 12 6 12 6Z" fill="var(--accent-secondary)"/>
-            </svg>
+            <span
+              className="app-logo-mark"
+              aria-hidden="true"
+              style={{
+                WebkitMaskImage: `url(${firebrainLogo})`,
+                maskImage: `url(${firebrainLogo})`,
+              }}
+            />
             <h1>Fire Brain</h1>
           </div>
           
