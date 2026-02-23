@@ -1,6 +1,6 @@
 /**
  * Fire Brain - Google Apps Script Backend
- * Task tracker with 1-3-5 Today planner + Quests
+ * Task tracker with loadout flow + Quests
  * 
  * Deploy as Web App with "Execute as: Me" and "Who has access: Anyone"
  */
@@ -12,7 +12,6 @@ const MEGAN_EMAIL = 'megan.m.meo@gmail.com';
 const ALLOWED_EMAILS = [JOHN_EMAIL, STEPH_EMAIL, MEGAN_EMAIL];
 const TASKS_SHEET_NAME = 'Tasks';
 const QUESTS_SHEET_NAME = 'Quests';
-const MAX_TRACKED_QUESTS = 3;
 
 // User passwords - CHANGE THESE to your desired passwords
 const USER_PASSWORDS = {
@@ -43,13 +42,14 @@ const TASK_COLS = {
   TODAY_SET_AT: 12,
   COMPLETED_AT: 13,
   TODAY_USER: 14,
-  QUEST_ID: 15
+  QUEST_ID: 15,
+  CHALLENGE: 16
 };
 
 const TASK_HEADERS = [
   'task_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
   'title', 'notes', 'priority', 'assignee', 'status', 'due_date',
-  'today_slot', 'today_set_at', 'completed_at', 'today_user', 'quest_id'
+  'today_slot', 'today_set_at', 'completed_at', 'today_user', 'quest_id', 'challenge'
 ];
 
 // Column indices for Quests sheet (0-based)
@@ -74,9 +74,8 @@ const QUEST_HEADERS = [
   'title', 'notes', 'is_tracked', 'tracked_at', 'assignee', 'status', 'completed_at', 'color'
 ];
 
-const VALID_SLOTS = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
-// Point cost per slot: Big=3, Medium=2, Small=1 (for energy-based loadout limits)
-const SLOT_POINTS = { B1: 3, M1: 2, M2: 2, M3: 2, S1: 1, S2: 1, S3: 1, S4: 1, S5: 1 };
+const VALID_CHALLENGES = ['low', 'medium', 'high'];
+const CHALLENGE_POINTS = { low: 1, medium: 2, high: 3 };
 const VALID_ENERGY_LEVELS = ['light', 'medium', 'heavy'];
 const ENERGY_POINTS_LIMIT = { light: 7, medium: 10, heavy: 12 };
 const ENERGY_PROPERTY_PREFIX = 'loadout_energy_';
@@ -321,16 +320,6 @@ function toggleQuestTracked(body, callerEmail) {
   const currentlyTracked = row[QUEST_COLS.IS_TRACKED] === true || row[QUEST_COLS.IS_TRACKED] === 'TRUE' || row[QUEST_COLS.IS_TRACKED] === 'true';
   const newTrackedStatus = !currentlyTracked;
   
-  // If trying to track, check limit
-  if (newTrackedStatus) {
-    const trackedCount = countTrackedQuests(sheet, callerEmail);
-    if (trackedCount >= MAX_TRACKED_QUESTS) {
-      return jsonResponse({ 
-        error: 'Maximum ' + MAX_TRACKED_QUESTS + ' tracked quests allowed. Untrack another quest first.' 
-      }, 409);
-    }
-  }
-  
   const now = new Date().toISOString();
   
   row[QUEST_COLS.IS_TRACKED] = newTrackedStatus;
@@ -433,6 +422,10 @@ function createTask(body, callerEmail) {
   if (body.priority && !VALID_PRIORITIES.includes(body.priority)) {
     return jsonResponse({ error: 'Invalid priority' }, 400);
   }
+
+  if (body.challenge && !VALID_CHALLENGES.includes(body.challenge)) {
+    return jsonResponse({ error: 'Invalid challenge. Use low, medium, or high.' }, 400);
+  }
   
   const sheet = getTasksSheet();
   const now = new Date().toISOString();
@@ -454,7 +447,8 @@ function createTask(body, callerEmail) {
     '',                                  // today_set_at
     '',                                  // completed_at
     '',                                  // today_user
-    body.quest_id || ''                  // quest_id
+    body.quest_id || '',                 // quest_id
+    body.challenge || ''                 // challenge
   ];
   
   sheet.appendRow(newRow);
@@ -480,6 +474,10 @@ function updateTask(body, callerEmail) {
   if (body.status && !VALID_STATUSES.includes(body.status)) {
     return jsonResponse({ error: 'Invalid status' }, 400);
   }
+
+  if (body.challenge && !VALID_CHALLENGES.includes(body.challenge)) {
+    return jsonResponse({ error: 'Invalid challenge. Use low, medium, or high.' }, 400);
+  }
   
   const sheet = getTasksSheet();
   const rowIndex = findTaskRow(sheet, body.task_id);
@@ -502,6 +500,7 @@ function updateTask(body, callerEmail) {
   if (body.status !== undefined) row[TASK_COLS.STATUS] = body.status;
   if (body.due_date !== undefined) row[TASK_COLS.DUE_DATE] = body.due_date;
   if (body.quest_id !== undefined) row[TASK_COLS.QUEST_ID] = body.quest_id || '';
+  if (body.challenge !== undefined) row[TASK_COLS.CHALLENGE] = body.challenge || '';
   
   row[TASK_COLS.UPDATED_AT] = now;
   row[TASK_COLS.UPDATED_BY] = callerEmail;
@@ -555,12 +554,8 @@ function completeTask(body, callerEmail) {
  * POST /today/assign - Assign task (mission) to Today slot
  */
 function assignToday(body, callerEmail) {
-  if (!body.task_id || !body.today_slot) {
-    return jsonResponse({ error: 'task_id and today_slot are required' }, 400);
-  }
-  
-  if (!VALID_SLOTS.includes(body.today_slot)) {
-    return jsonResponse({ error: 'Invalid today_slot' }, 400);
+  if (!body.task_id) {
+    return jsonResponse({ error: 'task_id is required' }, 400);
   }
   
   const sheet = getTasksSheet();
@@ -570,74 +565,16 @@ function assignToday(body, callerEmail) {
     return jsonResponse({ error: 'Task not found' }, 404);
   }
   
-  const data = sheet.getDataRange().getValues();
   const now = new Date().toISOString();
-  
+
   const taskRow = sheet.getRange(taskRowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
-  const taskCurrentSlot = (taskRow[TASK_COLS.TODAY_SLOT] || '').toString();
-  
-  const energyLevel = getEnergyLevel(callerEmail);
-  const pointsLimit = getPointsLimit(energyLevel);
-  const currentPoints = getLoadoutPoints(sheet, callerEmail);
-  
-  let occupyingRowIndex = -1;
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowTodayUser = row.length > TASK_COLS.TODAY_USER ? (row[TASK_COLS.TODAY_USER] || '') : '';
-    if (row[TASK_COLS.TODAY_SLOT] === body.today_slot && 
-        rowTodayUser === callerEmail && 
-        row[TASK_COLS.TASK_ID] !== body.task_id) {
-      occupyingRowIndex = i + 1;
-      break;
-    }
-  }
-  
-  if (occupyingRowIndex !== -1) {
-    if (body.swap_with_task_id) {
-      const taskRow = sheet.getRange(taskRowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
-      const occupyingRow = sheet.getRange(occupyingRowIndex, 1, 1, TASK_HEADERS.length).getValues()[0];
-      
-      while (taskRow.length < TASK_HEADERS.length) taskRow.push('');
-      while (occupyingRow.length < TASK_HEADERS.length) occupyingRow.push('');
-      
-      const taskOldSlot = taskRow[TASK_COLS.TODAY_SLOT];
-      
-      taskRow[TASK_COLS.TODAY_SLOT] = body.today_slot;
-      taskRow[TASK_COLS.TODAY_SET_AT] = now;
-      taskRow[TASK_COLS.TODAY_USER] = callerEmail;
-      taskRow[TASK_COLS.UPDATED_AT] = now;
-      taskRow[TASK_COLS.UPDATED_BY] = callerEmail;
-      
-      occupyingRow[TASK_COLS.TODAY_SLOT] = taskOldSlot || '';
-      occupyingRow[TASK_COLS.TODAY_SET_AT] = taskOldSlot ? now : '';
-      occupyingRow[TASK_COLS.TODAY_USER] = taskOldSlot ? callerEmail : '';
-      occupyingRow[TASK_COLS.UPDATED_AT] = now;
-      occupyingRow[TASK_COLS.UPDATED_BY] = callerEmail;
-      
-      sheet.getRange(taskRowIndex, 1, 1, TASK_HEADERS.length).setValues([taskRow]);
-      sheet.getRange(occupyingRowIndex, 1, 1, TASK_HEADERS.length).setValues([occupyingRow]);
-      
-      return jsonResponse({ 
-        success: true, 
-        task: rowToTask(taskRow),
-        swapped_task: rowToTask(occupyingRow)
-      });
-    } else {
-      return jsonResponse({ error: 'Slot is occupied. Provide swap_with_task_id to swap.' }, 409);
-    }
-  }
-  
-  // Not swapping: adding to empty slot or moving from another slot. Check energy limit.
-  const pointsAfter = currentPoints - getSlotPoints(taskCurrentSlot) + getSlotPoints(body.today_slot);
-  if (pointsAfter > pointsLimit) {
-    return jsonResponse({
-      error: 'You don\'t have the bandwidth for that today. Your ' + energyLevel + ' day allows ' + pointsLimit + ' points; this would use ' + pointsAfter + '.'
-    }, 409);
-  }
   
   while (taskRow.length < TASK_HEADERS.length) taskRow.push('');
-  
-  taskRow[TASK_COLS.TODAY_SLOT] = body.today_slot;
+
+  const requestedSlot = body.today_slot ? String(body.today_slot).trim() : '';
+  const nextSlot = requestedSlot || getNextLoadoutSlot(sheet, callerEmail);
+
+  taskRow[TASK_COLS.TODAY_SLOT] = nextSlot;
   taskRow[TASK_COLS.TODAY_SET_AT] = now;
   taskRow[TASK_COLS.TODAY_USER] = callerEmail;
   taskRow[TASK_COLS.UPDATED_AT] = now;
@@ -730,6 +667,16 @@ function bulkCreateTasks(body, callerEmail) {
       continue;
     }
 
+    if (taskData.challenge && !VALID_CHALLENGES.includes(taskData.challenge)) {
+      results.push({
+        index: i,
+        success: false,
+        error: 'Invalid challenge: ' + taskData.challenge,
+        task: taskData
+      });
+      continue;
+    }
+
     try {
       const taskId = generateUUID();
       const newRow = [
@@ -748,7 +695,8 @@ function bulkCreateTasks(body, callerEmail) {
         '',                                  // today_set_at
         '',                                  // completed_at
         '',                                  // today_user
-        taskData.quest_id || ''              // quest_id
+        taskData.quest_id || '',             // quest_id
+        taskData.challenge || ''             // challenge
       ];
 
       sheet.appendRow(newRow);
@@ -827,28 +775,6 @@ function findQuestRow(sheet, questId) {
   return -1;
 }
 
-function countTrackedQuests(sheet, assignee) {
-  const data = sheet.getDataRange().getValues();
-  let count = 0;
-  
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row.length <= QUEST_COLS.IS_TRACKED) continue;
-    
-    const isTracked = row[QUEST_COLS.IS_TRACKED] === true || 
-                     row[QUEST_COLS.IS_TRACKED] === 'TRUE' || 
-                     row[QUEST_COLS.IS_TRACKED] === 'true';
-    const rowAssignee = row.length > QUEST_COLS.ASSIGNEE ? (row[QUEST_COLS.ASSIGNEE] || '') : '';
-    const rowStatus = row.length > QUEST_COLS.STATUS ? (row[QUEST_COLS.STATUS] || 'open') : 'open';
-    
-    if (isTracked && rowAssignee === assignee && rowStatus === 'open') {
-      count++;
-    }
-  }
-  
-  return count;
-}
-
 function rowToTask(row) {
   const safeRow = row || [];
   
@@ -861,6 +787,7 @@ function rowToTask(row) {
     title: safeRow[TASK_COLS.TITLE] || '',
     notes: safeRow[TASK_COLS.NOTES] || '',
     priority: safeRow[TASK_COLS.PRIORITY] || 'medium',
+    challenge: safeRow.length > TASK_COLS.CHALLENGE ? (safeRow[TASK_COLS.CHALLENGE] || '') : '',
     assignee: safeRow[TASK_COLS.ASSIGNEE] || '',
     status: safeRow[TASK_COLS.STATUS] || 'open',
     due_date: safeRow[TASK_COLS.DUE_DATE] || '',
@@ -983,10 +910,6 @@ function getTokenUser(token) {
 
 // ============== LOADOUT ENERGY ==============
 
-function getSlotPoints(slot) {
-  return SLOT_POINTS[slot] || 0;
-}
-
 function getPointsLimit(energyLevel) {
   return ENERGY_POINTS_LIMIT[energyLevel] || ENERGY_POINTS_LIMIT.medium;
 }
@@ -1012,10 +935,44 @@ function getLoadoutPoints(sheet, email) {
     const todayUser = row.length > TASK_COLS.TODAY_USER ? (row[TASK_COLS.TODAY_USER] || '') : '';
     const todaySlot = row[TASK_COLS.TODAY_SLOT] || '';
     if (status === 'open' && todayUser === email && todaySlot) {
-      total += getSlotPoints(todaySlot);
+      total += getTaskChallengePoints(row);
     }
   }
   return total;
+}
+
+function getTaskChallengePoints(row) {
+  const challenge = row.length > TASK_COLS.CHALLENGE ? (row[TASK_COLS.CHALLENGE] || '') : '';
+  return CHALLENGE_POINTS[challenge] || CHALLENGE_POINTS.medium;
+}
+
+function parseLoadoutSlotOrder(slotValue) {
+  const slot = (slotValue || '').toString().trim();
+  if (!slot) return 0;
+
+  const numeric = parseInt(slot, 10);
+  if (!isNaN(numeric) && numeric > 0) return numeric;
+
+  const legacyOrder = { B1: 1, M1: 2, M2: 3, M3: 4, S1: 5, S2: 6, S3: 7, S4: 8, S5: 9 };
+  return legacyOrder[slot] || 0;
+}
+
+function getNextLoadoutSlot(sheet, email) {
+  const data = sheet.getDataRange().getValues();
+  let maxOrder = 0;
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const status = row.length > TASK_COLS.STATUS ? (row[TASK_COLS.STATUS] || '') : '';
+    const todayUser = row.length > TASK_COLS.TODAY_USER ? (row[TASK_COLS.TODAY_USER] || '') : '';
+    const todaySlot = row.length > TASK_COLS.TODAY_SLOT ? (row[TASK_COLS.TODAY_SLOT] || '') : '';
+    if (status === 'open' && todayUser === email && todaySlot) {
+      const order = parseLoadoutSlotOrder(todaySlot);
+      if (order > maxOrder) maxOrder = order;
+    }
+  }
+
+  return String(maxOrder + 1);
 }
 
 /**
@@ -1041,18 +998,16 @@ function setEnergyLevel(body, callerEmail) {
   if (!VALID_ENERGY_LEVELS.includes(level)) {
     return jsonResponse({ error: 'Invalid energy_level. Use light, medium, or heavy.' }, 400);
   }
+  const newLimit = getPointsLimit(level);
+
   const sheet = getTasksSheet();
   const pointsUsed = getLoadoutPoints(sheet, callerEmail);
-  const newLimit = getPointsLimit(level);
-  if (pointsUsed > newLimit) {
-    return jsonResponse({
-      error: 'Remove some missions first before you can lower your energy level. Your loadout uses ' + pointsUsed + ' points; ' + level + ' day allows ' + newLimit + '.'
-    }, 409);
-  }
+
   setEnergyLevelProperty(callerEmail, level);
   return jsonResponse({
     success: true,
     energy_level: level,
+    points_used: pointsUsed,
     points_limit: newLimit
   });
 }

@@ -49,7 +49,7 @@ export function TaskModal() {
       setTitle('');
       setNotes('');
       setPriority('medium');
-      setChallenge('');
+      setChallenge('medium');
       setAssignee(johnEmail);
       setDueDate('');
     }
@@ -150,17 +150,17 @@ export function TaskModal() {
               </div>
               
               <div className="form-group">
-                <label htmlFor="challenge">ESTIMATED CHALLENGE</label>
+                <label htmlFor="challenge">CHALLENGE RATING (CR)</label>
                 <select
                   id="challenge"
                   className="form-select"
                   value={challenge}
                   onChange={e => setChallenge(e.target.value as Challenge | '')}
                 >
-                  <option value="">NONE</option>
-                  <option value="low">LOW</option>
-                  <option value="medium">MEDIUM</option>
-                  <option value="high">HIGH</option>
+                  <option value="">UNSET</option>
+                  <option value="low">LOW (1)</option>
+                  <option value="medium">MEDIUM (2)</option>
+                  <option value="high">HIGH (3)</option>
                 </select>
               </div>
             </div>

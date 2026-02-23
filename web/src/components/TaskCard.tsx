@@ -49,6 +49,8 @@ export function TaskCard({
   };
   
   const dueStatus = getDueDateStatus(task.due_date);
+  const challengeLevel = task.challenge || 'medium';
+  const challengePoints = challengeLevel === 'low' ? 1 : challengeLevel === 'high' ? 3 : 2;
   const assigneeName = task.assignee === johnEmail ? 'John' :
                        task.assignee === stephEmail ? 'Stef' :
                        task.assignee === meganEmail ? 'Megan' :
@@ -92,6 +94,10 @@ export function TaskCard({
           <div className="task-meta">
             <span className={`priority-pill ${task.priority}`}>
               {task.priority.toUpperCase()}
+            </span>
+
+            <span className={`challenge-pill ${challengeLevel}`}>
+              CR {challengeLevel.toUpperCase()} ({challengePoints})
             </span>
             
             {!inSlot && (

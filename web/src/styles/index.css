@@ -582,6 +582,71 @@ body::before {
   color: var(--slot-rare);
 }
 
+.loadout-meter {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10px, 1fr));
+  gap: 4px;
+}
+
+.meter-dot {
+  height: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  clip-path: var(--chamfer-sm);
+  opacity: 0.8;
+}
+
+.meter-dot.filled {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow-purple);
+}
+
+.loadout-list {
+  min-height: 80px;
+  max-height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  clip-path: var(--chamfer-md);
+}
+
+.loadout-list.drag-over {
+  border-style: solid;
+  border-color: var(--accent-primary);
+  background: rgba(123, 104, 238, 0.1);
+}
+
+.loadout-list.overloaded {
+  border-color: rgba(255, 71, 87, 0.35);
+}
+
+.loadout-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: var(--space-xs);
+  align-items: stretch;
+}
+
+.loadout-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+}
+
+.loadout-hint {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
 /* Slot base styles */
 .slot {
   position: relative;
@@ -874,6 +939,25 @@ body::before {
   margin-left: 0.2rem;
 }
 
+.loadout-points.overload {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.loadout-overload-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid rgba(255, 71, 87, 0.4);
+  background: rgba(255, 71, 87, 0.12);
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: var(--chamfer-sm);
+}
+
 /* ============== GIZMODROAR (bottom tools drawer) ============== */
 .gizmodroar {
   position: fixed;
@@ -1158,6 +1242,32 @@ body::before {
 .priority-pill.low {
   background: rgba(92, 90, 110, 0.2);
   color: var(--priority-low);
+}
+
+.challenge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  clip-path: var(--chamfer-sm);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.challenge-pill.low {
+  background: rgba(0, 212, 170, 0.18);
+  color: var(--slot-rare);
+}
+
+.challenge-pill.medium {
+  background: rgba(212, 168, 75, 0.2);
+  color: var(--priority-medium);
+}
+
+.challenge-pill.high {
+  background: rgba(255, 71, 87, 0.2);
+  color: var(--priority-urgent);
 }
 
 .task-assignee {

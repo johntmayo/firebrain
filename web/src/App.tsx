@@ -22,7 +22,7 @@ import { PasswordScreen } from './components/PasswordScreen';
 import { Gizmodroar } from './components/Gizmodroar';
 import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
-import type { Task, TodaySlot, Quest } from './types';
+import type { Task, Quest } from './types';
 
 function AppContent() {
   const { 
@@ -34,8 +34,7 @@ function AppContent() {
     assignToday, 
     clearToday,
     showToast,
-    todayTasks,
-    tasks,
+    loadoutConfig,
     updateTask,
   } = useApp();
   
@@ -110,32 +109,19 @@ function AppContent() {
       return;
     }
     
-    // Check if dropped on a Today slot (for regular tasks/missions)
-    if (overId.startsWith('slot-')) {
+    // Dropped on loadout flow: always append (no blocking).
+    if (overId === 'loadout-drop-zone') {
       if (!isViewingOwnLoadout) {
         showToast('You can only edit your own Today slots', 'error');
         sounds.dropCancel();
         return;
       }
-      
-      const targetSlot = overId.replace('slot-', '') as TodaySlot;
+
       const task = active.data.current?.task as Task;
-      
       if (!task) return;
-      
-      // Check if slot is occupied
-      const occupyingTask = todayTasks.get(targetSlot);
-      
-      if (occupyingTask && occupyingTask.task_id !== task.task_id) {
-        // Slot is occupied - perform swap
-        sounds.swap();
-        assignToday(task.task_id, targetSlot, occupyingTask.task_id);
-      } else if (!occupyingTask) {
-        // Slot is empty
-        sounds.dropSuccess();
-        assignToday(task.task_id, targetSlot);
-      }
-      // If same task dropped on its own slot, do nothing
+
+      sounds.dropSuccess();
+      assignToday(task.task_id);
     }
     // Dropped on a Quest - assign mission to that quest
     else if (overId.startsWith('quest-drop-')) {
@@ -198,8 +184,9 @@ function AppContent() {
         : 'user';
   
   // Calculate some stats for status bar
-  const totalSlotsFilled = Array.from(todayTasks.values()).filter(Boolean).length;
-  const energyPercent = Math.round((totalSlotsFilled / 9) * 100);
+  const energyPercent = loadoutConfig
+    ? Math.max(0, Math.round((loadoutConfig.points_used / Math.max(loadoutConfig.points_limit, 1)) * 100))
+    : 0;
 
   const handleLogout = () => {
     clearSessionToken();

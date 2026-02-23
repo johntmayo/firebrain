@@ -11,23 +11,10 @@ export function QuestsPanel() {
     quests,
     tasks,
     openQuestModal,
-    assigneeFilter,
-    johnEmail,
-    stephEmail,
-    meganEmail,
   } = useApp();
 
-  // Filter quests by assignee filter
-  const filteredQuests = quests.filter(q => {
-    if (q.status === 'done') return false; // Don't show completed quests in main view
-    
-    switch (assigneeFilter) {
-      case 'john': return q.assignee === johnEmail;
-      case 'steph': return q.assignee === stephEmail;
-      case 'megan': return q.assignee === meganEmail;
-      case 'all': return true;
-    }
-  });
+  // Quests are shared containers: every user can see all open quests.
+  const filteredQuests = quests.filter(q => q.status !== 'done');
 
   const activeQuests = filteredQuests.filter(q => q.is_tracked);
   const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
@@ -55,7 +42,7 @@ export function QuestsPanel() {
         {/* Tracked Quests Section */}
         <div className="quests-section">
           <div className="quests-section-header">
-            <span>⚡ TRACKED ({activeQuests.length}/3)</span>
+            <span>⚡ TRACKED ({activeQuests.length})</span>
           </div>
           <div className="quests-tracked-list">
             {activeQuests.length > 0 ? (
@@ -65,7 +52,7 @@ export function QuestsPanel() {
             ) : (
               <div className="empty-state">
                 <div className="empty-state-text">NO TRACKED QUESTS</div>
-                <div className="empty-state-subtext">Track quests to drag them to your loadout</div>
+                <div className="empty-state-subtext">Track quests to pin them at the top</div>
               </div>
             )}
           </div>

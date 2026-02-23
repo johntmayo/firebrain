@@ -1,4 +1,4 @@
-import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, TodaySlot, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const SESSION_TOKEN_KEY = 'firebrain_session_token';
@@ -160,8 +160,9 @@ export const api = {
     return data.task!;
   },
   
-  async assignToday(taskId: string, slot: TodaySlot, swapWithTaskId?: string): Promise<{ task: Task; swappedTask?: Task }> {
-    const body: AssignTodayInput = { task_id: taskId, today_slot: slot };
+  async assignToday(taskId: string, todaySlot?: string, swapWithTaskId?: string): Promise<{ task: Task; swappedTask?: Task }> {
+    const body: AssignTodayInput = { task_id: taskId };
+    if (todaySlot) body.today_slot = todaySlot;
     if (swapWithTaskId) body.swap_with_task_id = swapWithTaskId;
     
     const data = await apiCall<ApiResponse<Task>>('assignToday', body);

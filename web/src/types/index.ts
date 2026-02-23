@@ -1,14 +1,16 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type Challenge = 'low' | 'medium' | 'high';
 export type Status = 'open' | 'done' | 'archived';
-export type TodaySlot = 'B1' | 'M1' | 'M2' | 'M3' | 'S1' | 'S2' | 'S3' | 'S4' | 'S5';
+export type TodaySlot = string;
 
 /** Loadout energy level: light=7, medium=10, heavy=12 points */
 export type EnergyLevel = 'light' | 'medium' | 'heavy';
 
-/** Point cost per slot for energy-based loadout limits */
-export const SLOT_POINTS: Record<TodaySlot, number> = {
-  B1: 3, M1: 2, M2: 2, M3: 2, S1: 1, S2: 1, S3: 1, S4: 1, S5: 1,
+/** Challenge points per mission (used for daily bandwidth feedback) */
+export const CHALLENGE_POINTS: Record<Challenge, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
 };
 
 export const ENERGY_POINTS_LIMIT: Record<EnergyLevel, number> = {
@@ -104,27 +106,13 @@ export interface UpdateQuestInput {
 
 export interface AssignTodayInput {
   task_id: string;
-  today_slot: TodaySlot;
+  today_slot?: TodaySlot;
   swap_with_task_id?: string;
 }
 
 export type SortBy = 'priority' | 'challenge' | 'due_date' | 'quest';
 export type AssigneeFilter = 'john' | 'steph' | 'megan' | 'all';
 export type ViewMode = 'list' | 'buckets';
-
-export const SLOT_CONFIG = {
-  B1: { label: 'Big', size: 'big' as const },
-  M1: { label: 'Medium 1', size: 'medium' as const },
-  M2: { label: 'Medium 2', size: 'medium' as const },
-  M3: { label: 'Medium 3', size: 'medium' as const },
-  S1: { label: 'Small 1', size: 'small' as const },
-  S2: { label: 'Small 2', size: 'small' as const },
-  S3: { label: 'Small 3', size: 'small' as const },
-  S4: { label: 'Small 4', size: 'small' as const },
-  S5: { label: 'Small 5', size: 'small' as const },
-} as const;
-
-export const ALL_SLOTS: TodaySlot[] = ['B1', 'M1', 'M2', 'M3', 'S1', 'S2', 'S3', 'S4', 'S5'];
 
 export const PRIORITY_ORDER: Record<Priority, number> = {
   urgent: 0,

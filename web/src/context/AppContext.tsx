@@ -53,7 +53,7 @@ interface AppContextType {
   updateTask: (input: UpdateTaskInput) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
-  assignToday: (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => Promise<void>;
+  assignToday: (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   refreshLoadoutConfig: () => Promise<void>;
   setEnergyLevel: (level: EnergyLevel) => Promise<void>;
@@ -72,7 +72,7 @@ interface AppContextType {
   // Computed
   inboxTasks: Task[];
   overdueTasks: Task[];
-  todayTasks: Map<TodaySlot, Task>;
+  loadoutTasks: Task[];
   accomplishedToday: Task[];
   trackedQuests: Quest[];
 }
@@ -134,6 +134,18 @@ export function AppProvider({ children }: AppProviderProps) {
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const parseLoadoutOrder = useCallback((slot: string): number => {
+    if (!slot) return Number.MAX_SAFE_INTEGER;
+    const parsedNumber = Number(slot);
+    if (!Number.isNaN(parsedNumber) && parsedNumber > 0) {
+      return parsedNumber;
+    }
+    const legacyOrder: Record<string, number> = {
+      B1: 1, M1: 2, M2: 3, M3: 4, S1: 5, S2: 6, S3: 7, S4: 8, S5: 9,
+    };
+    return legacyOrder[slot] || Number.MAX_SAFE_INTEGER;
   }, []);
   
   // Fetch tasks
@@ -341,7 +353,7 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [tasks, showToast, refreshTasks]);
   
-  const assignToday = useCallback(async (taskId: string, slot: TodaySlot, swapWithTaskId?: string) => {
+  const assignToday = useCallback(async (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => {
     // Only allow editing if viewing own loadout
     if (viewingLoadoutUser !== currentUser) {
       showToast('You can only edit your own Today slots', 'error');
@@ -353,11 +365,12 @@ export function AppProvider({ children }: AppProviderProps) {
     // Optimistic update
     setTasks(prev => prev.map(t => {
       if (t.task_id === taskId) {
-        return { ...t, today_slot: slot, today_set_at: new Date().toISOString(), today_user: currentUser };
-      }
-      if (swapWithTaskId && t.task_id === swapWithTaskId) {
-        const sourceTask = prev.find(x => x.task_id === taskId);
-        return { ...t, today_slot: sourceTask?.today_slot || '', today_user: sourceTask?.today_slot ? currentUser : '' };
+        return {
+          ...t,
+          today_slot: slot || t.today_slot || String(prev.filter(x => x.today_slot && x.today_user === currentUser).length + 1),
+          today_set_at: new Date().toISOString(),
+          today_user: currentUser,
+        };
       }
       return t;
     }));
@@ -369,16 +382,14 @@ export function AppProvider({ children }: AppProviderProps) {
           // Ensure today_user is set (defensive)
           return { ...result.task, today_user: result.task.today_user || currentUser };
         }
-        if (result.swappedTask && t.task_id === result.swappedTask.task_id) {
-          return { ...result.swappedTask, today_user: result.swappedTask.today_user || currentUser };
-        }
         return t;
       }));
+      await refreshLoadoutConfig();
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to assign to Today', 'error');
     }
-  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast, refreshLoadoutConfig]);
   
   const clearToday = useCallback(async (taskId: string) => {
     // Only allow editing if viewing own loadout
@@ -475,15 +486,6 @@ export function AppProvider({ children }: AppProviderProps) {
     
     const newTrackedStatus = !quest.is_tracked;
     
-    // Check limit if trying to track
-    if (newTrackedStatus) {
-      const trackedCount = quests.filter(q => q.is_tracked && q.status === 'open' && q.assignee === quest.assignee).length;
-      if (trackedCount >= 3) {
-        showToast('Maximum 3 tracked quests allowed. Untrack another quest first.', 'error');
-        return;
-      }
-    }
-    
     // Optimistic update
     setQuests(prev => prev.map(q => 
       q.quest_id === questId 
@@ -527,6 +529,7 @@ export function AppProvider({ children }: AppProviderProps) {
         title,
         quest_id: questId,
         priority: 'medium',
+        challenge: 'medium',
         assignee: assignee || currentUser,
       });
       setTasks(prev => [newTask, ...prev]);
@@ -610,20 +613,21 @@ export function AppProvider({ children }: AppProviderProps) {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   
-  // Filter todayTasks by viewingLoadoutUser
+  // Filter loadout tasks by viewingLoadoutUser
   // For backward compatibility: if today_user is empty, check assignee instead
-  const todayTasks = new Map<TodaySlot, Task>();
-  tasks.forEach(t => {
+  const loadoutTasks = tasks.filter(t => {
     if (t.today_slot && t.status === 'open') {
       // Check if task belongs to viewing user
       const belongsToUser = t.today_user 
         ? t.today_user === viewingLoadoutUser 
         : t.assignee === viewingLoadoutUser; // Backward compatibility
-      
-      if (belongsToUser) {
-        todayTasks.set(t.today_slot as TodaySlot, t);
-      }
+      return belongsToUser;
     }
+    return false;
+  }).sort((a, b) => {
+    const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
+    if (slotDiff !== 0) return slotDiff;
+    return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
   });
 
   // Tasks accomplished today (completed today, filtered by viewingLoadoutUser)
@@ -634,19 +638,15 @@ export function AppProvider({ children }: AppProviderProps) {
     // Filter by the user whose loadout we're viewing
     return completedDate === today && t.today_user === viewingLoadoutUser;
   }).sort((a, b) => {
-    // Sort by slot priority first (B1 > M1-M3 > S1-S5), then by completion time
-    const slotOrder: Record<string, number> = { 'B1': 0, 'M1': 1, 'M2': 2, 'M3': 3, 'S1': 4, 'S2': 5, 'S3': 6, 'S4': 7, 'S5': 8 };
-    const aSlot = a.today_slot || '';
-    const bSlot = b.today_slot || '';
-    const slotDiff = (slotOrder[aSlot] ?? 99) - (slotOrder[bSlot] ?? 99);
+    const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
     if (slotDiff !== 0) return slotDiff;
     // Then by completion time (most recent first)
     return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
   });
 
-  // Tracked quests (filtered by current user)
+  // Tracked quests are shared visual state for everyone
   const trackedQuests = quests.filter(q => 
-    q.is_tracked && q.status === 'open' && q.assignee === currentUser
+    q.is_tracked && q.status === 'open'
   );
   
   // User is logged in as themselves - no switching needed
@@ -701,7 +701,7 @@ export function AppProvider({ children }: AppProviderProps) {
     closeQuestModal,
     inboxTasks,
     overdueTasks,
-    todayTasks,
+    loadoutTasks,
     accomplishedToday,
     trackedQuests,
     viewingLoadoutUser,

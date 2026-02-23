@@ -20,7 +20,6 @@ export function QuestModal() {
     updateQuest,
     toggleQuestTracked,
     trackedQuests,
-    currentUser,
     johnEmail,
     stephEmail,
     meganEmail,
@@ -125,13 +124,6 @@ export function QuestModal() {
   const handleToggleTracked = async () => {
     if (!selectedQuest) return;
 
-    const isCurrentlyTracked = selectedQuest.is_tracked;
-    const canTrack = !isCurrentlyTracked && trackedQuests.length < 3;
-
-    if (!canTrack && !isCurrentlyTracked) {
-      return;
-    }
-
     try {
       await toggleQuestTracked(selectedQuest.quest_id);
     } catch {
@@ -152,8 +144,6 @@ export function QuestModal() {
     }
   };
 
-  const canTrack = !selectedQuest?.is_tracked && trackedQuests.length < 3;
-  const isViewingOwnQuest = selectedQuest && selectedQuest.assignee === currentUser;
   const isEditMode = !isCreatingQuest && selectedQuest;
 
   return (
@@ -237,7 +227,7 @@ export function QuestModal() {
               </div>
             </div>
 
-            {!isCreatingQuest && selectedQuest && isViewingOwnQuest && (
+            {!isCreatingQuest && selectedQuest && (
               <div className="form-group">
                 <label>TRACKING STATUS</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -245,20 +235,14 @@ export function QuestModal() {
                     type="button"
                     className={`btn ${selectedQuest.is_tracked ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={handleToggleTracked}
-                    disabled={!canTrack && !selectedQuest.is_tracked}
                     style={{ flex: 1 }}
                   >
                     {selectedQuest.is_tracked ? '⚡ TRACKED' : '○ UNTRACKED'}
                   </button>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    ({trackedQuests.length}/3 tracked)
+                    ({trackedQuests.length} tracked)
                   </span>
                 </div>
-                {!canTrack && !selectedQuest.is_tracked && (
-                  <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'var(--accent-secondary)' }}>
-                    Maximum 3 tracked quests. Untrack another quest first.
-                  </div>
-                )}
               </div>
             )}
 

@@ -2,12 +2,12 @@ import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { SLOT_CONFIG, ENERGY_POINTS_LIMIT, type TodaySlot, type EnergyLevel } from '../types';
+import { ENERGY_POINTS_LIMIT, type EnergyLevel } from '../types';
 
 export function TodayPlanner() {
-  const { 
-    todayTasks, 
-    accomplishedToday, 
+  const {
+    loadoutTasks,
+    accomplishedToday,
     currentUser,
     johnEmail,
     stephEmail,
@@ -17,30 +17,39 @@ export function TodayPlanner() {
     loadoutConfig,
     setEnergyLevel,
   } = useApp();
-  
-  const bigSlots: TodaySlot[] = ['B1'];
-  const mediumSlots: TodaySlot[] = ['M1', 'M2', 'M3'];
-  const smallSlots: TodaySlot[] = ['S1', 'S2', 'S3', 'S4', 'S5'];
-  
+
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
+  const dateStr = today.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
-  
+
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
-  const viewingUserName = viewingLoadoutUser === johnEmail ? 'JOHN' : 
-                         viewingLoadoutUser === stephEmail ? 'STEF' : 
-                         viewingLoadoutUser === meganEmail ? 'MEGAN' :
-                         viewingLoadoutUser.split('@')[0].toUpperCase();
-  
+  const viewingUserName = viewingLoadoutUser === johnEmail
+    ? 'JOHN'
+    : viewingLoadoutUser === stephEmail
+      ? 'STEF'
+      : viewingLoadoutUser === meganEmail
+        ? 'MEGAN'
+        : viewingLoadoutUser.split('@')[0].toUpperCase();
+
   const energyLevels: { level: EnergyLevel; label: string }[] = [
     { level: 'light', label: 'Light (7)' },
     { level: 'medium', label: 'Medium (10)' },
     { level: 'heavy', label: 'Heavy (12)' },
   ];
-  
+
+  const energyLimit = loadoutConfig?.points_limit ?? 10;
+  const usedPoints = loadoutConfig?.points_used ?? 0;
+  const overloadedBy = Math.max(0, usedPoints - energyLimit);
+  const isOverloaded = overloadedBy > 0;
+
+  const { isOver: isOverLoadout, setNodeRef: setLoadoutDropRef } = useDroppable({
+    id: 'loadout-drop-zone',
+    disabled: !isViewingOwnLoadout,
+  });
+
   return (
     <div className="pane pane-today">
       <div className="pane-header today-header">
@@ -88,9 +97,12 @@ export function TodayPlanner() {
                   </button>
                 ))}
               </div>
-              <span className="loadout-points">
-                {loadoutConfig.points_used} / {loadoutConfig.points_limit} pts
+              <span className={`loadout-points ${isOverloaded ? 'overload' : ''}`}>
+                {usedPoints} / {energyLimit} pts
               </span>
+              {isOverloaded && (
+                <span className="loadout-overload-chip">OVER +{overloadedBy}</span>
+              )}
             </div>
           )}
           <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: '500' }}>
@@ -98,43 +110,54 @@ export function TodayPlanner() {
           </span>
         </div>
       </div>
-      
+
       <div className="pane-content">
         {!isViewingOwnLoadout && (
           <div className="permission-warning">
             ◈ VIEW ONLY — {viewingUserName}'S LOADOUT
           </div>
         )}
-        
+
         <div className="today-slots">
-          {/* Big (1) - Primary */}
           <div className="slot-section">
-            <div className="slot-section-label">◆ PRIMARY</div>
-            {bigSlots.map(slot => (
-              <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
-            ))}
-          </div>
-          
-          {/* Medium (3) - Support */}
-          <div className="slot-section">
-            <div className="slot-section-label">◇ SUPPORT</div>
-            {mediumSlots.map(slot => (
-              <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
-            ))}
-          </div>
-          
-          {/* Small (5) - Quick-Hit */}
-          <div className="slot-section">
-            <div className="slot-section-label">○ QUICK-HIT</div>
-            <div className="small-slots-grid">
-              {smallSlots.map(slot => (
-                <TodaySlot key={slot} slot={slot} task={todayTasks.get(slot)} />
+            <div className="slot-section-label">◆ DAILY LOADOUT FLOW</div>
+            <div className="loadout-meter" aria-label="daily bandwidth">
+              {Array.from({ length: energyLimit }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`meter-dot ${i < Math.min(usedPoints, energyLimit) ? 'filled' : ''}`}
+                />
               ))}
             </div>
+
+            <div
+              ref={setLoadoutDropRef}
+              className={`loadout-list ${isOverLoadout && isViewingOwnLoadout ? 'drag-over' : ''} ${isOverloaded ? 'overloaded' : ''}`}
+            >
+              {loadoutTasks.length > 0 ? (
+                loadoutTasks.map((task, index) => (
+                  <div key={task.task_id} className="loadout-row">
+                    <span className="loadout-index">{index + 1}</span>
+                    <TaskCard
+                      task={task}
+                      showDragHandle={isViewingOwnLoadout}
+                      inSlot
+                    />
+                  </div>
+                ))
+              ) : (
+                <span>[ DROP MISSIONS HERE ]</span>
+              )}
+            </div>
+
+            {isViewingOwnLoadout && (
+              <div className="loadout-hint">
+                Challenge rating drives points (low=1, medium=2, high=3). Overload is allowed.
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Accomplished Today Section */}
         {accomplishedToday.length > 0 && (
           <div className="accomplished-section">
             <div className="accomplished-header">
@@ -144,62 +167,18 @@ export function TodayPlanner() {
             </div>
             <div className="accomplished-list">
               {accomplishedToday.map(task => (
-                <TaskCard 
-                  key={task.task_id} 
-                  task={task} 
-                  showDragHandle={false} 
+                <TaskCard
+                  key={task.task_id}
+                  task={task}
+                  showDragHandle={false}
                   inSlot={false}
-                  completed={true}
+                  completed
                 />
               ))}
             </div>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-interface TodaySlotProps {
-  slot: TodaySlot;
-  task: import('../types').Task | undefined;
-}
-
-function TodaySlot({ slot, task }: TodaySlotProps) {
-  const { currentUser, viewingLoadoutUser, clearToday } = useApp();
-
-  const config = SLOT_CONFIG[slot];
-  const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
-  
-  const { isOver, setNodeRef } = useDroppable({
-    id: `slot-${slot}`,
-    data: { slot, currentTask: task },
-    disabled: !isViewingOwnLoadout, // Disable if viewing other user's loadout
-  });
-  
-  const handleClearSlot = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (task && isViewingOwnLoadout) {
-      clearToday(task.task_id);
-    }
-  };
-  
-  return (
-    <div
-      ref={setNodeRef}
-      className={`slot ${config.size} ${task ? 'filled' : 'empty'} ${isOver && isViewingOwnLoadout ? 'drag-over' : ''}`}
-    >
-      <span className="slot-label">{slot}</span>
-      
-      {task ? (
-        <TaskCard
-          task={task}
-          showDragHandle={isViewingOwnLoadout}
-          inSlot
-        />
-      ) : (
-        <span>[ EMPTY SLOT ]</span>
-      )}
     </div>
   );
 }
