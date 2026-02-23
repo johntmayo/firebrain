@@ -50,6 +50,28 @@ interface ApiResponse<T> {
   points_limit?: number;
 }
 
+function toLegacyTodaySlot(slot: string): string | null {
+  const trimmed = (slot || '').trim();
+  if (!trimmed) return null;
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) return null;
+
+  const slotMap: Record<number, string> = {
+    1: 'B1',
+    2: 'M1',
+    3: 'M2',
+    4: 'M3',
+    5: 'S1',
+    6: 'S2',
+    7: 'S3',
+    8: 'S4',
+    9: 'S5',
+  };
+
+  return slotMap[numeric] || null;
+}
+
 export interface BulkImportResult {
   index: number;
   success: boolean;
@@ -169,9 +191,31 @@ export const api = {
     const body: AssignTodayInput = { task_id: taskId };
     if (todaySlot) body.today_slot = todaySlot;
     if (swapWithTaskId) body.swap_with_task_id = swapWithTaskId;
-    
-    const data = await apiCall<ApiResponse<Task>>('assignToday', body);
-    return { task: data.task!, swappedTask: data.swapped_task };
+
+    try {
+      const data = await apiCall<ApiResponse<Task>>('assignToday', body);
+      return { task: data.task!, swappedTask: data.swapped_task };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const legacySlot = todaySlot ? toLegacyTodaySlot(todaySlot) : null;
+      const shouldRetryWithLegacySlot =
+        /invalid today_slot/i.test(message) &&
+        !!legacySlot &&
+        legacySlot !== String(todaySlot).trim().toUpperCase();
+
+      if (!shouldRetryWithLegacySlot) {
+        throw err;
+      }
+
+      const fallbackBody: AssignTodayInput = {
+        task_id: taskId,
+        today_slot: legacySlot,
+      };
+      if (swapWithTaskId) fallbackBody.swap_with_task_id = swapWithTaskId;
+
+      const data = await apiCall<ApiResponse<Task>>('assignToday', fallbackBody);
+      return { task: data.task!, swappedTask: data.swapped_task };
+    }
   },
   
   async clearToday(taskId: string): Promise<Task> {
