@@ -29,7 +29,7 @@ export function QuestCompleteModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal quest-complete-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>COMPLETE QUEST</h3>
+          <h3>Complete Quest</h3>
         </div>
         <div className="modal-body">
           <div className="quest-complete-copy">
@@ -56,7 +56,7 @@ export function QuestCompleteModal() {
             onClick={cancelQuestCompletion}
             disabled={saving}
           >
-            CANCEL
+            Cancel
           </button>
           <button
             type="button"
@@ -65,7 +65,7 @@ export function QuestCompleteModal() {
             disabled={saving}
             title="Complete quest and complete all open missions in it"
           >
-            COMPLETE QUEST + MISSIONS
+            Complete All
           </button>
           <button
             type="button"
@@ -75,7 +75,7 @@ export function QuestCompleteModal() {
             title="Complete quest and move open missions to Inbox"
             autoFocus
           >
-            {saving ? 'PROCESSING...' : 'COMPLETE QUEST + MOVE MISSIONS TO INBOX'}
+            {saving ? 'Saving...' : 'Complete & Keep Missions'}
           </button>
         </div>
       </div>

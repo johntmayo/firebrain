@@ -58,13 +58,13 @@ export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onTogg
       >
         {quest.is_tracked && (
           <div className="quest-tracked-indicator">
-            <span>⚡ TRACKED</span>
+            <span>Tracked</span>
           </div>
         )}
 
         <div className="quest-content">
           <div className="quest-title">{truncatedTitle}</div>
-          <div className="quest-leader">LEAD: {leaderName} • {missionCount} missions</div>
+          <div className="quest-leader">Led by {leaderName} · {missionCount} missions</div>
         </div>
 
         {!isCompleted && (
@@ -119,13 +119,13 @@ export function QuestCard({ quest, isCollapsed = false, missionCount = 0, onTogg
     >
       {quest.is_tracked && (
         <div className="quest-tracked-indicator">
-          <span>⚡ TRACKED</span>
+          <span>Tracked</span>
         </div>
       )}
       
       <div className="quest-content">
         <div className="quest-title">{quest.title}</div>
-        <div className="quest-leader">LEAD: {leaderName}</div>
+        <div className="quest-leader">Led by {leaderName}</div>
         {quest.notes && (
           <div className="quest-notes">{quest.notes}</div>
         )}

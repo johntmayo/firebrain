@@ -18,7 +18,7 @@ import { TaskModal } from './components/TaskModal';
 import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { QuestCompleteModal } from './components/QuestCompleteModal';
-import { ThemeSwitcher } from './components/ThemeSwitcher';
+
 import { PasswordScreen } from './components/PasswordScreen';
 import { Gizmodroar } from './components/Gizmodroar';
 import { clearSessionToken, isAuthenticated } from './api/client';
@@ -251,13 +251,11 @@ function AppContent() {
           </div>
           
           <div className="user-info">
-            <ThemeSwitcher />
-            <span>operator:</span>
             <span className={`user-badge ${userBadgeClass}`}>
               {displayName}
             </span>
             <button className="logout-btn" onClick={handleLogout} title="Log out">
-              LOG OUT
+              Log out
             </button>
           </div>
         </header>
@@ -282,7 +280,7 @@ function AppContent() {
                 className={`mobile-tab-btn ${activeMobilePane === 'today' ? 'active' : ''}`}
                 onClick={() => setActiveMobilePane('today')}
               >
-                Loadout
+                Today
               </button>
               <button
                 type="button"
@@ -296,7 +294,7 @@ function AppContent() {
                 className={`mobile-tab-btn ${activeMobilePane === 'inbox' ? 'active' : ''}`}
                 onClick={() => setActiveMobilePane('inbox')}
               >
-                Cache
+                Missions
               </button>
             </nav>
           </>
@@ -308,15 +306,14 @@ function AppContent() {
           </main>
         )}
         
-        {/* Status Bar Footer */}
         <footer className="status-bar">
           <div className="status-group">
             <div className="status-item">
-              <span className="label">SYS</span>
+              <span className="label">Sync</span>
               <div className="scan-bar"></div>
             </div>
             <div className="status-item">
-              <span className="label">ENERGY</span>
+              <span className="label">Energy</span>
               <div className="energy-bar">
                 <div className="energy-bar-fill" style={{ width: `${energyPercent}%` }}></div>
               </div>
@@ -325,12 +322,12 @@ function AppContent() {
           </div>
           <div className="status-group">
             <div className="status-item">
-              <span className="label">STREAK</span>
-              <span className="value gold">0 DAYS</span>
+              <span className="label">Streak</span>
+              <span className="value gold">0 days</span>
             </div>
             <div className="status-item">
-              <span className="label">RANK</span>
-              <span className="value purple">INITIATE</span>
+              <span className="label">Rank</span>
+              <span className="value purple">Initiate</span>
             </div>
             <div className="status-item">
               <span className="label">XP</span>

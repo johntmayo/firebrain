@@ -19,7 +19,6 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
     try {
       const result = await api.login(email, password);
       setSessionToken(result.token);
-      // Store logged-in user email
       localStorage.setItem('firebrain_user_email', result.userEmail);
       onAuthenticated();
     } catch (err) {
@@ -36,66 +35,85 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      background: 'var(--bg-primary, #0a0a0a)',
-      color: 'var(--text-primary, #e0e0e0)',
-      fontFamily: 'var(--font-mono, monospace)',
+      background: 'var(--ground)',
+      fontFamily: 'var(--font-body)',
     }}>
       <div style={{
-        background: 'var(--bg-secondary, #1a1a1a)',
-        padding: '2rem',
-        borderRadius: '8px',
-        border: '1px solid var(--border-color, #333)',
-        minWidth: '300px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        background: 'var(--surface)',
+        padding: '2.5rem',
+        borderRadius: '24px',
+        border: '1px solid var(--border-light)',
+        minWidth: '340px',
+        maxWidth: '400px',
+        boxShadow: '0 8px 32px rgba(26, 24, 20, 0.1)',
       }}>
         <h2 style={{
           marginTop: 0,
-          marginBottom: '1.5rem',
-          fontSize: '1.2rem',
+          marginBottom: '0.5rem',
+          fontSize: '1.6rem',
           textAlign: 'center',
-          color: 'var(--accent-primary, #8b5cf6)',
+          color: 'var(--text-primary)',
+          fontFamily: 'var(--font-display)',
+          fontWeight: 700,
+          fontStyle: 'italic',
+          letterSpacing: '-0.02em',
         }}>
-          ⚔ FIREBRAIN ACCESS
+          Fire Brain
         </h2>
+        <p style={{
+          textAlign: 'center',
+          color: 'var(--text-muted)',
+          fontSize: '0.85rem',
+          marginBottom: '2rem',
+          marginTop: 0,
+        }}>
+          Sign in to continue
+        </p>
         
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
             <label style={{
               display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary, #aaa)',
+              marginBottom: '0.4rem',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
             }}>
-              EMAIL
+              Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoFocus
-              placeholder="Enter your email"
+              placeholder="you@example.com"
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                background: 'var(--bg-primary, #0a0a0a)',
-                border: '1px solid var(--border-color, #333)',
-                borderRadius: '4px',
-                color: 'var(--text-primary, #e0e0e0)',
-                fontFamily: 'var(--font-mono, monospace)',
+                padding: '0.75rem 1rem',
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: '12px',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-body)',
                 fontSize: '0.9rem',
                 boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'border-color 0.15s',
               }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--lavender)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
             />
           </div>
           
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
             <label style={{
               display: 'block',
-              marginBottom: '0.5rem',
-              fontSize: '0.9rem',
-              color: 'var(--text-secondary, #aaa)',
+              marginBottom: '0.4rem',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
             }}>
-              PASSWORD
+              Password
             </label>
             <input
               type="password"
@@ -103,27 +121,32 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
               onChange={(e) => setPassword(e.target.value)}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                background: 'var(--bg-primary, #0a0a0a)',
-                border: '1px solid var(--border-color, #333)',
-                borderRadius: '4px',
-                color: 'var(--text-primary, #e0e0e0)',
-                fontFamily: 'var(--font-mono, monospace)',
+                padding: '0.75rem 1rem',
+                background: 'var(--surface)',
+                border: '1.5px solid var(--border)',
+                borderRadius: '12px',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-body)',
                 fontSize: '0.9rem',
                 boxSizing: 'border-box',
+                outline: 'none',
+                transition: 'border-color 0.15s',
               }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--lavender)'}
+              onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
             />
           </div>
           
           {error && (
             <div style={{
-              marginBottom: '1rem',
-              padding: '0.5rem',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: '4px',
-              color: '#ef4444',
-              fontSize: '0.85rem',
+              marginBottom: '1.25rem',
+              padding: '0.65rem 1rem',
+              background: 'var(--error-bg)',
+              border: '1.5px solid rgba(217, 59, 59, 0.2)',
+              borderRadius: '12px',
+              color: 'var(--error)',
+              fontSize: '0.82rem',
+              fontWeight: 500,
             }}>
               {error}
             </div>
@@ -134,21 +157,23 @@ export function PasswordScreen({ onAuthenticated }: PasswordScreenProps) {
             disabled={loading || !email || !password}
             style={{
               width: '100%',
-              padding: '0.75rem',
+              padding: '0.8rem',
               background: loading || !email || !password 
-                ? 'var(--bg-tertiary, #2a2a2a)' 
-                : 'var(--accent-primary, #8b5cf6)',
+                ? 'var(--surface-sunken)' 
+                : 'var(--text-primary)',
               border: 'none',
-              borderRadius: '4px',
-              color: 'var(--text-primary, #e0e0e0)',
-              fontFamily: 'var(--font-mono, monospace)',
+              borderRadius: '9999px',
+              color: loading || !email || !password 
+                ? 'var(--text-muted)' 
+                : 'var(--text-on-dark)',
+              fontFamily: 'var(--font-body)',
               fontSize: '0.9rem',
-              fontWeight: 'bold',
+              fontWeight: 600,
               cursor: loading || !email || !password ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
+              transition: 'all 0.2s',
             }}
           >
-            {loading ? 'AUTHENTICATING...' : 'ACCESS'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

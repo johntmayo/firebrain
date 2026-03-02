@@ -61,7 +61,7 @@ export function TaskCard({
   return (
     <div
       ref={setNodeRef}
-      className={`task-card priority-${task.priority} ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''} ${hasQuestColor ? 'quest-colored' : ''} ${dueStatus.className}`}
+      className={`task-card ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''} ${hasQuestColor ? 'quest-colored' : ''}`}
       onClick={handleClick}
       style={{
         opacity: isDragging ? 0.5 : 1,
@@ -92,26 +92,19 @@ export function TaskCard({
         <div className="task-content">
           <div className="task-title">{task.title}</div>
           <div className="task-meta">
-            <span className={`priority-pill ${task.priority}`}>
-              {task.priority.toUpperCase()}
+            <span className={`priority-dot ${task.priority}`} title={task.priority} />
+            <span className={`challenge-pill ${challengeLevel}`}>
+              CR {challengePoints}
             </span>
 
-            <span className={`challenge-pill ${challengeLevel}`}>
-              CR {challengeLevel.toUpperCase()} ({challengePoints})
-            </span>
-            
             {!inSlot && (
               <span className="task-assignee">{assigneeName}</span>
             )}
-            
-            {task.due_date && (
+
+            {task.due_date && !inSlot && (
               <span className={`task-due ${dueStatus.badgeClass}`}>
-                ◷ {dueStatus.label}
+                {dueStatus.label}
               </span>
-            )}
-            
-            {task.notes && (
-              <span className="task-notes-icon" title="Has notes">◆</span>
             )}
           </div>
         </div>
@@ -139,13 +132,12 @@ export type DueDateTier = 'overdue' | 'today' | 'tomorrow' | 'this-week' | 'none
 interface DueDateStatus {
   tier: DueDateTier;
   label: string;
-  className: string;    // CSS class for the card div
-  badgeClass: string;   // CSS class for the badge span
+  badgeClass: string;
 }
 
 export function getDueDateStatus(dueDateStr: string): DueDateStatus {
   if (!dueDateStr) {
-    return { tier: 'none', label: '', className: '', badgeClass: '' };
+    return { tier: 'none', label: '', badgeClass: '' };
   }
 
   const now = new Date();
@@ -158,21 +150,21 @@ export function getDueDateStatus(dueDateStr: string): DueDateStatus {
 
   if (diffDays < 0) {
     const overdueDays = Math.abs(diffDays);
-    const label = overdueDays === 1 ? '1 day overdue' : `${overdueDays} days overdue`;
-    return { tier: 'overdue', label, className: 'due-overdue', badgeClass: 'overdue' };
+    const label = overdueDays === 1 ? '1d overdue' : `${overdueDays}d overdue`;
+    return { tier: 'overdue', label, badgeClass: 'overdue' };
   }
   if (diffDays === 0) {
-    return { tier: 'today', label: 'Due Today', className: 'due-today', badgeClass: 'due-today' };
+    return { tier: 'today', label: 'Today', badgeClass: 'due-today' };
   }
   if (diffDays === 1) {
-    return { tier: 'tomorrow', label: 'Due Tomorrow', className: 'due-tomorrow', badgeClass: 'due-tomorrow' };
+    return { tier: 'tomorrow', label: 'Tomorrow', badgeClass: 'due-tomorrow' };
   }
   if (diffDays <= 7) {
     const dayName = dueDay.toLocaleDateString('en-US', { weekday: 'short' });
-    return { tier: 'this-week', label: `Due ${dayName}`, className: '', badgeClass: '' };
+    return { tier: 'this-week', label: dayName, badgeClass: '' };
   }
 
   const formatted = dueDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return { tier: 'none', label: formatted, className: '', badgeClass: '' };
+  return { tier: 'none', label: formatted, badgeClass: '' };
 }
 

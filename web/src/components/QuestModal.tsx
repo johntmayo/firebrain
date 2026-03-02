@@ -166,52 +166,52 @@ export function QuestModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className={`modal ${isEditMode ? 'modal-wide' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreatingQuest ? '⚔ NEW QUEST' : '⚔ QUEST DETAILS'}</h3>
+          <h3>{isCreatingQuest ? 'New Quest' : 'Quest Details'}</h3>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="quest-title">OBJECTIVE *</label>
+              <label htmlFor="quest-title">Title *</label>
               <input
                 id="quest-title"
                 type="text"
                 className="form-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Enter quest objective..."
+                placeholder="What's the goal?"
                 autoFocus
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="quest-notes">INTEL</label>
+              <label htmlFor="quest-notes">Notes</label>
               <textarea
                 id="quest-notes"
                 className="form-textarea"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Additional intel..."
+                placeholder="Any context or details..."
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="quest-assignee">QUEST LEADER</label>
+              <label htmlFor="quest-assignee">Lead</label>
               <select
                 id="quest-assignee"
                 className="form-select"
                 value={leaderEmail}
                 onChange={e => setLeaderEmail(e.target.value)}
               >
-                <option value={johnEmail}>JOHN</option>
-                <option value={stephEmail}>STEF</option>
-                <option value={meganEmail}>MEGAN</option>
+                <option value={johnEmail}>John</option>
+                <option value={stephEmail}>Stef</option>
+                <option value={meganEmail}>Megan</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>QUEST COLOR</label>
+              <label>Color</label>
               <div className="quest-color-picker">
                 {QUEST_PRESET_COLORS.map(hex => (
                   <button
@@ -242,7 +242,7 @@ export function QuestModal() {
 
             {!isCreatingQuest && selectedQuest && (
               <div className="form-group">
-                <label>TRACKING STATUS</label>
+                <label>Tracking</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <button
                     type="button"
@@ -250,7 +250,7 @@ export function QuestModal() {
                     onClick={handleToggleTracked}
                     style={{ flex: 1 }}
                   >
-                    {selectedQuest.is_tracked ? '⚡ TRACKED' : '○ UNTRACKED'}
+                    {selectedQuest.is_tracked ? 'Tracked' : 'Not tracked'}
                   </button>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     ({trackedQuests.length} tracked)
@@ -268,7 +268,7 @@ export function QuestModal() {
             {isEditMode && (
               <div className="quest-details-missions">
                 <div className="quest-details-header">
-                  <span>MISSIONS ({questMissions.length})</span>
+                  <span>Missions ({questMissions.length})</span>
                   {overdueCount > 0 && (
                     <span className="quest-overdue-badge">{overdueCount} overdue</span>
                   )}
@@ -317,7 +317,7 @@ export function QuestModal() {
               onClick={closeQuestModal}
               disabled={saving}
             >
-              CLOSE
+              Close
             </button>
             {!isCreatingQuest && (
               <button
@@ -326,7 +326,7 @@ export function QuestModal() {
                 onClick={handleCompleteQuest}
                 disabled={saving}
               >
-                COMPLETE QUEST
+                Complete Quest
               </button>
             )}
             <button
@@ -334,7 +334,7 @@ export function QuestModal() {
               className="btn btn-primary"
               disabled={saving || !title.trim()}
             >
-              {saving ? 'PROCESSING...' : isCreatingQuest ? 'DEPLOY QUEST' : 'CONFIRM'}
+              {saving ? 'Saving...' : isCreatingQuest ? 'Create Quest' : 'Save Changes'}
             </button>
           </div>
         </form>

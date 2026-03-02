@@ -158,7 +158,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>◆ BULK MISSION IMPORT</h3>
+          <h3>Bulk Import</h3>
           <button className="modal-close" onClick={handleClose} disabled={isImporting}>
             ×
           </button>
@@ -166,7 +166,7 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
 
         <div className="modal-body">
           <div className="form-group">
-            <label htmlFor="bulk-input">PASTE MISSIONS BELOW</label>
+            <label htmlFor="bulk-input">Paste your missions</label>
             <textarea
               id="bulk-input"
               className="form-input"
@@ -189,7 +189,7 @@ Fix bug in login flow - Urgent`}
           {/* Preview Section */}
           {parsedTasks.length > 0 && (
             <div className="form-group">
-              <label>PREVIEW ({parsedTasks.length} missions)</label>
+              <label>Preview ({parsedTasks.length} missions)</label>
               <div className="bg-tertiary p-3 rounded-md max-h-48 overflow-y-auto">
                 {parsedTasks.map((task, index) => (
                   <div key={index} className="mb-2 pb-2 border-b border-border-subtle last:border-b-0">
@@ -214,7 +214,7 @@ Fix bug in login flow - Urgent`}
           {/* Import Progress */}
           {importProgress && (
             <div className="form-group">
-              <label>IMPORT PROGRESS</label>
+              <label>Progress</label>
               <div className="bg-tertiary p-3 rounded-md">
                 <div className="flex justify-between text-sm mb-2">
                   <span>{importProgress.current} / {importProgress.total} completed</span>
@@ -246,7 +246,7 @@ Fix bug in login flow - Urgent`}
             onClick={handleClose}
             disabled={isImporting}
           >
-            CANCEL
+            Cancel
           </button>
           <button
             type="button"
@@ -254,7 +254,7 @@ Fix bug in login flow - Urgent`}
             onClick={handleImport}
             disabled={parsedTasks.length === 0 || isImporting}
           >
-            {isImporting ? 'IMPORTING...' : `IMPORT ${parsedTasks.length || 0} MISSIONS`}
+            {isImporting ? 'Importing...' : `Import ${parsedTasks.length || 0} Missions`}
           </button>
         </div>
       </div>

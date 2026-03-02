@@ -32,8 +32,8 @@ export function Inbox() {
     <div className="pane pane-inbox">
       <div className="pane-header">
         <h2>
-          <span className="icon">◈</span>
-          MISSION CACHE
+          <span className="icon">◇</span>
+          Missions
         </h2>
         
         <div className="filter-row">
@@ -41,25 +41,25 @@ export function Inbox() {
             className={`filter-btn ${assigneeFilter === 'john' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('john')}
           >
-            JOHN
+            John
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'steph' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('steph')}
           >
-            STEF
+            Stef
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'megan' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('megan')}
           >
-            MEGAN
+            Megan
           </button>
           <button 
             className={`filter-btn ${assigneeFilter === 'all' ? 'active' : ''}`}
             onClick={() => setAssigneeFilter('all')}
           >
-            ALL
+            All
           </button>
           
           <div className="view-toggle">
@@ -81,10 +81,10 @@ export function Inbox() {
           
           <div className="sort-toggle">
             {([
-              ['due_date', 'DUE DATE', 'Sort by Due Date'],
-              ['priority', 'PRIORITY', 'Sort by Priority'],
-              ['challenge', 'CHALLENGE', 'Sort by Challenge'],
-              ['quest', 'QUEST', 'Sort by Quest'],
+              ['due_date', 'Due', 'Sort by Due Date'],
+              ['priority', 'Priority', 'Sort by Priority'],
+              ['challenge', 'Effort', 'Sort by Effort'],
+              ['quest', 'Quest', 'Sort by Quest'],
             ] as [SortBy, string, string][]).map(([key, label, title]) => (
               <button
                 key={key}
@@ -102,7 +102,7 @@ export function Inbox() {
             onClick={toggleShowCompleted}
             title="Show completed missions"
           >
-            ✓ DONE
+            Done
           </button>
         </div>
       </div>
@@ -172,7 +172,7 @@ function InboxContent({
           {overdueTasks.length > 0 && (
             <div className="overdue-section">
               <div className="overdue-header">
-                <span>⚠ OVERDUE ({overdueTasks.length})</span>
+                <span>Overdue ({overdueTasks.length})</span>
               </div>
               <div className="task-list">
                 {overdueTasks.map(task => (
@@ -185,7 +185,7 @@ function InboxContent({
             <div className="empty-state">
               <div className="empty-state-icon">◇</div>
               <div className="empty-state-text">
-                MISSION CACHE EMPTY
+                Nothing here yet
               </div>
             </div>
           ) : viewMode === 'list' ? (
@@ -199,12 +199,12 @@ function InboxContent({
       {showCompleted && (
         <div className="completed-section">
           <div className="completed-header">
-            <span>◆ CLEARED ({completedTasks.length})</span>
+            <span>Completed ({completedTasks.length})</span>
           </div>
           {completedTasks.length === 0 ? (
             <div className="empty-state" style={{ padding: '1rem' }}>
-              <div className="empty-state-text" style={{ fontSize: '0.7rem' }}>
-                NO CLEARED MISSIONS
+              <div className="empty-state-text" style={{ fontSize: '0.75rem' }}>
+                No completed missions
               </div>
             </div>
           ) : (
@@ -220,11 +220,11 @@ function InboxContent({
       <div className="mission-action-cards">
         <button className="mission-action-card" onClick={onAddTask}>
           <span className="mission-action-icon">+</span>
-          <span className="mission-action-label">NEW MISSION</span>
+          <span className="mission-action-label">New Mission</span>
         </button>
         <button className="mission-action-card" onClick={onToggleBulkImport}>
           <span className="mission-action-icon">◆</span>
-          <span className="mission-action-label">BULK IMPORT</span>
+          <span className="mission-action-label">Bulk Import</span>
         </button>
       </div>
 
@@ -279,7 +279,7 @@ function CompletedTaskCard({ task }: { task: Task }) {
       <div className="task-content">
         <div className="task-title">{task.title}</div>
         <div className="task-meta">
-          <span className="completed-date">◆ CLEARED {completedDate}</span>
+          <span className="completed-date">Done {completedDate}</span>
         </div>
       </div>
     </div>

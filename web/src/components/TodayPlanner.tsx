@@ -27,12 +27,12 @@ export function TodayPlanner() {
 
   const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
   const viewingUserName = viewingLoadoutUser === johnEmail
-    ? 'JOHN'
+    ? 'John'
     : viewingLoadoutUser === stephEmail
-      ? 'STEF'
+      ? 'Stef'
       : viewingLoadoutUser === meganEmail
-        ? 'MEGAN'
-        : viewingLoadoutUser.split('@')[0].toUpperCase();
+        ? 'Megan'
+        : viewingLoadoutUser.split('@')[0];
 
   const energyLevels: { level: EnergyLevel; label: string }[] = [
     { level: 'light', label: 'Light (7)' },
@@ -54,36 +54,36 @@ export function TodayPlanner() {
     <div className="pane pane-today">
       <div className="pane-header today-header">
         <h2>
-          <span className="icon">⚔</span>
-          THE LOADOUT
+          <span className="icon">☀</span>
+          Today's Plan
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
           <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === johnEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(johnEmail)}
-              title="View John's Loadout"
+              title="View John's plan"
             >
-              JOHN
+              John
             </button>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === stephEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(stephEmail)}
-              title="View Stef's Loadout"
+              title="View Stef's plan"
             >
-              STEF
+              Stef
             </button>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === meganEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(meganEmail)}
-              title="View Megan's Loadout"
+              title="View Megan's plan"
             >
-              MEGAN
+              Megan
             </button>
           </div>
           {isViewingOwnLoadout && loadoutConfig && (
             <div className="energy-level-row">
-              <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.08em', marginRight: '0.35rem' }}>SET ENERGY</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginRight: '0.35rem', fontStyle: 'italic' }}>Energy</span>
               <div className="energy-level-btns">
                 {energyLevels.map(({ level, label }) => (
                   <button
@@ -105,8 +105,8 @@ export function TodayPlanner() {
               )}
             </div>
           )}
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', fontWeight: '500' }}>
-            {dateStr.toUpperCase()}
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: '500', fontFamily: 'var(--font-display)', fontStyle: 'italic' }}>
+            {dateStr}
           </span>
         </div>
       </div>
@@ -114,13 +114,13 @@ export function TodayPlanner() {
       <div className="pane-content">
         {!isViewingOwnLoadout && (
           <div className="permission-warning">
-            ◈ VIEW ONLY — {viewingUserName}'S LOADOUT
+            Viewing {viewingUserName}'s plan
           </div>
         )}
 
         <div className="today-slots">
           <div className="slot-section">
-            <div className="slot-section-label">◆ DAILY LOADOUT FLOW</div>
+            <div className="slot-section-label">Today's missions</div>
             <div className="loadout-meter" aria-label="daily bandwidth">
               {Array.from({ length: energyLimit }).map((_, i) => (
                 <span
@@ -146,13 +146,13 @@ export function TodayPlanner() {
                   </div>
                 ))
               ) : (
-                <span>[ DROP MISSIONS HERE ]</span>
+                <span style={{ fontStyle: 'italic', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Drop missions here</span>
               )}
             </div>
 
             {isViewingOwnLoadout && (
               <div className="loadout-hint">
-                Challenge rating drives points (low=1, medium=2, high=3). Overload is allowed.
+                CR drives points (CR 1 / CR 2 / CR 3). Overload is allowed.
               </div>
             )}
           </div>

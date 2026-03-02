@@ -127,85 +127,85 @@ export function TaskModal() {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{isCreating ? '◈ NEW MISSION' : '◇ MISSION BRIEF'}</h3>
+          <h3>{isCreating ? 'New Mission' : 'Mission Details'}</h3>
         </div>
         
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="title">OBJECTIVE *</label>
+              <label htmlFor="title">Title *</label>
               <input
                 id="title"
                 type="text"
                 className="form-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Enter mission objective..."
+                placeholder="What needs to be done?"
                 autoFocus
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="notes">INTEL</label>
+              <label htmlFor="notes">Notes</label>
               <textarea
                 id="notes"
                 className="form-textarea"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Additional intel..."
+                placeholder="Any extra details..."
               />
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label htmlFor="priority">THREAT LEVEL</label>
+                <label htmlFor="priority">Priority</label>
                 <select
                   id="priority"
                   className="form-select"
                   value={priority}
                   onChange={e => setPriority(e.target.value as Priority)}
                 >
-                  <option value="urgent">◆ CRITICAL</option>
-                  <option value="high">◇ HIGH</option>
-                  <option value="medium">○ MEDIUM</option>
-                  <option value="low">· LOW</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
                 </select>
               </div>
               
               <div className="form-group">
-                <label htmlFor="challenge">CHALLENGE RATING (CR)</label>
+                <label htmlFor="challenge">Effort</label>
                 <select
                   id="challenge"
                   className="form-select"
                   value={challenge}
                   onChange={e => setChallenge(e.target.value as Challenge | '')}
                 >
-                  <option value="">UNSET</option>
-                  <option value="low">LOW (1)</option>
-                  <option value="medium">MEDIUM (2)</option>
-                  <option value="high">HIGH (3)</option>
+                  <option value="">Not set</option>
+                  <option value="low">Low (1pt)</option>
+                  <option value="medium">Medium (2pt)</option>
+                  <option value="high">High (3pt)</option>
                 </select>
               </div>
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label htmlFor="assignee">OPERATOR</label>
+                <label htmlFor="assignee">Assignee</label>
                 <select
                   id="assignee"
                   className="form-select"
                   value={assignee}
                   onChange={e => setAssignee(e.target.value)}
                 >
-                  <option value={johnEmail}>JOHN</option>
-                  <option value={stephEmail}>STEF</option>
-                  <option value={meganEmail}>MEGAN</option>
+                  <option value={johnEmail}>John</option>
+                  <option value={stephEmail}>Stef</option>
+                  <option value={meganEmail}>Megan</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label htmlFor="dueDate">DEADLINE</label>
+                <label htmlFor="dueDate">Due Date</label>
                 <input
                   id="dueDate"
                   type="date"
@@ -217,14 +217,14 @@ export function TaskModal() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="questId">QUEST</label>
+              <label htmlFor="questId">Quest</label>
               <select
                 id="questId"
                 className="form-select"
                 value={questId}
                 onChange={e => setQuestId(e.target.value)}
               >
-                <option value="">NO QUEST (INBOX)</option>
+                <option value="">No quest</option>
                 {quests.map(q => (
                   <option key={q.quest_id} value={q.quest_id}>
                     {q.is_tracked ? '⚡ ' : ''}{q.title}
@@ -247,7 +247,7 @@ export function TaskModal() {
               onClick={closeModal}
               disabled={saving}
             >
-              CLOSE
+              Close
             </button>
             {!isCreating && (
               <button
@@ -256,7 +256,7 @@ export function TaskModal() {
                 onClick={handleDeleteMission}
                 disabled={saving}
               >
-                DELETE MISSION
+                Delete
               </button>
             )}
             <button 
@@ -264,7 +264,7 @@ export function TaskModal() {
               className="btn btn-primary"
               disabled={saving || !title.trim()}
             >
-              {saving ? 'PROCESSING...' : isCreating ? 'DEPLOY MISSION' : 'CONFIRM'}
+              {saving ? 'Saving...' : isCreating ? 'Create Mission' : 'Save Changes'}
             </button>
           </div>
         </form>

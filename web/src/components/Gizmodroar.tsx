@@ -19,7 +19,7 @@ export function Gizmodroar() {
         aria-expanded={expanded}
       >
         <span className="gizmodroar-arrow" aria-hidden>
-          {expanded ? '◀' : '▶'}
+          {expanded ? '▾' : '▴'}
         </span>
       </button>
       <div className="gizmodroar-drawer">

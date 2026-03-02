@@ -73,14 +73,14 @@ export function QuestsPanel() {
     <div className="pane pane-quests" style={{ width: `${panelWidth}px` }}>
       <div className="pane-header">
         <h2>
-          <span className="icon">⚔</span>
-          QUESTS
+          <span className="icon">✦</span>
+          Quests
         </h2>
         <button 
           className="add-quest-btn"
           onClick={() => openQuestModal(null, true)}
         >
-          + NEW QUEST
+          + New Quest
         </button>
       </div>
       <button
@@ -95,7 +95,7 @@ export function QuestsPanel() {
         {/* Tracked Quests Section */}
         <div className="quests-section">
           <div className="quests-section-header">
-            <span>⚡ TRACKED ({activeQuests.length})</span>
+            <span>Tracked ({activeQuests.length})</span>
           </div>
           {activeQuests.length > 5 && (
             <div className="quests-track-warning">
@@ -115,8 +115,8 @@ export function QuestsPanel() {
               ))
             ) : (
               <div className="empty-state">
-                <div className="empty-state-text">NO TRACKED QUESTS</div>
-                <div className="empty-state-subtext">Track quests to pin them at the top</div>
+                <div className="empty-state-text">No tracked quests yet</div>
+                <div className="empty-state-subtext">Track quests to keep them front and center</div>
               </div>
             )}
           </div>
@@ -126,7 +126,7 @@ export function QuestsPanel() {
         {inactiveQuests.length > 0 && (
           <div className="quests-section">
             <div className="quests-section-header">
-              <span>◇ INACTIVE ({inactiveQuests.length})</span>
+              <span>Inactive ({inactiveQuests.length})</span>
             </div>
             <div className="quests-inactive-list">
               {inactiveQuests.map(quest => (
