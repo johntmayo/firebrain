@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
-import { QuestModal } from './QuestModal';
 import { TaskCard } from './TaskCard';
 import type { Task, Quest } from '../types';
 
@@ -143,7 +142,6 @@ export function QuestsPanel() {
         )}
       </div>
 
-      <QuestModal />
     </div>
   );
 }
