@@ -15,6 +15,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { Inbox } from './components/Inbox';
 import { TodayPlanner } from './components/TodayPlanner';
 import { TaskModal } from './components/TaskModal';
+import { QuestModal } from './components/QuestModal';
 import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { QuestCompleteModal } from './components/QuestCompleteModal';
@@ -339,6 +340,7 @@ function AppContent() {
         <Gizmodroar />
         
         <TaskModal />
+        <QuestModal />
         <QuestCompleteModal />
         <Toast />
       </div>

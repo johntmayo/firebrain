@@ -134,7 +134,8 @@ export function QuestModal() {
     }
   };
 
-  const handleQuickAdd = async (e: React.FormEvent) => {
+  const handleQuickAdd = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
     e.preventDefault();
     if (!quickAddTitle.trim() || !selectedQuest || quickAddSaving) return;
 
@@ -292,9 +293,8 @@ export function QuestModal() {
                   </div>
                 )}
 
-                <form
+                <div
                   className="quest-quick-add"
-                  onSubmit={handleQuickAdd}
                   onClick={e => e.stopPropagation()}
                 >
                   <input
@@ -304,8 +304,9 @@ export function QuestModal() {
                     value={quickAddTitle}
                     onChange={e => setQuickAddTitle(e.target.value)}
                     disabled={quickAddSaving}
+                    onKeyDown={handleQuickAdd}
                   />
-                </form>
+                </div>
               </div>
             )}
           </div>
