@@ -309,6 +309,7 @@ body::before {
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
+    max-height: none !important;
   }
 
   .app.mobile-mode .status-bar {
