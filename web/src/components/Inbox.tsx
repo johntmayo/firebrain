@@ -188,12 +188,7 @@ function InboxContent({
           ) : viewMode === 'list' ? (
             <ListView tasks={tasks} onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
           ) : (
-            <BucketsView tasks={tasks} />
-          )}
-          {viewMode === 'buckets' && (
-            <div className="task-list" style={{ marginTop: 'var(--space-xs)' }}>
-              <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
-            </div>
+            <BucketsView tasks={tasks} onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
           )}
         </>
       )}
@@ -249,24 +244,31 @@ function ListView({ tasks, onAddTask, onToggleBulkImport }: { tasks: Task[]; onA
   );
 }
 
-function BucketsView({ tasks }: { tasks: Task[] }) {
-  // Sort tasks by priority but display in a single grid (inventory style)
+function BucketsView({ tasks, onAddTask, onToggleBulkImport }: { tasks: Task[]; onAddTask: () => void; onToggleBulkImport: () => void }) {
   const priorityOrder: Record<Priority, number> = {
     urgent: 0,
     high: 1,
     medium: 2,
     low: 3,
   };
-  
-  const sortedTasks = [...tasks].sort((a, b) => 
+
+  const sortedTasks = [...tasks].sort((a, b) =>
     priorityOrder[a.priority] - priorityOrder[b.priority]
   );
-  
+
   return (
     <div className="inventory-grid">
       {sortedTasks.map(task => (
         <TaskCard key={task.task_id} task={task} compact />
       ))}
+      <button className="mission-action-card mission-action-card--grid" onClick={onAddTask}>
+        <span className="mission-action-icon">+</span>
+        <span className="mission-action-label">New Mission</span>
+      </button>
+      <button className="mission-action-card mission-action-card--grid" onClick={onToggleBulkImport}>
+        <span className="mission-action-icon">◆</span>
+        <span className="mission-action-label">Bulk Import</span>
+      </button>
     </div>
   );
 }
