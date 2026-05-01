@@ -11,12 +11,13 @@ export function TaskModal() {
     createTask,
     updateTask,
     cancelTask,
+    assignToday,
     johnEmail,
     stephEmail,
     meganEmail,
     quests,
   } = useApp();
-  
+
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
@@ -25,6 +26,7 @@ export function TaskModal() {
   const [dueDate, setDueDate] = useState('');
   const [questId, setQuestId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [addToLoadout, setAddToLoadout] = useState(false);
   
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -58,6 +60,7 @@ export function TaskModal() {
       setAssignee(johnEmail);
       setDueDate('');
       setQuestId('');
+      setAddToLoadout(false);
     }
   }, [isModalOpen, isCreating, selectedTask, johnEmail]);
   
@@ -80,7 +83,10 @@ export function TaskModal() {
           due_date: dueDate || undefined,
           quest_id: questId || undefined,
         };
-        await createTask(input);
+        const newTask = await createTask(input);
+        if (addToLoadout && newTask) {
+          await assignToday(newTask.task_id);
+        }
       } else if (selectedTask) {
         const input: UpdateTaskInput = {
           task_id: selectedTask.task_id,
@@ -237,7 +243,19 @@ export function TaskModal() {
                 )}
               </select>
             </div>
-            
+
+            {isCreating && (
+              <label className="loadout-checkbox-label">
+                <input
+                  type="checkbox"
+                  className="loadout-checkbox"
+                  checked={addToLoadout}
+                  onChange={e => setAddToLoadout(e.target.checked)}
+                />
+                Add to today's loadout
+              </label>
+            )}
+
           </div>
           
           <div className="modal-footer">

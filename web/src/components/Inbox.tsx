@@ -115,7 +115,6 @@ export function Inbox() {
         loading={loading}
         viewMode={viewMode}
         onAddTask={handleAddTask}
-        showBulkImport={showBulkImport}
         onToggleBulkImport={() => setShowBulkImport(!showBulkImport)}
       />
 
@@ -135,7 +134,6 @@ function InboxContent({
   loading,
   viewMode,
   onAddTask,
-  showBulkImport,
   onToggleBulkImport
 }: {
   tasks: Task[];
@@ -145,7 +143,6 @@ function InboxContent({
   loading: boolean;
   viewMode: 'list' | 'buckets';
   onAddTask: () => void;
-  showBulkImport: boolean;
   onToggleBulkImport: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -189,13 +186,18 @@ function InboxContent({
               </div>
             </div>
           ) : viewMode === 'list' ? (
-            <ListView tasks={tasks} />
+            <ListView tasks={tasks} onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
           ) : (
             <BucketsView tasks={tasks} />
           )}
+          {viewMode === 'buckets' && (
+            <div className="task-list" style={{ marginTop: 'var(--space-xs)' }}>
+              <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
+            </div>
+          )}
         </>
       )}
-      
+
       {showCompleted && (
         <div className="completed-section">
           <div className="completed-header">
@@ -216,28 +218,33 @@ function InboxContent({
           )}
         </div>
       )}
-        
-      <div className="mission-action-cards">
-        <button className="mission-action-card" onClick={onAddTask}>
-          <span className="mission-action-icon">+</span>
-          <span className="mission-action-label">New Mission</span>
-        </button>
-        <button className="mission-action-card" onClick={onToggleBulkImport}>
-          <span className="mission-action-icon">◆</span>
-          <span className="mission-action-label">Bulk Import</span>
-        </button>
-      </div>
 
     </div>
   );
 }
 
-function ListView({ tasks }: { tasks: Task[] }) {
+function ActionCards({ onAddTask, onToggleBulkImport }: { onAddTask: () => void; onToggleBulkImport: () => void }) {
+  return (
+    <>
+      <button className="mission-action-card" onClick={onAddTask}>
+        <span className="mission-action-icon">+</span>
+        <span className="mission-action-label">New Mission</span>
+      </button>
+      <button className="mission-action-card" onClick={onToggleBulkImport}>
+        <span className="mission-action-icon">◆</span>
+        <span className="mission-action-label">Bulk Import</span>
+      </button>
+    </>
+  );
+}
+
+function ListView({ tasks, onAddTask, onToggleBulkImport }: { tasks: Task[]; onAddTask: () => void; onToggleBulkImport: () => void }) {
   return (
     <div className="task-list">
       {tasks.map(task => (
         <TaskCard key={task.task_id} task={task} />
       ))}
+      <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
     </div>
   );
 }
