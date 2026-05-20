@@ -69,41 +69,47 @@ export function TaskModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    
-    setSaving(true);
-    
-    try {
-      if (isCreating) {
-        const input: CreateTaskInput = {
-          title: title.trim(),
-          notes: notes.trim() || undefined,
-          priority,
-          challenge: challenge || undefined,
-          assignee,
-          due_date: dueDate || undefined,
-          quest_id: questId || undefined,
-        };
-        const newTask = await createTask(input);
-        if (addToLoadout && newTask) {
-          await assignToday(newTask.task_id);
-        }
-      } else if (selectedTask) {
-        const input: UpdateTaskInput = {
-          task_id: selectedTask.task_id,
-          title: title.trim(),
-          notes: notes.trim(),
-          priority,
-          challenge: challenge || undefined,
-          assignee,
-          due_date: dueDate,
-          quest_id: questId,
-        };
-        await updateTask(input);
-      }
-    } catch {
-      // Error already handled in context
-    } finally {
-      setSaving(false);
+
+    if (isCreating) {
+      const input: CreateTaskInput = {
+        title: title.trim(),
+        notes: notes.trim() || undefined,
+        priority,
+        challenge: challenge || undefined,
+        assignee,
+        due_date: dueDate || undefined,
+        quest_id: questId || undefined,
+      };
+
+      closeModal();
+      void createTask(input)
+        .then(newTask => {
+          if (addToLoadout && newTask) {
+            return assignToday(newTask.task_id);
+          }
+        })
+        .catch(() => {
+          // Error already handled in context.
+        });
+      return;
+    }
+
+    if (selectedTask) {
+      const input: UpdateTaskInput = {
+        task_id: selectedTask.task_id,
+        title: title.trim(),
+        notes: notes.trim(),
+        priority,
+        challenge: challenge || undefined,
+        assignee,
+        due_date: dueDate,
+        quest_id: questId,
+      };
+
+      closeModal();
+      void updateTask(input).catch(() => {
+        // Error already handled in context.
+      });
     }
   };
   
