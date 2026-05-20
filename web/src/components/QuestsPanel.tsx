@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
@@ -13,10 +13,9 @@ export function QuestsPanel() {
   } = useApp();
 
   // Quests are shared containers: every user can see all open quests.
-  const filteredQuests = quests.filter(q => q.status !== 'done');
-
-  const activeQuests = filteredQuests.filter(q => q.is_tracked);
-  const inactiveQuests = filteredQuests.filter(q => !q.is_tracked);
+  const filteredQuests = useMemo(() => quests.filter(q => q.status !== 'done'), [quests]);
+  const activeQuests = useMemo(() => filteredQuests.filter(q => q.is_tracked), [filteredQuests]);
+  const inactiveQuests = useMemo(() => filteredQuests.filter(q => !q.is_tracked), [filteredQuests]);
   const [collapsedQuestIds, setCollapsedQuestIds] = useState<Record<string, boolean>>({});
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     const fallback = 360;
@@ -27,8 +26,16 @@ export function QuestsPanel() {
   });
 
   // Missions nested in a quest (open only, not currently in Today loadout)
-  const missionsInQuest = (questId: string): Task[] =>
-    tasks.filter(t => t.status === 'open' && t.quest_id === questId && !t.today_slot);
+  const missionsByQuestId = useMemo(() => (
+    tasks.reduce<Record<string, Task[]>>((groups, task) => {
+      if (task.status !== 'open' || !task.quest_id || task.today_slot) {
+        return groups;
+      }
+      if (!groups[task.quest_id]) groups[task.quest_id] = [];
+      groups[task.quest_id].push(task);
+      return groups;
+    }, {})
+  ), [tasks]);
 
   const isQuestCollapsed = useCallback((quest: Quest, defaultCollapsed = false) => {
     if (collapsedQuestIds[quest.quest_id] !== undefined) {
@@ -107,7 +114,7 @@ export function QuestsPanel() {
                 <QuestWithMissions
                   key={quest.quest_id}
                   quest={quest}
-                  missions={missionsInQuest(quest.quest_id)}
+                  missions={missionsByQuestId[quest.quest_id] || []}
                   isCollapsed={isQuestCollapsed(quest, false)}
                   onToggleCollapse={toggleQuestCollapsed}
                 />
@@ -132,7 +139,7 @@ export function QuestsPanel() {
                 <QuestWithMissions
                   key={quest.quest_id}
                   quest={quest}
-                  missions={missionsInQuest(quest.quest_id)}
+                  missions={missionsByQuestId[quest.quest_id] || []}
                   isCollapsed={isQuestCollapsed(quest, true)}
                   onToggleCollapse={toggleQuestCollapsed}
                 />

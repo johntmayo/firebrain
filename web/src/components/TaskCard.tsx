@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import type { Task, Quest } from '../types';
+import type { Task } from '../types';
 import { useApp } from '../context/AppContext';
 
 interface TaskCardProps {
@@ -21,10 +21,10 @@ export function TaskCard({
   completed = false,
   questColor: questColorProp,
 }: TaskCardProps) {
-  const { completeTask, openTaskModal, johnEmail, stephEmail, meganEmail, quests } = useApp();
+  const { completeTask, openTaskModal, johnEmail, stephEmail, meganEmail, questColorById } = useApp();
 
   // Resolve quest color: prop override, or from task.quest_id
-  const questColor = questColorProp ?? (task.quest_id ? quests.find((q: Quest) => q.quest_id === task.quest_id)?.color : undefined);
+  const questColor = questColorProp ?? (task.quest_id ? questColorById[task.quest_id] : undefined);
   const hasQuestColor = Boolean(questColor && questColor.trim());
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({

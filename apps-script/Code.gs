@@ -737,6 +737,8 @@ function bulkCreateTasks(body, callerEmail) {
   const sheet = getTasksSheet();
   const now = new Date().toISOString();
   const results = [];
+  const rowsToAppend = [];
+  const rowResultIndexes = [];
 
   for (let i = 0; i < body.tasks.length; i++) {
     const taskData = body.tasks[i];
@@ -771,43 +773,50 @@ function bulkCreateTasks(body, callerEmail) {
       continue;
     }
 
+    const taskId = generateUUID();
+    const newRow = [
+      taskId,                              // task_id
+      now,                                 // created_at
+      callerEmail,                         // created_by
+      now,                                 // updated_at
+      callerEmail,                         // updated_by
+      taskData.title.trim(),               // title
+      taskData.notes || '',                // notes
+      taskData.priority || 'medium',       // priority
+      taskData.assignee || JOHN_EMAIL,     // assignee
+      'open',                              // status
+      taskData.due_date || '',             // due_date
+      '',                                  // today_slot
+      '',                                  // today_set_at
+      '',                                  // completed_at
+      '',                                  // today_user
+      taskData.quest_id || '',             // quest_id
+      taskData.challenge || ''             // challenge
+    ];
+
+    rowsToAppend.push(newRow);
+    rowResultIndexes.push(results.length);
+    results.push({
+      index: i,
+      success: true,
+      task: rowToTask(newRow)
+    });
+  }
+
+  if (rowsToAppend.length > 0) {
     try {
-      const taskId = generateUUID();
-      const newRow = [
-        taskId,                              // task_id
-        now,                                 // created_at
-        callerEmail,                         // created_by
-        now,                                 // updated_at
-        callerEmail,                         // updated_by
-        taskData.title.trim(),               // title
-        taskData.notes || '',                // notes
-        taskData.priority || 'medium',       // priority
-        taskData.assignee || JOHN_EMAIL,     // assignee
-        'open',                              // status
-        taskData.due_date || '',             // due_date
-        '',                                  // today_slot
-        '',                                  // today_set_at
-        '',                                  // completed_at
-        '',                                  // today_user
-        taskData.quest_id || '',             // quest_id
-        taskData.challenge || ''             // challenge
-      ];
-
-      sheet.appendRow(newRow);
-
-      results.push({
-        index: i,
-        success: true,
-        task: rowToTask(newRow)
-      });
-
+      const startRow = sheet.getLastRow() + 1;
+      sheet.getRange(startRow, 1, rowsToAppend.length, TASK_HEADERS.length).setValues(rowsToAppend);
     } catch (err) {
-      results.push({
-        index: i,
-        success: false,
-        error: err.toString(),
-        task: taskData
-      });
+      for (let j = 0; j < rowResultIndexes.length; j++) {
+        const resultIndex = rowResultIndexes[j];
+        results[resultIndex] = {
+          index: results[resultIndex].index,
+          success: false,
+          error: err.toString(),
+          task: body.tasks[results[resultIndex].index]
+        };
+      }
     }
   }
 

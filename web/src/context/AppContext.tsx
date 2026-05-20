@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
-import { PRIORITY_ORDER, CHALLENGE_ORDER } from '../types';
+import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
@@ -79,9 +79,53 @@ interface AppContextType {
   loadoutTasks: Task[];
   accomplishedToday: Task[];
   trackedQuests: Quest[];
+  questColorById: Record<string, string>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+
+function getTaskPoints(task: Pick<Task, 'challenge'>) {
+  return task.challenge ? CHALLENGE_POINTS[task.challenge] : CHALLENGE_POINTS.medium;
+}
+
+function calculateLoadoutPoints(tasks: Task[], email: string) {
+  return tasks.reduce((total, task) => {
+    if (task.status !== 'open' || !task.today_slot) return total;
+
+    const belongsToUser = task.today_user
+      ? task.today_user === email
+      : task.assignee === email;
+
+    return belongsToUser ? total + getTaskPoints(task) : total;
+  }, 0);
+}
+
+function createOptimisticTask(input: CreateTaskInput, currentUser: string): Task {
+  const now = new Date().toISOString();
+  const randomId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return {
+    task_id: `optimistic-${randomId}`,
+    created_at: now,
+    created_by: currentUser,
+    updated_at: now,
+    updated_by: currentUser,
+    title: input.title.trim(),
+    notes: input.notes || '',
+    priority: input.priority || 'medium',
+    challenge: input.challenge || '',
+    assignee: input.assignee || currentUser,
+    status: 'open',
+    due_date: input.due_date || '',
+    today_slot: '',
+    today_set_at: '',
+    completed_at: '',
+    today_user: '',
+    quest_id: input.quest_id || '',
+  };
+}
 
 export function useApp() {
   const context = useContext(AppContext);
@@ -237,7 +281,6 @@ export function AppProvider({ children }: AppProviderProps) {
     setCurrentUserEmail(currentUser);
     setViewingLoadoutUser(currentUser); // Start viewing own loadout
     refreshTasks();
-    fetchCompletedTasks(); // Also fetch completed tasks for accomplished section
     refreshQuests(); // Fetch quests
     refreshLoadoutConfig();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -261,36 +304,42 @@ export function AppProvider({ children }: AppProviderProps) {
     setShowCompleted(newValue);
     
     if (newValue && completedTasks.length === 0) {
-      // Fetch completed tasks
       try {
-        const doneTasks = await api.getTasks('done');
-        setCompletedTasks(doneTasks);
-      } catch (err) {
+        await fetchCompletedTasks();
+      } catch {
         showToast('Failed to load completed tasks', 'error');
       }
     }
-  }, [showCompleted, completedTasks.length, showToast]);
+  }, [showCompleted, completedTasks.length, fetchCompletedTasks, showToast]);
   
   // Task actions with optimistic updates
   const createTask = useCallback(async (input: CreateTaskInput): Promise<Task> => {
+    const optimisticTask = createOptimisticTask(input, currentUser);
+    setTasks(prev => [optimisticTask, ...prev]);
+    closeModal();
+
     try {
       const newTask = await api.createTask(input);
-      setTasks(prev => [newTask, ...prev]);
+      setTasks(prev => prev.map(t => (
+        t.task_id === optimisticTask.task_id ? newTask : t
+      )));
       showToast('Mission created', 'success');
-      closeModal();
       return newTask;
     } catch (err) {
+      setTasks(prev => prev.filter(t => t.task_id !== optimisticTask.task_id));
       showToast(err instanceof Error ? err.message : 'Failed to create mission', 'error');
       throw err;
     }
-  }, [closeModal, showToast]);
+  }, [closeModal, currentUser, showToast]);
 
   const bulkCreateTasks = useCallback(async (inputs: CreateTaskInput[]) => {
     try {
       const result = await api.bulkCreateTasks(inputs);
-      if (result.success_count > 0) {
-        // Refresh tasks to get the newly created ones
-        await refreshTasks();
+      const createdTasks = result.results
+        .filter((item): item is typeof item & { task: Task } => item.success && Boolean(item.task))
+        .map(item => item.task);
+      if (createdTasks.length > 0) {
+        setTasks(prev => [...createdTasks, ...prev]);
       }
       showToast(`Imported ${result.success_count} missions${result.error_count > 0 ? ` (${result.error_count} failed)` : ''}`, 'success');
       return result;
@@ -298,7 +347,7 @@ export function AppProvider({ children }: AppProviderProps) {
       showToast(err instanceof Error ? err.message : 'Failed to import missions', 'error');
       throw err;
     }
-  }, [refreshTasks, showToast]);
+  }, [showToast]);
   
   const updateTask = useCallback(async (input: UpdateTaskInput) => {
     const previousTasks = tasks;
@@ -307,6 +356,7 @@ export function AppProvider({ children }: AppProviderProps) {
     setTasks(prev => prev.map(t => 
       t.task_id === input.task_id ? { ...t, ...input } : t
     ));
+    closeModal();
     
     try {
       const updatedTask = await api.updateTask(input);
@@ -316,7 +366,6 @@ export function AppProvider({ children }: AppProviderProps) {
         t.task_id === updatedTask.task_id ? { ...t, ...updatedTask } : t
       ));
       showToast('Mission updated', 'success');
-      closeModal();
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to update mission', 'error');
@@ -346,14 +395,12 @@ export function AppProvider({ children }: AppProviderProps) {
         };
         setCompletedTasks(prev => [completedTaskData, ...prev]);
       }
-      // Refresh tasks to ensure we get the latest state from backend (slot cleared)
-      await refreshTasks();
       showToast('Mission completed! 🎉', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to complete mission', 'error');
     }
-  }, [tasks, showToast, refreshTasks]);
+  }, [tasks, showToast]);
 
   const cancelTask = useCallback(async (taskId: string) => {
     const previousTasks = tasks;
@@ -402,12 +449,11 @@ export function AppProvider({ children }: AppProviderProps) {
         }
         return t;
       }));
-      await refreshLoadoutConfig();
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to assign to Today', 'error');
     }
-  }, [viewingLoadoutUser, currentUser, tasks, showToast, refreshLoadoutConfig]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
   
   const clearToday = useCallback(async (taskId: string) => {
     // Only allow editing if viewing own loadout
@@ -428,12 +474,11 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(prev => prev.map(t => 
         t.task_id === updatedTask.task_id ? updatedTask : t
       ));
-      await refreshLoadoutConfig();
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to clear from Today', 'error');
     }
-  }, [viewingLoadoutUser, currentUser, tasks, showToast, refreshLoadoutConfig]);
+  }, [viewingLoadoutUser, currentUser, tasks, showToast]);
 
   const setEnergyLevel = useCallback(async (level: EnergyLevel) => {
     try {
@@ -598,18 +643,18 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [currentUser, showToast]);
 
-  // Helper: check if a due_date is past (overdue)
-  const isOverdue = (dueDateStr: string) => {
+  const todayKey = useMemo(() => new Date().toDateString(), []);
+
+  const isOverdue = useCallback((dueDateStr: string) => {
     if (!dueDateStr) return false;
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const due = new Date(dueDateStr);
     const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     return dueDay.getTime() < today.getTime();
-  };
+  }, []);
 
-  // Filter: base inbox missions (open, not in loadout, not in a quest, matches assignee)
-  const inboxBase = tasks.filter(t => {
+  const inboxBase = useMemo(() => tasks.filter(t => {
     if (t.status !== 'open') return false;
     if (t.today_slot) return false;
     if (t.quest_id) return false;
@@ -619,94 +664,99 @@ export function AppProvider({ children }: AppProviderProps) {
       case 'megan': return t.assignee === MEGAN_EMAIL;
       case 'all': return true;
     }
-  });
+  }), [assigneeFilter, tasks]);
 
-  // Overdue tasks: pulled out of the main list, sorted most-overdue first
-  const overdueTasks = inboxBase
-    .filter(t => isOverdue(t.due_date))
-    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+  const overdueTasks = useMemo(() => (
+    inboxBase
+      .filter(t => isOverdue(t.due_date))
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+  ), [inboxBase, isOverdue]);
 
-  const overdueIds = new Set(overdueTasks.map(t => t.task_id));
+  const inboxTasks = useMemo(() => {
+    const overdueIds = new Set(overdueTasks.map(t => t.task_id));
 
-  // Computed values — inbox minus overdue, sorted by selected sort
-  const inboxTasks = inboxBase
-    .filter(t => !overdueIds.has(t.task_id))
-    .sort((a, b) => {
-      if (sortBy === 'due_date') {
-        // Earliest due date first; no due date sorts to bottom
-        const aHas = Boolean(a.due_date);
-        const bHas = Boolean(b.due_date);
-        if (aHas !== bHas) return aHas ? -1 : 1;
-        if (aHas && bHas) {
-          const dateDiff = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-          if (dateDiff !== 0) return dateDiff;
+    return inboxBase
+      .filter(t => !overdueIds.has(t.task_id))
+      .sort((a, b) => {
+        if (sortBy === 'due_date') {
+          const aHas = Boolean(a.due_date);
+          const bHas = Boolean(b.due_date);
+          if (aHas !== bHas) return aHas ? -1 : 1;
+          if (aHas && bHas) {
+            const dateDiff = new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            if (dateDiff !== 0) return dateDiff;
+          }
+          return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         }
-        // Secondary: priority
-        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      }
-      if (sortBy === 'quest') {
-        // Group by quest_id (unquested last), then priority within groups
-        // Note: quest_id is empty for inbox tasks, so this sort is mainly useful
-        // when applied to the full task set; here it falls back to priority
-        const aQuest = a.quest_id || '\uffff';
-        const bQuest = b.quest_id || '\uffff';
-        if (aQuest !== bQuest) return aQuest.localeCompare(bQuest);
-        return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-      }
-      if (sortBy === 'challenge') {
-        const aChallenge = a.challenge || 'high';
-        const bChallenge = b.challenge || 'high';
-        const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
-        if (challengeDiff !== 0) return challengeDiff;
-        const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-        if (priorityDiff !== 0) return priorityDiff;
-      } else {
-        // Default: priority
-        const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-        if (priorityDiff !== 0) return priorityDiff;
-        const aChallenge = a.challenge || 'high';
-        const bChallenge = b.challenge || 'high';
-        const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
-        if (challengeDiff !== 0) return challengeDiff;
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+        if (sortBy === 'quest') {
+          const aQuest = a.quest_id || '\uffff';
+          const bQuest = b.quest_id || '\uffff';
+          if (aQuest !== bQuest) return aQuest.localeCompare(bQuest);
+          return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+        }
+        if (sortBy === 'challenge') {
+          const aChallenge = a.challenge || 'high';
+          const bChallenge = b.challenge || 'high';
+          const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
+          if (challengeDiff !== 0) return challengeDiff;
+          const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+          if (priorityDiff !== 0) return priorityDiff;
+        } else {
+          const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+          if (priorityDiff !== 0) return priorityDiff;
+          const aChallenge = a.challenge || 'high';
+          const bChallenge = b.challenge || 'high';
+          const challengeDiff = CHALLENGE_ORDER[aChallenge as Challenge] - CHALLENGE_ORDER[bChallenge as Challenge];
+          if (challengeDiff !== 0) return challengeDiff;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [inboxBase, overdueTasks, sortBy]);
   
-  // Filter loadout tasks by viewingLoadoutUser
-  // For backward compatibility: if today_user is empty, check assignee instead
-  const loadoutTasks = tasks.filter(t => {
-    if (t.today_slot && t.status === 'open') {
-      // Check if task belongs to viewing user
-      const belongsToUser = t.today_user 
-        ? t.today_user === viewingLoadoutUser 
-        : t.assignee === viewingLoadoutUser; // Backward compatibility
-      return belongsToUser;
-    }
-    return false;
-  }).sort((a, b) => {
-    const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
-    if (slotDiff !== 0) return slotDiff;
-    return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
-  });
+  const loadoutTasks = useMemo(() => (
+    tasks.filter(t => {
+      if (t.today_slot && t.status === 'open') {
+        const belongsToUser = t.today_user 
+          ? t.today_user === viewingLoadoutUser 
+          : t.assignee === viewingLoadoutUser;
+        return belongsToUser;
+      }
+      return false;
+    }).sort((a, b) => {
+      const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
+      if (slotDiff !== 0) return slotDiff;
+      return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+    })
+  ), [parseLoadoutOrder, tasks, viewingLoadoutUser]);
 
-  // Tasks accomplished today (completed today, filtered by viewingLoadoutUser)
-  const today = new Date().toDateString();
-  const accomplishedToday = completedTasks.filter(t => {
-    if (!t.completed_at) return false;
-    const completedDate = new Date(t.completed_at).toDateString();
-    // Filter by the user whose loadout we're viewing
-    return completedDate === today && t.today_user === viewingLoadoutUser;
-  }).sort((a, b) => {
-    const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
-    if (slotDiff !== 0) return slotDiff;
-    // Then by completion time (most recent first)
-    return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
-  });
+  const accomplishedToday = useMemo(() => (
+    completedTasks.filter(t => {
+      if (!t.completed_at) return false;
+      const completedDate = new Date(t.completed_at).toDateString();
+      return completedDate === todayKey && t.today_user === viewingLoadoutUser;
+    }).sort((a, b) => {
+      const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
+      if (slotDiff !== 0) return slotDiff;
+      return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
+    })
+  ), [completedTasks, parseLoadoutOrder, todayKey, viewingLoadoutUser]);
 
-  // Tracked quests are shared visual state for everyone
-  const trackedQuests = quests.filter(q => 
-    q.is_tracked && q.status === 'open'
-  );
+  const trackedQuests = useMemo(() => (
+    quests.filter(q => q.is_tracked && q.status === 'open')
+  ), [quests]);
+
+  const questColorById = useMemo(() => (
+    quests.reduce<Record<string, string>>((map, quest) => {
+      if (quest.color) map[quest.quest_id] = quest.color;
+      return map;
+    }, {})
+  ), [quests]);
+
+  const effectiveLoadoutConfig = useMemo(() => (
+    loadoutConfig
+      ? { ...loadoutConfig, points_used: calculateLoadoutPoints(tasks, currentUser) }
+      : loadoutConfig
+  ), [currentUser, loadoutConfig, tasks]);
   
   // User is logged in as themselves - no switching needed
   // Viewing toggles (JOHN/STEF/ALL buttons and loadout toggle) still work for viewing
@@ -767,9 +817,10 @@ export function AppProvider({ children }: AppProviderProps) {
     loadoutTasks,
     accomplishedToday,
     trackedQuests,
+    questColorById,
     viewingLoadoutUser,
     setViewingLoadoutUser,
-    loadoutConfig,
+    loadoutConfig: effectiveLoadoutConfig,
   };
   
   return (
