@@ -1,5 +1,28 @@
+/**
+ * Priority is a P1/P2/P3 system mapped onto stored values:
+ *   P1 = 'high', P2 = 'medium', P3 = 'low'.
+ * 'urgent' is a legacy stored value and is treated as P1 everywhere in the UI.
+ */
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+export type PriorityLevel = 1 | 2 | 3;
 export type Challenge = 'low' | 'medium' | 'high';
+
+export function getPriorityLevel(priority: Priority): PriorityLevel {
+  if (priority === 'urgent' || priority === 'high') return 1;
+  if (priority === 'medium') return 2;
+  return 3;
+}
+
+export const PRIORITY_BY_LEVEL: Record<PriorityLevel, Priority> = {
+  1: 'high',
+  2: 'medium',
+  3: 'low',
+};
+
+/** Collapse legacy 'urgent' into 'high' (P1) */
+export function normalizePriority(priority: Priority): Priority {
+  return priority === 'urgent' ? 'high' : priority;
+}
 export type Status = 'open' | 'done' | 'archived' | 'canceled';
 export type TodaySlot = string;
 
@@ -87,6 +110,14 @@ export interface Quest {
   status: Status;
   completed_at: string;
   color: string; // hex or preset id; missions in this quest use this color
+  sort_order: number | ''; // manual ordering on the Quests board; '' = unordered (sorts last)
+}
+
+/** Sort quests by manual sort_order; quests without one keep their relative order at the end. */
+export function compareQuestSortOrder(a: Quest, b: Quest): number {
+  const aOrder = typeof a.sort_order === 'number' && a.sort_order > 0 ? a.sort_order : Number.MAX_SAFE_INTEGER;
+  const bOrder = typeof b.sort_order === 'number' && b.sort_order > 0 ? b.sort_order : Number.MAX_SAFE_INTEGER;
+  return aOrder - bOrder;
 }
 
 export interface CreateQuestInput {

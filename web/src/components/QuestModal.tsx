@@ -25,7 +25,7 @@ export function QuestModal() {
     stephEmail,
     meganEmail,
     tasks,
-    createQuestMission,
+    openTaskModal,
   } = useApp();
 
   const [title, setTitle] = useState('');
@@ -33,8 +33,6 @@ export function QuestModal() {
   const [leaderEmail, setLeaderEmail] = useState(johnEmail);
   const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
-  const [quickAddTitle, setQuickAddTitle] = useState('');
-  const [quickAddSaving, setQuickAddSaving] = useState(false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -62,7 +60,6 @@ export function QuestModal() {
       setLeaderEmail(johnEmail);
       setColor('');
     }
-    setQuickAddTitle('');
   }, [selectedQuest, johnEmail]);
 
   if (!isQuestModalOpen) return null;
@@ -134,18 +131,12 @@ export function QuestModal() {
     }
   };
 
-  const handleQuickAdd = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    if (!quickAddTitle.trim() || !selectedQuest || quickAddSaving) return;
-
-    setQuickAddSaving(true);
-    try {
-      await createQuestMission(selectedQuest.quest_id, quickAddTitle.trim(), selectedQuest.leader_email || selectedQuest.assignee);
-      setQuickAddTitle('');
-    } finally {
-      setQuickAddSaving(false);
-    }
+  // Open the mission creation modal with this quest preselected
+  const handleAddMission = () => {
+    if (!selectedQuest) return;
+    const questId = selectedQuest.quest_id;
+    closeQuestModal();
+    openTaskModal(null, true, questId);
   };
 
   const handleCompleteQuest = async () => {
@@ -243,18 +234,25 @@ export function QuestModal() {
 
             {!isCreatingQuest && selectedQuest && (
               <div className="form-group">
-                <label>Tracking</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label id="quest-tracking-label">Tracking</label>
+                <div className="track-switch-row">
                   <button
                     type="button"
-                    className={`btn ${selectedQuest.is_tracked ? 'btn-primary' : 'btn-secondary'}`}
+                    role="switch"
+                    aria-checked={selectedQuest.is_tracked}
+                    aria-labelledby="quest-tracking-label"
+                    className={`track-switch ${selectedQuest.is_tracked ? 'on' : ''}`}
                     onClick={handleToggleTracked}
-                    style={{ flex: 1 }}
                   >
-                    {selectedQuest.is_tracked ? 'Tracked' : 'Not tracked'}
+                    <span className="track-switch-knob" />
                   </button>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    ({trackedQuests.length} tracked)
+                  <span className="track-switch-status">
+                    {selectedQuest.is_tracked
+                      ? 'Tracked — shown on the Quests board'
+                      : 'Not tracked — resting in Inactive'}
+                  </span>
+                  <span className="track-switch-count">
+                    {trackedQuests.length} tracked
                   </span>
                 </div>
                 {trackedQuests.length > 5 && (
@@ -293,20 +291,13 @@ export function QuestModal() {
                   </div>
                 )}
 
-                <div
-                  className="quest-quick-add"
-                  onClick={e => e.stopPropagation()}
+                <button
+                  type="button"
+                  className="add-task-btn"
+                  onClick={handleAddMission}
                 >
-                  <input
-                    type="text"
-                    className="quest-quick-add-input"
-                    placeholder="+ Add mission..."
-                    value={quickAddTitle}
-                    onChange={e => setQuickAddTitle(e.target.value)}
-                    disabled={quickAddSaving}
-                    onKeyDown={handleQuickAdd}
-                  />
-                </div>
+                  + Add Mission
+                </button>
               </div>
             )}
           </div>

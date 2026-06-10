@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Priority, Challenge, CreateTaskInput } from '../types';
+import { getPriorityLevel } from '../types';
 import type { BulkImportResult } from '../api/client';
 import { useApp } from '../context/AppContext';
 
@@ -15,10 +16,10 @@ interface BulkImportModalProps {
 }
 
 const PRIORITY_COLORS: Record<Priority, string> = {
-  urgent: 'var(--priority-urgent)',
-  high: 'var(--priority-high)',
-  medium: 'var(--priority-medium)',
-  low: 'var(--priority-low)',
+  urgent: 'var(--priority-1)',
+  high: 'var(--priority-1)',
+  medium: 'var(--priority-2)',
+  low: 'var(--priority-3)',
 };
 
 export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
@@ -42,10 +43,15 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
       title = title.replace(notesMatch[0], '').trim();
     }
 
-    // Extract priority: -urgent / -high / -medium / -low (case insensitive)
-    const priorityMatch = title.match(/-\s*(urgent|high|medium|low)\b/i);
+    // Extract priority: -p1 / -p2 / -p3 (legacy -urgent / -high / -medium / -low also accepted)
+    const priorityMatch = title.match(/-\s*(p[123]|urgent|high|medium|low)\b/i);
     if (priorityMatch) {
-      priority = priorityMatch[1].toLowerCase() as Priority;
+      const token = priorityMatch[1].toLowerCase();
+      const tokenMap: Record<string, Priority> = {
+        p1: 'high', p2: 'medium', p3: 'low',
+        urgent: 'high', high: 'high', medium: 'medium', low: 'low',
+      };
+      priority = tokenMap[token];
       title = title.replace(priorityMatch[0], '').trim();
     }
 
@@ -179,10 +185,10 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
               className="form-input"
               value={inputText}
               onChange={handleInputChange}
-              placeholder={`Fix login bug -urgent ~high @today
+              placeholder={`Fix login bug -p1 ~high @today
 Write project spec ~medium @nextweek
 Call dentist @tomorrow #bring insurance card
-Review pull requests -high ~low`}
+Review pull requests -p2 ~low`}
               rows={7}
               disabled={isImporting}
               style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', lineHeight: '1.6' }}
@@ -192,8 +198,8 @@ Review pull requests -high ~low`}
           <div className="bulk-syntax-ref">
             <div className="bulk-syntax-title">Syntax</div>
             <div className="bulk-syntax-grid">
-              <span className="bulk-syntax-token">-urgent / -high / -medium / -low</span>
-              <span className="bulk-syntax-desc">priority</span>
+              <span className="bulk-syntax-token">-p1 / -p2 / -p3</span>
+              <span className="bulk-syntax-desc">priority (P1 = top)</span>
               <span className="bulk-syntax-token">~high / ~medium / ~low</span>
               <span className="bulk-syntax-desc">effort (CR points)</span>
               <span className="bulk-syntax-token">@today / @tomorrow / @nextweek</span>
@@ -217,7 +223,7 @@ Review pull requests -high ~low`}
                         className="bulk-preview-tag"
                         style={{ color: PRIORITY_COLORS[task.priority], borderColor: PRIORITY_COLORS[task.priority] }}
                       >
-                        {task.priority}
+                        P{getPriorityLevel(task.priority)}
                       </span>
                       {task.challenge && (
                         <span className="bulk-preview-tag bulk-preview-tag--challenge">

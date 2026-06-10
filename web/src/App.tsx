@@ -24,6 +24,7 @@ import { PasswordScreen } from './components/PasswordScreen';
 import { Gizmodroar } from './components/Gizmodroar';
 import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
+import { getPriorityLevel } from './types';
 import type { Task, Quest } from './types';
 import firebrainLogo from './assets/firebrain_logo.svg';
 
@@ -43,9 +44,11 @@ function AppContent() {
     loadoutConfig,
     loadoutTasks,
     updateTask,
+    reorderQuests,
   } = useApp();
   
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
+  const [activeQuest, setActiveQuest] = React.useState<Quest | null>(null);
   const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= MOBILE_BREAKPOINT_PX;
@@ -83,24 +86,13 @@ function AppContent() {
     if (task) {
       setActiveTask(task);
     } else if (quest) {
-      // For quests, we'll show the quest title in the drag preview
-      setActiveTask({
-        ...quest,
-        task_id: quest.quest_id,
-        title: `Quest: ${quest.title}`,
-        priority: 'medium',
-        challenge: '',
-        due_date: '',
-        today_slot: '',
-        today_set_at: '',
-        completed_at: '',
-        today_user: '',
-      } as Task);
+      setActiveQuest(quest);
     }
   };
   
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
+    setActiveQuest(null);
     
     const { active, over } = event;
     
@@ -125,10 +117,23 @@ function AppContent() {
     
     const overId = over.id as string;
     
-    // Quests cannot be dragged to the loadout - only missions can
+    // Quest drags reorder the Quests board (drop on another quest)
     if (active.data.current?.type === 'quest') {
-      sounds.dropCancel();
-      showToast('Quests can\'t go in the loadout — drag individual missions instead', 'error');
+      const draggedQuest = active.data.current?.quest as Quest;
+      if (overId.startsWith('quest-drop-')) {
+        const targetQuestId = overId.replace('quest-drop-', '');
+        if (draggedQuest && targetQuestId !== draggedQuest.quest_id) {
+          sounds.dropSuccess();
+          reorderQuests(draggedQuest.quest_id, targetQuestId);
+        } else {
+          sounds.dropCancel();
+        }
+      } else if (overId === 'loadout-drop-zone') {
+        sounds.dropCancel();
+        showToast('Quests can\'t go in the loadout — drag individual missions instead', 'error');
+      } else {
+        sounds.dropCancel();
+      }
       return;
     }
     
@@ -210,6 +215,7 @@ function AppContent() {
   
   const handleDragCancel = () => {
     setActiveTask(null);
+    setActiveQuest(null);
     sounds.dropCancel();
   };
   
@@ -264,25 +270,18 @@ function AppContent() {
         {isMobileViewport ? (
           <>
             <main className="app-main mobile-layout">
-              <section className={`mobile-pane ${activeMobilePane === 'today' ? 'active' : ''}`}>
-                <TodayPlanner />
-              </section>
               <section className={`mobile-pane ${activeMobilePane === 'quests' ? 'active' : ''}`}>
                 <QuestsPanel />
               </section>
               <section className={`mobile-pane ${activeMobilePane === 'inbox' ? 'active' : ''}`}>
                 <Inbox />
               </section>
+              <section className={`mobile-pane ${activeMobilePane === 'today' ? 'active' : ''}`}>
+                <TodayPlanner />
+              </section>
             </main>
 
             <nav className="mobile-tab-bar" aria-label="Mobile navigation">
-              <button
-                type="button"
-                className={`mobile-tab-btn ${activeMobilePane === 'today' ? 'active' : ''}`}
-                onClick={() => setActiveMobilePane('today')}
-              >
-                Today
-              </button>
               <button
                 type="button"
                 className={`mobile-tab-btn ${activeMobilePane === 'quests' ? 'active' : ''}`}
@@ -296,6 +295,13 @@ function AppContent() {
                 onClick={() => setActiveMobilePane('inbox')}
               >
                 Missions
+              </button>
+              <button
+                type="button"
+                className={`mobile-tab-btn ${activeMobilePane === 'today' ? 'active' : ''}`}
+                onClick={() => setActiveMobilePane('today')}
+              >
+                Loadout
               </button>
             </nav>
           </>
@@ -346,7 +352,18 @@ function AppContent() {
       </div>
       
       <DragOverlay>
-        {activeTask ? (
+        {activeQuest ? (
+          <div className="drag-preview">
+            <div style={{ fontWeight: 500 }}>{activeQuest.title}</div>
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: 'var(--text-muted)',
+              marginTop: '4px' 
+            }}>
+              Drop on another quest to reorder
+            </div>
+          </div>
+        ) : activeTask ? (
           <div className="drag-preview">
             <div style={{ fontWeight: 500 }}>{activeTask.title}</div>
             <div style={{ 
@@ -354,7 +371,7 @@ function AppContent() {
               color: 'var(--text-muted)',
               marginTop: '4px' 
             }}>
-              {activeTask.priority}
+              P{getPriorityLevel(activeTask.priority)}
             </div>
           </div>
         ) : null}

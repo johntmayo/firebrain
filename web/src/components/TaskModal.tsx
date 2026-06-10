@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { normalizePriority } from '../types';
 import type { Priority, Challenge, CreateTaskInput, UpdateTaskInput } from '../types';
 
 export function TaskModal() {
@@ -7,6 +8,7 @@ export function TaskModal() {
     isModalOpen,
     selectedTask,
     isCreating,
+    taskModalDefaultQuestId,
     closeModal,
     createTask,
     updateTask,
@@ -46,7 +48,7 @@ export function TaskModal() {
     if (isModalOpen && selectedTask && !isCreating) {
       setTitle(selectedTask.title);
       setNotes(selectedTask.notes || '');
-      setPriority(selectedTask.priority);
+      setPriority(normalizePriority(selectedTask.priority));
       setChallenge(selectedTask.challenge || '');
       setAssignee(selectedTask.assignee);
       setDueDate(selectedTask.due_date ? selectedTask.due_date.substring(0, 10) : '');
@@ -59,10 +61,10 @@ export function TaskModal() {
       setChallenge('medium');
       setAssignee(johnEmail);
       setDueDate('');
-      setQuestId('');
+      setQuestId(taskModalDefaultQuestId || '');
       setAddToLoadout(false);
     }
-  }, [isModalOpen, isCreating, selectedTask, johnEmail]);
+  }, [isModalOpen, isCreating, selectedTask, johnEmail, taskModalDefaultQuestId]);
   
   if (!isModalOpen) return null;
   
@@ -178,10 +180,9 @@ export function TaskModal() {
                   value={priority}
                   onChange={e => setPriority(e.target.value as Priority)}
                 >
-                  <option value="urgent">Urgent</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="high">P1 — Critical</option>
+                  <option value="medium">P2 — Standard</option>
+                  <option value="low">P3 — Low</option>
                 </select>
               </div>
               

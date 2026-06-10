@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Task } from '../types';
+import { getPriorityLevel } from '../types';
 import { useApp } from '../context/AppContext';
 
 interface TaskCardProps {
@@ -49,6 +50,7 @@ export function TaskCard({
   };
   
   const dueStatus = getDueDateStatus(task.due_date);
+  const priorityLevel = getPriorityLevel(task.priority);
   const challengeLevel = task.challenge || 'medium';
   const challengePoints = challengeLevel === 'low' ? 1 : challengeLevel === 'high' ? 3 : 2;
   const assigneeName = task.assignee === johnEmail ? 'John' :
@@ -92,7 +94,9 @@ export function TaskCard({
         <div className="task-content">
           <div className="task-title">{task.title}</div>
           <div className="task-meta">
-            <span className={`priority-dot ${task.priority}`} title={task.priority} />
+            <span className={`priority-tag p${priorityLevel}`} title={`Priority ${priorityLevel}`}>
+              P{priorityLevel}
+            </span>
             <span className={`challenge-pill ${challengeLevel}`}>
               CR {challengePoints}
             </span>

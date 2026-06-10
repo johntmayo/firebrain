@@ -3,7 +3,10 @@ import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { QuestCard } from './QuestCard';
 import { TaskCard } from './TaskCard';
+import { compareQuestSortOrder } from '../types';
 import type { Task, Quest } from '../types';
+
+const MOBILE_BREAKPOINT_PX = 900;
 
 export function QuestsPanel() {
   const {
@@ -12,9 +15,28 @@ export function QuestsPanel() {
     openQuestModal,
   } = useApp();
 
+  // Quest drag-to-reorder is desktop-only; on mobile the long-press
+  // handle would fight with scrolling.
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= MOBILE_BREAKPOINT_PX;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const query = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`);
+    const onChange = (event: MediaQueryListEvent) => setIsMobileViewport(event.matches);
+    setIsMobileViewport(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
   // Quests are shared containers: every user can see all open quests.
   const filteredQuests = useMemo(() => quests.filter(q => q.status !== 'done'), [quests]);
-  const activeQuests = useMemo(() => filteredQuests.filter(q => q.is_tracked), [filteredQuests]);
+  const activeQuests = useMemo(
+    () => filteredQuests.filter(q => q.is_tracked).slice().sort(compareQuestSortOrder),
+    [filteredQuests]
+  );
   const inactiveQuests = useMemo(() => filteredQuests.filter(q => !q.is_tracked), [filteredQuests]);
   const [collapsedQuestIds, setCollapsedQuestIds] = useState<Record<string, boolean>>({});
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -117,6 +139,7 @@ export function QuestsPanel() {
                   missions={missionsByQuestId[quest.quest_id] || []}
                   isCollapsed={isQuestCollapsed(quest, false)}
                   onToggleCollapse={toggleQuestCollapsed}
+                  dragDisabled={isMobileViewport}
                 />
               ))
             ) : (
@@ -142,6 +165,7 @@ export function QuestsPanel() {
                   missions={missionsByQuestId[quest.quest_id] || []}
                   isCollapsed={isQuestCollapsed(quest, true)}
                   onToggleCollapse={toggleQuestCollapsed}
+                  dragDisabled={isMobileViewport}
                 />
               ))}
             </div>
@@ -158,9 +182,10 @@ interface QuestWithMissionsProps {
   missions: Task[];
   isCollapsed?: boolean;
   onToggleCollapse: (questId: string) => void;
+  dragDisabled?: boolean;
 }
 
-function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleCollapse }: QuestWithMissionsProps) {
+function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleCollapse, dragDisabled = false }: QuestWithMissionsProps) {
   const { viewingLoadoutUser } = useApp();
   const { setNodeRef, isOver } = useDroppable({
     id: `quest-drop-${quest.quest_id}`,
@@ -180,6 +205,7 @@ function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleColla
         isCollapsed={isCollapsed}
         missionCount={missions.length}
         onToggleCollapse={onToggleCollapse}
+        dragDisabled={dragDisabled}
       />
       {/* Missions nested inside the quest card */}
       {!isCollapsed && (

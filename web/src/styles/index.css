@@ -41,15 +41,24 @@
   --text-on-dark: #FFFCF8;
   --text-on-color: #1A1814;
 
-  /* Priority */
-  --priority-urgent: #D93B3B;
-  --priority-urgent-bg: #FDE8E8;
-  --priority-high: #E07A2F;
-  --priority-high-bg: #FDF0E2;
-  --priority-medium: #C9A227;
-  --priority-medium-bg: #FDF6E0;
-  --priority-low: #A09A94;
-  --priority-low-bg: #F3F1ED;
+  /* Priority — P1/P2/P3 share the CR color ramp:
+     P1 = CR3 (rose), P2 = CR2 (marigold ink), P3 = CR1 (mint) */
+  --priority-1: #F2547D;
+  --priority-1-bg: #FDE8EE;
+  --priority-2: #A08520;
+  --priority-2-bg: #FEF3D7;
+  --priority-3: #4EBF8B;
+  --priority-3-bg: #DFF5EA;
+
+  /* Legacy priority aliases (urgent/high/medium/low) */
+  --priority-urgent: var(--priority-1);
+  --priority-urgent-bg: var(--priority-1-bg);
+  --priority-high: var(--priority-1);
+  --priority-high-bg: var(--priority-1-bg);
+  --priority-medium: var(--priority-2);
+  --priority-medium-bg: var(--priority-2-bg);
+  --priority-low: var(--priority-3);
+  --priority-low-bg: var(--priority-3-bg);
 
   /* Borders */
   --border: #E8E3DB;
@@ -103,6 +112,28 @@
   --duration-normal: 0.25s;
   --duration-slow: 0.4s;
 }
+
+/* =========================================
+   THEME OVERRIDES
+   =========================================
+   Themes override the :root design tokens via the data-theme attribute
+   set on <html> by ThemeContext. The "default" theme IS the :root block
+   above, so it needs no override.
+
+   To add a theme (e.g. fantasy / scifi / military):
+   1. Mark it `available: true` in src/context/ThemeContext.tsx
+   2. Add a token-override block here, e.g.:
+
+   [data-theme="fantasy"] {
+     --ground: #2A2138;
+     --surface: #352B47;
+     --text-primary: #F0E6D2;
+     --font-display: 'Cinzel', serif;
+     ... override any tokens above ...
+   }
+
+   Keep all themable values flowing through tokens — never hardcode
+   colors/fonts in component rules below this section. */
 
 /* --- RESET & BASE --- */
 *, *::before, *::after {
@@ -874,18 +905,26 @@ body::before {
   opacity: 1;
 }
 
-/* Priority dot — small inline circle in meta row */
-.priority-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+/* Priority tag — outlined "stat" label (P1/P2/P3) in meta row.
+   Shares the CR color ramp but reads differently: CR is a filled
+   rounded pill, priority is an outlined, squarer mono tag. */
+.priority-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border: 1.5px solid currentColor;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
   flex-shrink: 0;
 }
 
-.priority-dot.urgent { background: var(--priority-urgent); }
-.priority-dot.high { background: var(--priority-high); }
-.priority-dot.medium { background: var(--priority-medium); }
-.priority-dot.low { background: var(--priority-low); }
+.priority-tag.p1 { color: var(--priority-1); }
+.priority-tag.p2 { color: var(--priority-2); }
+.priority-tag.p3 { color: var(--priority-3); }
 
 .task-card:hover {
   background: var(--surface-warm);
@@ -978,7 +1017,7 @@ body::before {
 }
 
 .task-due.due-today {
-  color: var(--priority-high);
+  color: var(--warning);
 }
 
 .task-due.due-tomorrow {
@@ -1960,6 +1999,16 @@ body::before {
   box-shadow: var(--shadow-lg);
 }
 
+/* The whole card header acts as the drag handle on desktop */
+.quest-card.draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.quest-card.draggable:active {
+  cursor: grabbing;
+}
+
 .quest-card.completed {
   background: var(--surface-sunken);
   border-color: transparent;
@@ -2000,6 +2049,8 @@ body::before {
   flex-direction: column;
   gap: var(--space-2xs);
   flex: 1;
+  /* Keep text clear of the collapse chevron on the right edge */
+  padding-right: 36px;
 }
 
 .quest-title {
@@ -2024,58 +2075,42 @@ body::before {
   margin-top: var(--space-2xs);
 }
 
-.quest-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-xs);
-  margin-top: var(--space-2xs);
-}
-
+/* Collapse chevron — vertically centered on the right edge */
 .quest-collapse-btn {
-  width: 26px;
-  height: 26px;
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 1.5px solid var(--border);
   background: var(--surface);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   border-radius: 50%;
-  font-size: 0.72rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all var(--duration-fast) var(--ease-out);
+  z-index: 6;
+  touch-action: auto;
+}
+
+.quest-collapse-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.quest-collapse-btn.is-collapsed svg {
+  transform: rotate(180deg);
 }
 
 .quest-collapse-btn:hover {
   border-color: var(--lavender-soft);
   color: var(--lavender);
   background: var(--lavender-light);
-}
-
-.quest-drag-handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  background: var(--surface-sunken);
-  border: 1.5px solid var(--border);
-  color: var(--text-muted);
-  cursor: grab;
-  opacity: 0.5;
-  transition: all var(--duration-fast) var(--ease-out);
-  border-radius: 50%;
-}
-
-.quest-drag-handle:active {
-  cursor: grabbing;
-}
-
-.quest-card:hover .quest-drag-handle {
-  opacity: 0.8;
-  color: var(--lavender);
 }
 
 /* Quest with nested missions */
@@ -2284,32 +2319,62 @@ body::before {
   font-style: italic;
 }
 
-.quest-quick-add {
-  margin-top: var(--space-sm);
+/* Tracking toggle switch (quest modal) */
+.track-switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
-.quest-quick-add-input {
-  width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 0.82rem;
+.track-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
   background: var(--surface-sunken);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  transition: border-color var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
-.quest-quick-add-input::placeholder {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-style: italic;
+.track-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-spring);
 }
 
-.quest-quick-add-input:focus {
-  outline: none;
-  border-style: solid;
+.track-switch.on {
+  background: var(--lavender);
   border-color: var(--lavender);
+}
+
+.track-switch.on .track-switch-knob {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+.track-switch:hover {
+  border-color: var(--lavender-soft);
+}
+
+.track-switch-status {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.track-switch-count {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* =========================================

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
-import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS } from '../types';
+import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
@@ -37,6 +37,7 @@ interface AppContextType {
   selectedTask: Task | null;
   isModalOpen: boolean;
   isCreating: boolean;
+  taskModalDefaultQuestId: string | null;
   toast: { message: string; type: 'success' | 'error' } | null;
   viewingLoadoutUser: string; // Which user's loadout we're viewing
   loadoutConfig: LoadoutConfig | null; // Current user's energy level and points (only for own loadout)
@@ -46,7 +47,7 @@ interface AppContextType {
   setViewMode: (mode: ViewMode) => void;
   toggleShowCompleted: () => void;
   setSortBy: (sortBy: SortBy) => void;
-  openTaskModal: (task: Task | null, creating?: boolean) => void;
+  openTaskModal: (task: Task | null, creating?: boolean, defaultQuestId?: string) => void;
   closeModal: () => void;
   setViewingLoadoutUser: (email: string) => void;
   refreshTasks: () => Promise<void>;
@@ -66,10 +67,10 @@ interface AppContextType {
   createQuest: (input: CreateQuestInput) => Promise<void>;
   updateQuest: (input: UpdateQuestInput) => Promise<void>;
   toggleQuestTracked: (questId: string) => Promise<void>;
+  reorderQuests: (activeQuestId: string, targetQuestId: string) => Promise<void>;
   requestCompleteQuest: (questId: string) => Promise<void>;
   completeQuest: (questId: string, mode?: QuestCompletionMode) => Promise<void>;
   cancelQuestCompletion: () => void;
-  createQuestMission: (questId: string, title: string, assignee?: string) => Promise<void>;
   openQuestModal: (quest: Quest | null, creating?: boolean) => void;
   closeQuestModal: () => void;
   
@@ -173,6 +174,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [taskModalDefaultQuestId, setTaskModalDefaultQuestId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(() => {
     return loggedInUser;
@@ -286,9 +288,10 @@ export function AppProvider({ children }: AppProviderProps) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Modal handlers
-  const openTaskModal = useCallback((task: Task | null, creating = false) => {
+  const openTaskModal = useCallback((task: Task | null, creating = false, defaultQuestId?: string) => {
     setSelectedTask(task);
     setIsCreating(creating);
+    setTaskModalDefaultQuestId(defaultQuestId || null);
     setIsModalOpen(true);
   }, []);
   
@@ -296,6 +299,7 @@ export function AppProvider({ children }: AppProviderProps) {
     setIsModalOpen(false);
     setSelectedTask(null);
     setIsCreating(false);
+    setTaskModalDefaultQuestId(null);
   }, []);
   
   // Toggle showing completed tasks
@@ -626,22 +630,36 @@ export function AppProvider({ children }: AppProviderProps) {
     setPendingQuestCompletion(null);
   }, []);
 
-  // Create a mission inside a quest without closing the quest modal
-  const createQuestMission = useCallback(async (questId: string, title: string, assignee?: string) => {
+  // Move a tracked quest to another tracked quest's position (drag-to-reorder)
+  const reorderQuests = useCallback(async (activeQuestId: string, targetQuestId: string) => {
+    const previousQuests = quests;
+    const tracked = quests
+      .filter(q => q.is_tracked && q.status !== 'done')
+      .slice()
+      .sort(compareQuestSortOrder);
+
+    const fromIndex = tracked.findIndex(q => q.quest_id === activeQuestId);
+    const toIndex = tracked.findIndex(q => q.quest_id === targetQuestId);
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+    const reordered = [...tracked];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    const orderById = new Map(reordered.map((q, index) => [q.quest_id, index + 1]));
+
+    // Optimistic update
+    setQuests(prev => prev.map(q => (
+      orderById.has(q.quest_id) ? { ...q, sort_order: orderById.get(q.quest_id)! } : q
+    )));
+
     try {
-      const newTask = await api.createTask({
-        title,
-        quest_id: questId,
-        priority: 'medium',
-        challenge: 'medium',
-        assignee: assignee || currentUser,
-      });
-      setTasks(prev => [newTask, ...prev]);
-      showToast('Mission created', 'success');
+      await api.reorderQuests(reordered.map(q => q.quest_id));
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to create mission', 'error');
+      setQuests(previousQuests); // Rollback
+      showToast(err instanceof Error ? err.message : 'Failed to reorder quests', 'error');
     }
-  }, [currentUser, showToast]);
+  }, [quests, showToast]);
 
   const todayKey = useMemo(() => new Date().toDateString(), []);
 
@@ -784,6 +802,7 @@ export function AppProvider({ children }: AppProviderProps) {
     selectedTask,
     isModalOpen,
     isCreating,
+    taskModalDefaultQuestId,
     toast,
     setAssigneeFilter,
     setViewMode,
@@ -806,10 +825,10 @@ export function AppProvider({ children }: AppProviderProps) {
     createQuest,
     updateQuest,
     toggleQuestTracked,
+    reorderQuests,
     requestCompleteQuest,
     completeQuest,
     cancelQuestCompletion,
-    createQuestMission,
     openQuestModal,
     closeQuestModal,
     inboxTasks,

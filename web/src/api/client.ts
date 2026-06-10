@@ -315,6 +315,12 @@ export const api = {
     return data.quest!;
   },
 
+  /** Persist a manual quest ordering. Sends the full ordered list of quest ids. */
+  async reorderQuests(questIds: string[]): Promise<Quest[]> {
+    const data = await apiCall<ApiResponse<Quest[]>>('reorderQuests', { quest_ids: questIds });
+    return data.quests || [];
+  },
+
   async completeQuest(questId: string, mode: QuestCompletionMode = 'detach_open'): Promise<CompleteQuestResponse> {
     const data = await apiCall<ApiResponse<CompleteQuestResponse>>('completeQuest', { quest_id: questId, mode });
     return {

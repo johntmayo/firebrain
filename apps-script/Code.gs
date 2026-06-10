@@ -66,12 +66,13 @@ const QUEST_COLS = {
   ASSIGNEE: 9,
   STATUS: 10,
   COMPLETED_AT: 11,
-  COLOR: 12
+  COLOR: 12,
+  SORT_ORDER: 13
 };
 
 const QUEST_HEADERS = [
   'quest_id', 'created_at', 'created_by', 'updated_at', 'updated_by',
-  'title', 'notes', 'is_tracked', 'tracked_at', 'assignee', 'status', 'completed_at', 'color'
+  'title', 'notes', 'is_tracked', 'tracked_at', 'assignee', 'status', 'completed_at', 'color', 'sort_order'
 ];
 
 const VALID_CHALLENGES = ['low', 'medium', 'high'];
@@ -165,6 +166,8 @@ function handleRequest(e, method) {
         return updateQuest(body, callerEmail);
       case 'toggleQuestTracked':
         return toggleQuestTracked(body, callerEmail);
+      case 'reorderQuests':
+        return reorderQuests(body, callerEmail);
       case 'completeQuest':
         return completeQuest(body, callerEmail);
 
@@ -244,7 +247,8 @@ function createQuest(body, callerEmail) {
     leaderEmail,                          // assignee (quest leader)
     'open',                               // status
     '',                                   // completed_at
-    body.color || ''                      // color
+    body.color || '',                     // color
+    ''                                    // sort_order (unset = sorts last)
   ];
   
   sheet.appendRow(newRow);
@@ -342,6 +346,45 @@ function toggleQuestTracked(body, callerEmail) {
   return jsonResponse({ 
     success: true, 
     quest: rowToQuest(row) 
+  });
+}
+
+/**
+ * POST /quests/reorder - Persist a manual quest ordering.
+ * Body: { quest_ids: [...] } — each listed quest gets sort_order = its index + 1.
+ */
+function reorderQuests(body, callerEmail) {
+  const questIds = body.quest_ids;
+  if (!Array.isArray(questIds) || questIds.length === 0) {
+    return jsonResponse({ error: 'quest_ids array is required' }, 400);
+  }
+
+  const sheet = getQuestsSheet();
+  const data = sheet.getDataRange().getValues();
+  const now = new Date().toISOString();
+  const updatedQuests = [];
+
+  for (let i = 1; i < data.length; i++) {
+    let row = data[i];
+
+    while (row.length < QUEST_HEADERS.length) {
+      row.push('');
+    }
+
+    const orderIndex = questIds.indexOf(row[QUEST_COLS.QUEST_ID]);
+    if (orderIndex === -1) continue;
+
+    row[QUEST_COLS.SORT_ORDER] = orderIndex + 1;
+    row[QUEST_COLS.UPDATED_AT] = now;
+    row[QUEST_COLS.UPDATED_BY] = callerEmail;
+
+    sheet.getRange(i + 1, 1, 1, QUEST_HEADERS.length).setValues([row]);
+    updatedQuests.push(rowToQuest(row));
+  }
+
+  return jsonResponse({
+    success: true,
+    quests: updatedQuests
   });
 }
 
@@ -853,6 +896,9 @@ function getQuestsSheet() {
   if (!sheet) {
     sheet = ss.insertSheet(QUESTS_SHEET_NAME);
     sheet.appendRow(QUEST_HEADERS);
+  } else if (sheet.getLastColumn() < QUEST_HEADERS.length) {
+    // Backfill headers for columns added later (e.g. sort_order)
+    sheet.getRange(1, 1, 1, QUEST_HEADERS.length).setValues([QUEST_HEADERS]);
   }
   
   return sheet;
@@ -923,7 +969,12 @@ function rowToQuest(row) {
     leader_email: safeRow[QUEST_COLS.ASSIGNEE] || '',
     status: safeRow[QUEST_COLS.STATUS] || 'open',
     completed_at: safeRow[QUEST_COLS.COMPLETED_AT] || '',
-    color: safeRow.length > QUEST_COLS.COLOR ? (safeRow[QUEST_COLS.COLOR] || '') : ''
+    color: safeRow.length > QUEST_COLS.COLOR ? (safeRow[QUEST_COLS.COLOR] || '') : '',
+    sort_order: (function() {
+      const raw = safeRow.length > QUEST_COLS.SORT_ORDER ? safeRow[QUEST_COLS.SORT_ORDER] : '';
+      const parsed = Number(raw);
+      return (raw !== '' && isFinite(parsed) && parsed > 0) ? parsed : '';
+    })()
   };
 }
 

@@ -54,29 +54,29 @@ export function TodayPlanner() {
     <div className="pane pane-today">
       <div className="pane-header today-header">
         <h2>
-          <span className="icon">☀</span>
-          Today's Plan
+          <span className="icon">⚙</span>
+          Loadout
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
           <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === johnEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(johnEmail)}
-              title="View John's plan"
+              title="View John's loadout"
             >
               John
             </button>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === stephEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(stephEmail)}
-              title="View Stef's plan"
+              title="View Stef's loadout"
             >
               Stef
             </button>
             <button
               className={`loadout-user-btn ${viewingLoadoutUser === meganEmail ? 'active' : ''}`}
               onClick={() => setViewingLoadoutUser(meganEmail)}
-              title="View Megan's plan"
+              title="View Megan's loadout"
             >
               Megan
             </button>
@@ -114,7 +114,7 @@ export function TodayPlanner() {
       <div className="pane-content">
         {!isViewingOwnLoadout && (
           <div className="permission-warning">
-            Viewing {viewingUserName}'s plan
+            Viewing {viewingUserName}'s loadout
           </div>
         )}
 
