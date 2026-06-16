@@ -148,7 +148,7 @@ export interface AssignTodayInput {
 
 export type SortBy = 'priority' | 'challenge' | 'due_date' | 'quest';
 export type AssigneeFilter = 'john' | 'steph' | 'megan' | 'all';
-export type ViewMode = 'list' | 'buckets';
+export type ViewMode = 'list' | 'buckets' | 'matrix';
 
 export const PRIORITY_ORDER: Record<Priority, number> = {
   urgent: 0,

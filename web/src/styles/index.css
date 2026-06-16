@@ -834,6 +834,20 @@ body::before {
   margin-left: var(--space-2xs);
 }
 
+.matrix-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1.5px solid var(--lavender-soft);
+  border-radius: var(--radius-full);
+  background: var(--lavender-light);
+  color: var(--lavender);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .view-toggle button {
   padding: var(--space-2xs) var(--space-sm);
   background: transparent;
@@ -864,9 +878,220 @@ body::before {
   gap: var(--space-sm);
 }
 
+/* Mission Matrix — all open missions by Priority x Effort */
+.mission-matrix-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  overflow-x: auto;
+  padding-bottom: var(--space-xs);
+}
+
+.mission-matrix-note {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1.5px solid var(--lavender-soft);
+  border-radius: var(--radius-md);
+  background: var(--lavender-light);
+  color: var(--lavender);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.mission-matrix {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.42fr) repeat(3, minmax(210px, 1fr));
+  gap: var(--space-xs);
+  align-items: stretch;
+  min-width: 760px;
+}
+
+.matrix-corner,
+.matrix-axis-heading,
+.matrix-cell {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.matrix-corner,
+.matrix-axis-heading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 58px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--surface-sunken);
+}
+
+.matrix-corner {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.matrix-axis-heading span {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.matrix-axis-heading small {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.matrix-axis-heading.effort-low,
+.matrix-axis-heading.priority-p3 {
+  background: var(--mint-light);
+  border-color: var(--mint-soft);
+  color: var(--mint);
+}
+
+.matrix-axis-heading.effort-medium,
+.matrix-axis-heading.priority-p2 {
+  background: var(--marigold-light);
+  border-color: var(--marigold-soft);
+  color: #A08520;
+}
+
+.matrix-axis-heading.effort-high,
+.matrix-axis-heading.priority-p1 {
+  background: var(--rose-light);
+  border-color: var(--rose-soft);
+  color: var(--rose);
+}
+
+.matrix-cell {
+  position: relative;
+  min-height: 148px;
+  padding: var(--space-sm);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(253, 249, 244, 0.92)),
+    var(--surface);
+}
+
+.matrix-cell-count {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.matrix-cell-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: 18px;
+}
+
+.matrix-mission {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.matrix-mission .task-card {
+  box-shadow: var(--shadow-xs);
+}
+
+.matrix-mission.in-loadout {
+  padding: var(--space-2xs);
+  border: 1.5px solid var(--marigold-soft);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, rgba(245, 183, 49, 0.16), rgba(253, 249, 244, 0.8)),
+    var(--marigold-light);
+}
+
+.matrix-mission.in-loadout .task-card {
+  border-color: var(--marigold);
+}
+
+.matrix-location-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: var(--space-xs);
+}
+
+.matrix-location-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.matrix-location-badge.loadout {
+  border-color: var(--marigold-soft);
+  background: var(--marigold-light);
+  color: #7A5C00;
+}
+
+.matrix-location-badge.quest {
+  border-color: color-mix(in srgb, var(--quest-color, var(--lavender)) 45%, var(--border));
+  background: color-mix(in srgb, var(--quest-color, var(--lavender)) 14%, var(--surface));
+  color: var(--text-primary);
+}
+
+.matrix-location-badge.inbox {
+  border-color: var(--border-light);
+  background: var(--surface-warm);
+}
+
+.matrix-cell-empty {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.matrix-actions,
+.matrix-empty-state {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.matrix-empty-state .empty-state {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 600px) {
   .inventory-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .mission-matrix {
+    min-width: 700px;
   }
 }
 
