@@ -7,9 +7,17 @@ import {
   PointerSensor,
   TouchSensor,
   pointerWithin,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { AppProvider, useApp } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Inbox } from './components/Inbox';
@@ -29,7 +37,37 @@ import type { Task, Quest } from './types';
 import firebrainLogo from './assets/firebrain_logo.svg';
 
 type MobilePane = 'today' | 'quests' | 'inbox';
+type DesktopPane = 'today' | 'quests' | 'inbox';
 const MOBILE_BREAKPOINT_PX = 900;
+const DESKTOP_PANE_ORDER_KEY = 'firebrain_desktop_pane_order';
+const DEFAULT_DESKTOP_PANE_ORDER: DesktopPane[] = ['today', 'quests', 'inbox'];
+
+function isDesktopPane(value: string): value is DesktopPane {
+  return value === 'today' || value === 'quests' || value === 'inbox';
+}
+
+function getStoredDesktopPaneOrder(): DesktopPane[] {
+  if (typeof window === 'undefined') return DEFAULT_DESKTOP_PANE_ORDER;
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DESKTOP_PANE_ORDER_KEY) || '[]') as unknown;
+    if (!Array.isArray(parsed)) return DEFAULT_DESKTOP_PANE_ORDER;
+
+    const savedPanes = parsed.filter((item): item is DesktopPane => (
+      typeof item === 'string' && isDesktopPane(item)
+    ));
+    const missingPanes = DEFAULT_DESKTOP_PANE_ORDER.filter(pane => !savedPanes.includes(pane));
+    return [...savedPanes, ...missingPanes].slice(0, DEFAULT_DESKTOP_PANE_ORDER.length);
+  } catch {
+    return DEFAULT_DESKTOP_PANE_ORDER;
+  }
+}
+
+function getDesktopPaneLabel(pane: DesktopPane) {
+  if (pane === 'today') return 'Loadout';
+  if (pane === 'quests') return 'Quests';
+  return 'Missions';
+}
 
 function AppContent() {
   const { 
@@ -49,6 +87,8 @@ function AppContent() {
   
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
   const [activeQuest, setActiveQuest] = React.useState<Quest | null>(null);
+  const [activePanel, setActivePanel] = React.useState<DesktopPane | null>(null);
+  const [desktopPaneOrder, setDesktopPaneOrder] = React.useState<DesktopPane[]>(getStoredDesktopPaneOrder);
   const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth <= MOBILE_BREAKPOINT_PX;
@@ -65,6 +105,10 @@ function AppContent() {
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
   }, []);
+
+  React.useEffect(() => {
+    localStorage.setItem(DESKTOP_PANE_ORDER_KEY, JSON.stringify(desktopPaneOrder));
+  }, [desktopPaneOrder]);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -79,11 +123,23 @@ function AppContent() {
       },
     })
   );
+
+  const collisionDetection = React.useCallback<CollisionDetection>((args) => {
+    const collisions = pointerWithin(args);
+    if (args.active.data.current?.type !== 'panel') {
+      return collisions;
+    }
+
+    return collisions.filter(collision => isDesktopPane(String(collision.id)));
+  }, []);
   
   const handleDragStart = (event: DragStartEvent) => {
+    const panel = event.active.data.current?.panel as DesktopPane | undefined;
     const task = event.active.data.current?.task as Task | undefined;
     const quest = event.active.data.current?.quest as Quest | undefined;
-    if (task) {
+    if (panel) {
+      setActivePanel(panel);
+    } else if (task) {
       setActiveTask(task);
     } else if (quest) {
       setActiveQuest(quest);
@@ -93,8 +149,27 @@ function AppContent() {
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
     setActiveQuest(null);
+    setActivePanel(null);
     
     const { active, over } = event;
+    const draggedPanel = active.data.current?.panel as DesktopPane | undefined;
+
+    if (draggedPanel) {
+      const overPane = over ? String(over.id) : '';
+      if (!over || !isDesktopPane(overPane) || draggedPanel === overPane) {
+        sounds.dropCancel();
+        return;
+      }
+
+      setDesktopPaneOrder(prev => {
+        const oldIndex = prev.indexOf(draggedPanel);
+        const newIndex = prev.indexOf(overPane);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+      sounds.dropSuccess();
+      return;
+    }
     
     const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
     
@@ -216,6 +291,7 @@ function AppContent() {
   const handleDragCancel = () => {
     setActiveTask(null);
     setActiveQuest(null);
+    setActivePanel(null);
     sounds.dropCancel();
   };
   
@@ -245,7 +321,7 @@ function AppContent() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
@@ -306,10 +382,20 @@ function AppContent() {
             </nav>
           </>
         ) : (
-          <main className="app-main">
-            <TodayPlanner />
-            <QuestsPanel />
-            <Inbox />
+          <main className="app-main desktop-layout">
+            <SortableContext items={desktopPaneOrder} strategy={horizontalListSortingStrategy}>
+              {desktopPaneOrder.map(pane => (
+                <SortableDesktopPane key={pane} pane={pane}>
+                  {pane === 'today' ? (
+                    <TodayPlanner />
+                  ) : pane === 'quests' ? (
+                    <QuestsPanel />
+                  ) : (
+                    <Inbox />
+                  )}
+                </SortableDesktopPane>
+              ))}
+            </SortableContext>
           </main>
         )}
         
@@ -352,7 +438,18 @@ function AppContent() {
       </div>
       
       <DragOverlay>
-        {activeQuest ? (
+        {activePanel ? (
+          <div className="drag-preview panel-drag-preview">
+            <div style={{ fontWeight: 600 }}>{getDesktopPaneLabel(activePanel)}</div>
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              marginTop: '4px'
+            }}>
+              Drop left, middle, or right
+            </div>
+          </div>
+        ) : activeQuest ? (
           <div className="drag-preview">
             <div style={{ fontWeight: 500 }}>{activeQuest.title}</div>
             <div style={{ 
@@ -377,6 +474,47 @@ function AppContent() {
         ) : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+function SortableDesktopPane({ pane, children }: { pane: DesktopPane; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({
+    id: pane,
+    data: { type: 'panel', panel: pane },
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={`desktop-pane-shell desktop-pane-shell-${pane} ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-target' : ''}`}
+      style={style}
+    >
+      <button
+        type="button"
+        className="desktop-pane-drag-handle"
+        title={`Drag ${getDesktopPaneLabel(pane)} pane`}
+        aria-label={`Drag ${getDesktopPaneLabel(pane)} pane`}
+        {...attributes}
+        {...listeners}
+      >
+        <span aria-hidden="true">⋮⋮</span>
+        <span>{getDesktopPaneLabel(pane)}</span>
+      </button>
+      {children}
+    </section>
   );
 }
 

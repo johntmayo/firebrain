@@ -297,6 +297,94 @@ body::before {
   flex-direction: row;
 }
 
+.desktop-layout {
+  align-items: stretch;
+}
+
+.desktop-pane-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: transform var(--duration-normal) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+
+.desktop-pane-shell-today {
+  width: 340px;
+  flex-shrink: 0;
+}
+
+.desktop-pane-shell-quests {
+  flex-shrink: 0;
+}
+
+.desktop-pane-shell-inbox {
+  flex: 1;
+  min-width: 0;
+}
+
+.desktop-pane-shell.dragging {
+  opacity: 0.45;
+}
+
+.desktop-pane-shell.drop-target > .pane {
+  outline: 2px dashed var(--lavender);
+  outline-offset: 4px;
+  box-shadow: var(--shadow-float);
+}
+
+.desktop-pane-shell > .pane {
+  height: 100%;
+}
+
+.desktop-pane-drag-handle {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-xs);
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  cursor: grab;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-2px);
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  touch-action: none;
+}
+
+.desktop-pane-shell:hover .desktop-pane-drag-handle,
+.desktop-pane-drag-handle:focus-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.desktop-pane-drag-handle:hover {
+  border-color: var(--lavender-soft);
+  background: var(--lavender-light);
+  color: var(--lavender);
+}
+
+.desktop-pane-drag-handle:active {
+  cursor: grabbing;
+}
+
+.panel-drag-preview {
+  min-width: 180px;
+  border-color: var(--lavender-soft);
+  background: var(--lavender-light);
+}
+
 .mobile-tab-bar {
   display: none;
 }
