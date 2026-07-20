@@ -57,6 +57,7 @@ interface AppContextType {
   cancelTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
   assignToday: (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => Promise<void>;
+  reorderLoadoutTasks: (orderedTaskIds: string[]) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   refreshLoadoutConfig: () => Promise<void>;
   setEnergyLevel: (level: EnergyLevel) => Promise<void>;
@@ -458,6 +459,39 @@ export function AppProvider({ children }: AppProviderProps) {
       showToast(err instanceof Error ? err.message : 'Failed to assign to Today', 'error');
     }
   }, [viewingLoadoutUser, currentUser, tasks, showToast]);
+
+  const reorderLoadoutTasks = useCallback(async (orderedTaskIds: string[]) => {
+    if (viewingLoadoutUser !== currentUser) {
+      showToast('You can only edit your own Today slots', 'error');
+      return;
+    }
+
+    const previousTasks = tasks;
+    const slotByTaskId = new Map(orderedTaskIds.map((taskId, index) => [taskId, String(index + 1)]));
+
+    setTasks(prev => prev.map(task => {
+      const nextSlot = slotByTaskId.get(task.task_id);
+      if (!nextSlot) return task;
+      return {
+        ...task,
+        today_slot: nextSlot,
+        today_set_at: task.today_set_at || new Date().toISOString(),
+        today_user: currentUser,
+      };
+    }));
+
+    try {
+      for (const taskId of orderedTaskIds) {
+        const nextSlot = slotByTaskId.get(taskId);
+        if (!nextSlot) continue;
+        await api.assignToday(taskId, nextSlot);
+      }
+    } catch (err) {
+      setTasks(previousTasks);
+      showToast(err instanceof Error ? err.message : 'Failed to reorder loadout', 'error');
+      throw err;
+    }
+  }, [currentUser, tasks, viewingLoadoutUser, showToast]);
   
   const clearToday = useCallback(async (taskId: string) => {
     // Only allow editing if viewing own loadout
@@ -817,6 +851,7 @@ export function AppProvider({ children }: AppProviderProps) {
     cancelTask,
     bulkCreateTasks,
     assignToday,
+    reorderLoadoutTasks,
     clearToday,
     refreshLoadoutConfig,
     setEnergyLevel,

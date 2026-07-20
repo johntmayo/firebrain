@@ -77,6 +77,7 @@ function AppContent() {
     meganEmail,
     viewingLoadoutUser,
     assignToday, 
+    reorderLoadoutTasks,
     clearToday,
     showToast,
     loadoutConfig,
@@ -212,16 +213,7 @@ function AppContent() {
       return;
     }
     
-    // Dropped on loadout flow: always append (no blocking).
-    if (overId === 'loadout-drop-zone') {
-      if (!isViewingOwnLoadout) {
-        showToast('You can only edit your own Today slots', 'error');
-        sounds.dropCancel();
-        return;
-      }
-
-      const task = active.data.current?.task as Task;
-      if (!task) return;
+    const appendTaskToLoadout = (task: Task) => {
       const parseLoadoutSlotOrder = (slotValue: string) => {
         const slot = (slotValue || '').toString().trim();
         if (!slot) return 0;
@@ -244,6 +236,51 @@ function AppContent() {
 
       sounds.dropSuccess();
       assignToday(task.task_id, nextSlot);
+    };
+
+    if (overId.startsWith('loadout-task-')) {
+      if (!isViewingOwnLoadout) {
+        showToast('You can only edit your own Today slots', 'error');
+        sounds.dropCancel();
+        return;
+      }
+
+      const task = active.data.current?.task as Task;
+      if (!task) return;
+      const targetTaskId = overId.replace('loadout-task-', '');
+      const fromIndex = loadoutTasks.findIndex(loadoutTask => loadoutTask.task_id === task.task_id);
+      const toIndex = loadoutTasks.findIndex(loadoutTask => loadoutTask.task_id === targetTaskId);
+
+      if (fromIndex === -1 || toIndex === -1) {
+        appendTaskToLoadout(task);
+        return;
+      }
+
+      if (fromIndex === toIndex) {
+        sounds.dropCancel();
+        return;
+      }
+
+      try {
+        await reorderLoadoutTasks(arrayMove(loadoutTasks, fromIndex, toIndex).map(loadoutTask => loadoutTask.task_id));
+        sounds.dropSuccess();
+      } catch {
+        sounds.dropCancel();
+      }
+      return;
+    }
+
+    // Dropped on loadout flow: append when not targeting a specific row.
+    if (overId === 'loadout-drop-zone') {
+      if (!isViewingOwnLoadout) {
+        showToast('You can only edit your own Today slots', 'error');
+        sounds.dropCancel();
+        return;
+      }
+
+      const task = active.data.current?.task as Task;
+      if (!task) return;
+      appendTaskToLoadout(task);
     }
     // Dropped on a Quest - assign mission to that quest
     else if (overId.startsWith('quest-drop-')) {

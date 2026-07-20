@@ -647,6 +647,19 @@ body::before {
   grid-template-columns: 24px 1fr;
   gap: var(--space-xs);
   align-items: stretch;
+  border-radius: var(--radius-md);
+  transition: background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.loadout-row.drag-over {
+  background: rgba(245, 183, 49, 0.18);
+  box-shadow: inset 0 0 0 1.5px var(--marigold-soft);
+  transform: translateY(-1px);
+}
+
+.loadout-row.drag-over .loadout-index {
+  opacity: 1;
+  color: #7A5C00;
 }
 
 .loadout-index {

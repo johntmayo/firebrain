@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { ENERGY_POINTS_LIMIT, type EnergyLevel } from '../types';
+import { ENERGY_POINTS_LIMIT, type EnergyLevel, type Task } from '../types';
 
 export function TodayPlanner() {
   const {
@@ -136,14 +136,12 @@ export function TodayPlanner() {
             >
               {loadoutTasks.length > 0 ? (
                 loadoutTasks.map((task, index) => (
-                  <div key={task.task_id} className="loadout-row">
-                    <span className="loadout-index">{index + 1}</span>
-                    <TaskCard
-                      task={task}
-                      showDragHandle={isViewingOwnLoadout}
-                      inSlot
-                    />
-                  </div>
+                  <LoadoutRow
+                    key={task.task_id}
+                    task={task}
+                    index={index}
+                    canEdit={isViewingOwnLoadout}
+                  />
                 ))
               ) : (
                 <span style={{ fontStyle: 'italic', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Drop missions here</span>
@@ -179,6 +177,27 @@ export function TodayPlanner() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function LoadoutRow({ task, index, canEdit }: { task: Task; index: number; canEdit: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: `loadout-task-${task.task_id}`,
+    disabled: !canEdit,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`loadout-row ${isOver && canEdit ? 'drag-over' : ''}`}
+    >
+      <span className="loadout-index">{index + 1}</span>
+      <TaskCard
+        task={task}
+        showDragHandle={canEdit}
+        inSlot
+      />
     </div>
   );
 }
