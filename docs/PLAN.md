@@ -30,6 +30,15 @@ not from bigger fonts. Visual size and hit area are separate; targets stay ≥ 3
 ---
 
 ## Phase 0 — Fix what's broken (half a day)
+**Status: ✅ done (Oct 2026).** Notes per item: (1) `BulkImportModal` state lives in
+`AppContext` and all dialogs portal to `document.body`; `paneFadeIn` was dropped entirely.
+(2) The pane title is the drag handle via `PaneDragHandleContext`. (3) `overdueTasks` now
+spans every open mission matching the operator filter, *excluding loaded ones* so the
+Loadout isn't duplicated; quest chip shown. (4) Done missions are fetched on mount so
+Accomplished Today survives reload; `todayKey` refreshes on `visibilitychange` + 60s.
+(5) Notices stack (max 4), each with its own timer and ✕. (6) The whole Field Notes
+stylesheet was replaced by the Graphite chassis, so no dead tokens/classes remain.
+(7) Footer removed outright; a real sync indicator is Phase 3.
 
 1. **Bulk Import modal clipping.** Render `BulkImportModal` at App level (lift state into
    `AppContext` or `createPortal` to `document.body`). Remove `transform` from
@@ -57,10 +66,18 @@ default, game vocabulary as-is, P and CR both shown at rest, fixed 6×2 / 4×3 c
 energy unlocking cells, overflow tray only when overloaded, Sci-fi as the first new skin.*
 
 ### 1.1 Pin the shell, scroll the panes
+**Status: ✅ done.** `body { overflow: hidden }`, `.app { height: 100dvh }`, panes are
+`PanelFrame`s with a sticky `__head` and a scrolling `__body` (`@container pane` enabled).
 - `.app { height: 100dvh }`, `.app-main { min-height: 0 }`, `.desktop-pane-shell` and
   `.pane { min-height: 0; height: 100% }`. Pane headers sticky inside their pane.
 
 ### 1.2 Density done right
+**Status: ✅ done.** Tokens live in `web/src/styles/tokens.css`; `--ui-scale` presets are in
+`ThemeContext` and exposed in the operator menu (persisted as `firebrain_ui_scale`).
+Verified in a headless pass: no page scroll at 1440/1024/390, zero italics, every control
+≥ 32px (segments extend their hit area to the control edge via `::after`), 44px under
+`pointer: coarse`. Only the 10px pane resizer and the full-width Gizmodroar tab fall
+outside the rule, intentionally.
 - Root stays `15px`. Add `--ui-scale` (presets 0.85 / 1 / 1.15 / 1.3) applied as
   `html { font-size: calc(15px * var(--ui-scale)) }`; expose in a settings menu; persist.
 - Type scale tokens: `--t-2xs: 0.6rem; --t-xs: 0.68rem; --t-sm: 0.78rem; --t-md: 0.88rem;
@@ -82,6 +99,32 @@ Implement as small React components with BEM-ish classes, each consuming only to
 `Tooltip`, `OperatorBadge` (user avatar initial), `ActionMenu` (⋯), `EmptyState`.
 Refactor `TaskCard`, `QuestCard`, pane headers, and modals onto these.
 
+**Status: ✅ done.** All primitives live in `web/src/components/primitives/` (barrel
+`index.ts`). `TaskCard` and `QuestCard` are thin connected wrappers; the three panes use
+`PanelFrame` + `HudBar`; all four modals use the portaled `Dialog` (Esc, focus trap, focus
+restore, bottom sheet < 600px). Helper utils: `utils/operators.ts`, `utils/dueDate.ts`.
+Decisions taken while building: the whole `ItemCard` is the drag source (no grip glyph);
+the ⋯ menu repeats Load/Unload and Edit so touch has a click path for every drag action;
+`HudBar` controls drop to a second row as a block when they don't fit, so the title never
+floats between control lines.
+
+Most of **1.4** landed with the primitive (fixed tiers row / cell / compact, single
+priority bar, quest chip, stat order P · CR · due · operator · loaded · quest, hover row
+✓ ⇧/⇩ ✎ ⋯, tooltip, Enter/Space). Still open from 1.4: "Move to quest…" in the ⋯ menu.
+**1.5 is done** (see below). From **1.6**, the Who / View / Sort groups and counts are
+done; Search and hiding Grid/Matrix at narrow widths are not. From **1.7**, progress
+`done/total`, late chip, Track/Untrack and + Mission are done; the completed-quests toggle
+is not.
+
+**Iconography (added Oct 2026):** `primitives/Icon.tsx` — a hand-drawn inline SVG set
+(39 names, 24-grid, 1.75 stroke, `currentColor`) replaced every unicode glyph in the UI.
+Skins can later swap the set via the `glyphs` hook in §7 of the brief.
+
+**Testing protocol (added Oct 2026):** Vitest unit tests for pure logic and a headless
+smoke harness (`web/test/smoke/`) that runs the app against a mocked backend and asserts
+the §5 invariants after every scenario. See README → Testing. Every phase item from here on
+ships with a unit test (if pure) and a smoke scenario (if visible).
+
 ### 1.4 Item card (mission)
 - Fixed height; one left accent bar = **priority** (P1 / P2 / P3 tokens). Quest identity is
   a small colored chip with the quest title, not a second bar.
@@ -92,6 +135,20 @@ Refactor `TaskCard`, `QuestCard`, pane headers, and modals onto these.
   Every drag action has a click equivalent.
 
 ### 1.5 Loadout → the Case (see Design Brief §6)
+**Status: ✅ done.** `utils/casePacking.ts` is the layout contract (pure, 13 unit tests:
+fixed 6×2 / 4×3, locked cells from the bottom-right, CR-wide items, wrap-with-gap, never
+over locked cells, overflow flagged `overBudget` vs. merely squeezed out, drop-cell → insert
+index). `primitives/CaseGrid.tsx` + `CaseTray` render it; `TodayPlanner` owns Case · List,
+the picker (`LoadFromMissionsModal`) and the empty state; `App.tsx` maps `case-cell-<n>`
+drops through `insertIndexForCell` to one `reorderLoadoutTasks` call. Decisions: shape is
+chosen by the handheld breakpoint (≤ 900px) plus a < 320px pane-width floor rather than a
+container query (the phone pane is wider than the desktop pane); Case · List is icon-only to
+keep the HUD to two rows; another operator's case renders read-only with all 12 cells live
+because their energy level isn't known client-side; the Loadout pane widened to
+`clamp(360px, 30vw, 480px)` so cells are ≥ 64px on common desktops. Overflow items that fit
+the budget but not the free cells show a neutral "reorder to pack tighter" hint, which is
+the brief's intended fix (two Shift-earlier clicks pack the fixture loadout).
+
 - Loadout *formats* are presentation modes over the same data (`today_slot` order + CR):
   - **Case** (default): a fixed 6×2 cell grid (4×3 on mobile); energy level sets how many
     cells are unlocked (7 / 10 / 12), locked cells stay visible; each mission occupies CR
@@ -127,6 +184,10 @@ Refactor `TaskCard`, `QuestCard`, pane headers, and modals onto these.
 ## Phase 2 — Handheld layout (2 days)
 Principle: on a phone, Fire Brain is a **Today app**. Design it like a Switch port — same
 density philosophy, different arrangement, bigger hit areas.
+
+*Already in place from Phase 1: 2.5 (dialogs become bottom sheets < 600px; Priority and CR
+are segmented controls) and the 2.6 sensor settings (TouchSensor 250ms / 10px). Default tab,
+56px tab bar, manifest, swipe gestures and the rest are not started.*
 
 ### 2.1 Shell
 - Tabs: **Today · Missions · Quests**; default Today. Tab bar 56px, icons + labels,
@@ -164,8 +225,13 @@ density philosophy, different arrangement, bigger hit areas.
 ---
 
 ## Phase 3 — Quality of life (ongoing)
-- **Quick add** input atop Missions using the bulk-import grammar
-  (`parseTaskLine` → `utils/parseMission.ts`). Due-date presets in the form.
+*Landed via the Gadget drawer (Oct 2026): Quick add (as a gadget, grammar in
+`utils/parseMission.ts`, shared with Bulk import), an in-app Stopwatch/countdown, a
+truthful Shortcuts card, and a sound on/off setting. The drawer (`GadgetDrawer`, formerly
+Gizmodroar) is a fixed 168px tray of 240×136 tiles, persisted open state, Esc collapses,
+hidden on handheld.*
+- **Quick add** ~~input atop Missions~~ — shipped as a gadget; consider also mounting it
+  atop Missions on handheld (Phase 2). Due-date presets in the form.
 - **Keyboard**: `n` new mission, `q` new quest, `/` search, `Esc` close (focus trap +
   return focus), `1/2/3` panes; cards focusable, Enter opens, Space completes.
 - **Undo** (5s toast) for Done and Delete via `updateTask({ status: 'open' })`.
@@ -201,6 +267,19 @@ Resolve on paper before touching UI:
 ---
 
 ## Phase 6 — Skins
+**Status: first skin shipped (Oct 2026).** `web/src/skins/index.ts` is the registry
+(`SKIN_LIST`: graphite, scifi; preview swatches, blurb, motion profile), `skins.css` imports
+each skin file, and `ThemeContext` applies `data-skin` / `data-motion` on `<html>`. The
+**Settings** dialog (operator menu → Settings…) holds the skin picker, UI scale, sound
+on/off and account. **Sci-fi** passed the §7 acceptance test: zero component edits — token
+overrides plus `::before` ornaments on `.panel-frame` / `.slot--empty` / `.item-card`. The
+one chassis change it surfaced was adopted: `--ground-texture` / `--ground-texture-size`
+tokens consumed by `body`, so skins can texture the ground without touching an element.
+Ornaments the contract did *not* allow (chamfered cards via `clip-path`, a HudBar hairline,
+a card hover glow) are noted for a future chassis decision. `skins/index.test.ts` enforces
+the contract mechanically (scoping, no font-size/italics, motion ≤ 200ms). Vocabulary /
+glyph / sound hooks (`skins/<id>.ts`) are still to be built — Sci-fi currently ships CSS
+only.
 - Skin = `skins/<id>.css` (token overrides + frame/texture rules) + `skins/<id>.ts`
   (vocabulary, icon set, sound set, motion profile). See Design Brief §7–§8.
 - The chassis (Graphite) is the permanent baseline; every skin sits on top of it and
@@ -213,12 +292,14 @@ Resolve on paper before touching UI:
 ---
 
 ## Order of work
-1. Phase 0 — same day.
-2. Design Brief decisions → Phase 1.1–1.3 (shell, density, primitives).
-3. Phase 1.5 (the Case) — the signature screen.
-4. Phase 2 (handheld).
+1. ~~Phase 0 — same day.~~ ✅
+2. ~~Design Brief decisions → Phase 1.1–1.3 (shell, density, primitives).~~ ✅
+3. ~~Phase 1.5 (the Case) — the signature screen.~~ ✅ (plus icons, Settings, Sci-fi skin,
+   Gadget drawer, teaching tooltips, test harness)
+4. Phase 2 (handheld). **← next**
 5. Phase 1.4, 1.6, 1.7 polish; Phase 3 as capacity allows.
-6. Phase 4 design pass; Phase 6 skins; Phase 5 last.
+6. Phase 4 design pass; Phase 6 skin hooks (vocabulary / glyphs / sounds) + Military;
+   Phase 5 last.
 
 ---
 

@@ -5,15 +5,15 @@ import { QuestCard } from './QuestCard';
 import { TaskCard } from './TaskCard';
 import { compareQuestSortOrder } from '../types';
 import type { Task, Quest } from '../types';
+import { PanelFrame, HudBar, EmptyState, Icon, titleFallback, useTooltip } from './primitives';
 
 const MOBILE_BREAKPOINT_PX = 900;
+const TRACK_FOCUS_LIMIT = 5;
+const NEW_QUEST_HINT = 'Start a new quest — a container for related missions';
+const NEW_QUEST_MISSION_HINT = 'New mission inside this quest';
 
 export function QuestsPanel() {
-  const {
-    quests,
-    tasks,
-    openQuestModal,
-  } = useApp();
+  const { quests, tasks, openQuestModal } = useApp();
 
   // Quest drag-to-reorder is desktop-only; on mobile the long-press
   // handle would fight with scrolling.
@@ -31,44 +31,47 @@ export function QuestsPanel() {
     return () => query.removeEventListener('change', onChange);
   }, []);
 
-  // Quests are shared containers: every user can see all open quests.
-  const filteredQuests = useMemo(() => quests.filter(q => q.status !== 'done'), [quests]);
-  const activeQuests = useMemo(
-    () => filteredQuests.filter(q => q.is_tracked).slice().sort(compareQuestSortOrder),
-    [filteredQuests]
+  // Quests are shared containers: every operator can see all open quests.
+  const openQuests = useMemo(() => quests.filter(q => q.status !== 'done'), [quests]);
+  const trackedQuests = useMemo(
+    () => openQuests.filter(q => q.is_tracked).slice().sort(compareQuestSortOrder),
+    [openQuests],
   );
-  const inactiveQuests = useMemo(() => filteredQuests.filter(q => !q.is_tracked), [filteredQuests]);
+  const logQuests = useMemo(() => openQuests.filter(q => !q.is_tracked), [openQuests]);
+
   const [collapsedQuestIds, setCollapsedQuestIds] = useState<Record<string, boolean>>({});
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     const fallback = 360;
     if (typeof window === 'undefined') return fallback;
     const saved = Number(localStorage.getItem('firebrain_quests_panel_width') || '');
-    if (Number.isFinite(saved)) return Math.max(280, Math.min(900, saved));
+    if (Number.isFinite(saved) && saved > 0) return Math.max(280, Math.min(900, saved));
     return fallback;
   });
 
-  // Missions nested in a quest (open only, not currently in Today loadout)
+  // Missions nested in a quest (open only, not currently loaded for today)
   const missionsByQuestId = useMemo(() => (
     tasks.reduce<Record<string, Task[]>>((groups, task) => {
-      if (task.status !== 'open' || !task.quest_id || task.today_slot) {
-        return groups;
-      }
-      if (!groups[task.quest_id]) groups[task.quest_id] = [];
-      groups[task.quest_id].push(task);
+      if (task.status !== 'open' || !task.quest_id || task.today_slot) return groups;
+      (groups[task.quest_id] ||= []).push(task);
       return groups;
     }, {})
   ), [tasks]);
 
-  const isQuestCollapsed = useCallback((quest: Quest, defaultCollapsed = false) => {
-    if (collapsedQuestIds[quest.quest_id] !== undefined) {
-      return collapsedQuestIds[quest.quest_id];
-    }
-    return defaultCollapsed;
+  const isQuestExpanded = useCallback((quest: Quest, defaultExpanded: boolean) => {
+    const collapsed = collapsedQuestIds[quest.quest_id];
+    return collapsed === undefined ? defaultExpanded : !collapsed;
   }, [collapsedQuestIds]);
 
-  const toggleQuestCollapsed = useCallback((questId: string) => {
-    setCollapsedQuestIds(prev => ({ ...prev, [questId]: !prev[questId] }));
-  }, []);
+  const toggleQuest = useCallback((questId: string) => {
+    setCollapsedQuestIds(prev => {
+      const current = prev[questId];
+      // Tracked quests default expanded, log quests default collapsed; flip relative to that.
+      const quest = quests.find(q => q.quest_id === questId);
+      const defaultCollapsed = quest ? !quest.is_tracked : false;
+      const isCollapsed = current === undefined ? defaultCollapsed : current;
+      return { ...prev, [questId]: !isCollapsed };
+    });
+  }, [quests]);
 
   useEffect(() => {
     localStorage.setItem('firebrain_quests_panel_width', String(panelWidth));
@@ -97,143 +100,155 @@ export function QuestsPanel() {
     window.addEventListener('mouseup', onUp);
   }, [panelWidth]);
 
-  return (
-    <div className="pane pane-quests" style={{ width: `${panelWidth}px` }}>
-      <div className="pane-header">
-        <h2>
-          <span className="icon">✦</span>
-          Quests
-        </h2>
-        <button 
-          className="add-quest-btn"
-          onClick={() => openQuestModal(null, true)}
-        >
-          + New Quest
-        </button>
-      </div>
+  const { anchorProps: newQuestTipProps, tooltip: newQuestTip } = useTooltip(NEW_QUEST_HINT);
+
+  const header = (
+    <HudBar glyph={<Icon name="quest" />} title="Quests" count={trackedQuests.length}>
       <button
         type="button"
-        className="quests-pane-resizer"
-        onMouseDown={startResize}
-        aria-label="Resize quests panel"
-        title="Drag to resize quests panel"
-      />
+        className="hud-btn hud-btn--primary"
+        onClick={() => openQuestModal(null, true)}
+        title={titleFallback(NEW_QUEST_HINT)}
+        {...newQuestTipProps}
+      >
+        <Icon name="plus" size={14} />
+        Quest
+      </button>
+      {newQuestTip}
+    </HudBar>
+  );
 
-      <div className="pane-content">
-        {/* Tracked Quests Section */}
-        <div className="quests-section">
-          <div className="quests-section-header">
-            <span>Tracked ({activeQuests.length})</span>
-          </div>
-          {activeQuests.length > 5 && (
-            <div className="quests-track-warning">
-              Tracking {activeQuests.length} quests. Recommended: keep 5 or fewer active.
-            </div>
-          )}
-          <div className="quests-tracked-list">
-            {activeQuests.length > 0 ? (
-              activeQuests.map(quest => (
-                <QuestWithMissions
-                  key={quest.quest_id}
-                  quest={quest}
-                  missions={missionsByQuestId[quest.quest_id] || []}
-                  isCollapsed={isQuestCollapsed(quest, false)}
-                  onToggleCollapse={toggleQuestCollapsed}
-                  dragDisabled={isMobileViewport}
-                />
-              ))
-            ) : (
-              <div className="empty-state">
-                <div className="empty-state-text">No tracked quests yet</div>
-                <div className="empty-state-subtext">Track quests to keep them front and center</div>
-              </div>
-            )}
-          </div>
+  return (
+    <PanelFrame
+      className="pane pane-quests"
+      style={{ width: `${panelWidth}px` }}
+      header={header}
+      overlay={(
+        <button
+          type="button"
+          className="pane-resizer"
+          data-hit-exempt="resizer: a full-height 10px strip, mouse only"
+          onMouseDown={startResize}
+          aria-label="Resize quests pane"
+          title="Drag to resize"
+        />
+      )}
+    >
+      <section className="quests-section" aria-label="Tracked quests">
+        <div className="section-header">
+          <span>Tracked</span>
+          <span className="num">{trackedQuests.length}</span>
         </div>
-
-        {/* Inactive Quests Section */}
-        {inactiveQuests.length > 0 && (
-          <div className="quests-section">
-            <div className="quests-section-header">
-              <span>Inactive ({inactiveQuests.length})</span>
-            </div>
-            <div className="quests-inactive-list">
-              {inactiveQuests.map(quest => (
-                <QuestWithMissions
-                  key={quest.quest_id}
-                  quest={quest}
-                  missions={missionsByQuestId[quest.quest_id] || []}
-                  isCollapsed={isQuestCollapsed(quest, true)}
-                  onToggleCollapse={toggleQuestCollapsed}
-                  dragDisabled={isMobileViewport}
-                />
-              ))}
-            </div>
+        {trackedQuests.length > TRACK_FOCUS_LIMIT && (
+          <div className="inline-notice inline-notice--warning t-xs">
+            Tracking {trackedQuests.length} quests. Focus holds best at {TRACK_FOCUS_LIMIT} or fewer.
           </div>
         )}
-      </div>
+        {trackedQuests.length > 0 ? (
+          <div className="quest-list">
+            {trackedQuests.map(quest => (
+              <QuestWithMissions
+                key={quest.quest_id}
+                quest={quest}
+                missions={missionsByQuestId[quest.quest_id] || []}
+                expanded={isQuestExpanded(quest, true)}
+                onToggle={toggleQuest}
+                dragDisabled={isMobileViewport}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            compact
+            glyph={<Icon name="quest" size={20} />}
+            title="No tracked quests"
+            hint="Track a quest to pin it here."
+            actions={(
+              <button type="button" className="btn btn--secondary" onClick={() => openQuestModal(null, true)}>
+                <Icon name="plus" />
+                New quest
+              </button>
+            )}
+          />
+        )}
+      </section>
 
-    </div>
+      {logQuests.length > 0 && (
+        <section className="quests-section" aria-label="Quest log">
+          <div className="section-header">
+            <span>Log</span>
+            <span className="num">{logQuests.length}</span>
+          </div>
+          <div className="quest-list">
+            {logQuests.map(quest => (
+              <QuestWithMissions
+                key={quest.quest_id}
+                quest={quest}
+                missions={missionsByQuestId[quest.quest_id] || []}
+                expanded={isQuestExpanded(quest, false)}
+                onToggle={toggleQuest}
+                dragDisabled={isMobileViewport}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </PanelFrame>
   );
 }
 
 interface QuestWithMissionsProps {
   quest: Quest;
   missions: Task[];
-  isCollapsed?: boolean;
-  onToggleCollapse: (questId: string) => void;
+  expanded: boolean;
+  onToggle: (questId: string) => void;
   dragDisabled?: boolean;
 }
 
-function QuestWithMissions({ quest, missions, isCollapsed = false, onToggleCollapse, dragDisabled = false }: QuestWithMissionsProps) {
-  const { viewingLoadoutUser } = useApp();
+function QuestWithMissions({ quest, missions, expanded, onToggle, dragDisabled = false }: QuestWithMissionsProps) {
+  const { viewingLoadoutUser, openTaskModal } = useApp();
   const { setNodeRef, isOver } = useDroppable({
     id: `quest-drop-${quest.quest_id}`,
     data: { questId: quest.quest_id },
   });
-
-  const questColor = quest.color || undefined;
+  const { anchorProps: addTipProps, tooltip: addTip } = useTooltip(NEW_QUEST_MISSION_HINT, expanded);
 
   return (
     <div
       ref={setNodeRef}
-      className={`quest-with-missions ${isOver ? 'drag-over' : ''} ${isCollapsed ? 'collapsed' : ''}`}
-      style={questColor ? ({ '--quest-color': questColor } as React.CSSProperties) : undefined}
+      className={`quest-block ${isOver ? 'is-drop-target' : ''} ${expanded ? 'is-expanded' : ''}`}
+      style={quest.color ? ({ '--quest-color': quest.color } as React.CSSProperties) : undefined}
     >
-      <QuestCard
-        quest={quest}
-        isCollapsed={isCollapsed}
-        missionCount={missions.length}
-        onToggleCollapse={onToggleCollapse}
-        dragDisabled={dragDisabled}
-      />
-      {/* Missions nested inside the quest card */}
-      {!isCollapsed && (
-        <div className="quest-missions-inner">
+      <QuestCard quest={quest} expanded={expanded} onToggle={onToggle} dragDisabled={dragDisabled} />
+      {expanded && (
+        <div className="quest-block__missions">
           {missions.length > 0 ? (
-            <div className="quest-missions-list">
+            <div className="task-list">
               {missions.map(task => (
                 <div
                   key={task.task_id}
-                  className={`quest-mission-row ${task.assignee === viewingLoadoutUser ? 'focused' : 'deemphasized'}`}
+                  className={`quest-block__row ${task.assignee === viewingLoadoutUser ? '' : 'is-deemphasized'}`}
                 >
-                  <TaskCard
-                    task={task}
-                    showDragHandle
-                    inSlot={false}
-                    questColor={questColor}
-                  />
+                  <TaskCard task={task} hideQuest />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="quest-missions-empty">
-              <span className="quest-missions-empty-text">Drop missions here</span>
-            </div>
+            <div className="quest-block__empty t-xs">No open missions — drop one here</div>
           )}
+          <button
+            type="button"
+            className="action-card action-card--slim"
+            onClick={() => openTaskModal(null, true, quest.quest_id)}
+            title={titleFallback(NEW_QUEST_MISSION_HINT)}
+            {...addTipProps}
+          >
+            <span className="action-card__glyph" aria-hidden="true"><Icon name="plus" /></span>
+            <span>Mission</span>
+          </button>
+          {addTip}
         </div>
       )}
     </div>
   );
 }
-

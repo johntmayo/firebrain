@@ -1,0 +1,8 @@
+/* ==============================================================
+   SKIN — GRAPHITE (docs/CHASSIS_BRIEF.md §8)
+
+   Graphite is the chassis default: every token it needs is declared
+   under `:root` in styles/tokens.css, so this file is intentionally
+   empty. It exists so each skin in skins/index.ts has a matching
+   stylesheet and so a future "unskinned" tweak has an obvious home.
+   ============================================================== */

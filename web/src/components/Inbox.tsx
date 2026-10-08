@@ -1,17 +1,42 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
-import { BulkImportModal } from './BulkImportModal';
 import { CHALLENGE_ORDER, getPriorityLevel } from '../types';
-import type { Challenge, Priority, Quest, SortBy, Task } from '../types';
+import type { AssigneeFilter, Challenge, SortBy, Task, ViewMode } from '../types';
+import { PanelFrame, HudBar, HudGroup, SegmentedControl, EmptyState, Icon, titleFallback, useTooltip, type SegmentOption } from './primitives';
+
+const WHO_OPTIONS: SegmentOption<AssigneeFilter>[] = [
+  { value: 'john', label: 'John', title: "John's missions", hint: "Show John's missions" },
+  { value: 'steph', label: 'Stef', title: "Stef's missions", hint: "Show Stef's missions" },
+  { value: 'megan', label: 'Megan', title: "Megan's missions", hint: "Show Megan's missions" },
+  { value: 'all', label: 'All', title: 'Everyone', hint: "Show everyone's missions" },
+];
+
+// The grid is cell-tier cards in the current sort order — it is not grouped,
+// so the hint must not claim it is (brief §2.3: every stat is honest).
+const VIEW_OPTIONS: SegmentOption<ViewMode>[] = [
+  { value: 'list', glyph: <Icon name="list" />, title: 'List', hint: 'List — one row per mission' },
+  { value: 'buckets', glyph: <Icon name="grid" />, title: 'Grid', hint: 'Grid — missions as inventory cells, in sort order' },
+  { value: 'matrix', glyph: <Icon name="matrix" />, title: 'Priority × CR matrix', hint: 'Matrix — Priority × CR; biggest win for least cost sits top-left' },
+];
+
+const SORT_HINT = 'Sort the cache by priority, CR, due date, or quest';
+const CLEARED_HINT = 'Show missions cleared recently';
+const OVERDUE_HINT = 'Open missions past their due date, including quest missions; loaded ones live in your Loadout';
+
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: 'priority', label: 'Priority' },
+  { value: 'challenge', label: 'CR' },
+  { value: 'due_date', label: 'Due' },
+  { value: 'quest', label: 'Quest' },
+];
 
 export function Inbox() {
   const {
     inboxTasks,
     overdueTasks,
     tasks,
-    quests,
     completedTasks,
     loading,
     assigneeFilter,
@@ -23,12 +48,12 @@ export function Inbox() {
     sortBy,
     setSortBy,
     openTaskModal,
+    openBulkImport,
     johnEmail,
     stephEmail,
     meganEmail,
   } = useApp();
 
-  const [showBulkImport, setShowBulkImport] = useState(false);
   const matrixTasks = useMemo(() => (
     tasks
       .filter(task => {
@@ -56,319 +81,223 @@ export function Inbox() {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       })
   ), [assigneeFilter, johnEmail, meganEmail, stephEmail, tasks]);
-  
-  const handleAddTask = () => {
-    openTaskModal(null, true);
-  };
-  
-  return (
-    <div className="pane pane-inbox">
-      <div className="pane-header">
-        <h2>
-          <span className="icon">◇</span>
-          Missions
-        </h2>
-        
-        <div className="filter-row">
-          <button 
-            className={`filter-btn ${assigneeFilter === 'john' ? 'active' : ''}`}
-            onClick={() => setAssigneeFilter('john')}
-          >
-            John
-          </button>
-          <button 
-            className={`filter-btn ${assigneeFilter === 'steph' ? 'active' : ''}`}
-            onClick={() => setAssigneeFilter('steph')}
-          >
-            Stef
-          </button>
-          <button 
-            className={`filter-btn ${assigneeFilter === 'megan' ? 'active' : ''}`}
-            onClick={() => setAssigneeFilter('megan')}
-          >
-            Megan
-          </button>
-          <button 
-            className={`filter-btn ${assigneeFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setAssigneeFilter('all')}
-          >
-            All
-          </button>
-          
-          <div className="view-toggle">
-            <button 
-              className={viewMode === 'list' ? 'active' : ''}
-              onClick={() => setViewMode('list')}
-              title="List view"
-            >
-              ≡
-            </button>
-            <button 
-              className={viewMode === 'buckets' ? 'active' : ''}
-              onClick={() => setViewMode('buckets')}
-              title="Grid view"
-            >
-              ⊞
-            </button>
-            <button
-              className={viewMode === 'matrix' ? 'active' : ''}
-              onClick={() => setViewMode('matrix')}
-              title="Priority x Effort matrix"
-            >
-              ▦
-            </button>
-          </div>
-          
-          {viewMode === 'matrix' ? (
-            <span className="matrix-scope-pill" title="Matrix includes open inbox, loadout, and quest missions">
-              All open
-            </span>
-          ) : (
-            <div className="sort-toggle">
-              {([
-                ['due_date', 'Due', 'Sort by Due Date'],
-                ['priority', 'Priority', 'Sort by Priority'],
-                ['challenge', 'Effort', 'Sort by Effort'],
-                ['quest', 'Quest', 'Sort by Quest'],
-              ] as [SortBy, string, string][]).map(([key, label, title]) => (
-                <button
-                  key={key}
-                  className={`filter-btn ${sortBy === key ? 'active' : ''}`}
-                  onClick={() => setSortBy(key)}
-                  title={title}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-          
-          <button 
-            className={`filter-btn ${showCompleted ? 'active' : ''}`}
-            onClick={toggleShowCompleted}
-            title="Show completed missions"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-      
-      <InboxContent
-        tasks={inboxTasks}
-        overdueTasks={overdueTasks}
-        completedTasks={completedTasks}
-        matrixTasks={matrixTasks}
-        quests={quests}
-        showCompleted={showCompleted}
-        loading={loading}
-        viewMode={viewMode}
-        onAddTask={handleAddTask}
-        onToggleBulkImport={() => setShowBulkImport(!showBulkImport)}
-      />
 
-      <BulkImportModal
-        isOpen={showBulkImport}
-        onClose={() => setShowBulkImport(false)}
-      />
-    </div>
+  const { setNodeRef, isOver } = useDroppable({ id: 'inbox-drop-zone' });
+  const clearedHint = showCompleted ? 'Hide cleared missions' : CLEARED_HINT;
+  const { anchorProps: clearedTipProps, tooltip: clearedTip } = useTooltip(clearedHint);
+  const { anchorProps: overdueTipProps, tooltip: overdueTip } = useTooltip(OVERDUE_HINT);
+
+  const hideOperator = assigneeFilter !== 'all';
+  const handleAddTask = () => openTaskModal(null, true);
+  const visibleCount = viewMode === 'matrix' ? matrixTasks.length : inboxTasks.length + overdueTasks.length;
+
+  const header = (
+    <HudBar glyph={<Icon name="cache" />} title="Missions" count={loading ? undefined : visibleCount}>
+      <HudGroup label="Who">
+        <SegmentedControl ariaLabel="Operator filter" options={WHO_OPTIONS} value={assigneeFilter} onChange={setAssigneeFilter} />
+      </HudGroup>
+      <HudGroup label="View">
+        <SegmentedControl ariaLabel="View" options={VIEW_OPTIONS} value={viewMode} onChange={setViewMode} />
+      </HudGroup>
+      {viewMode !== 'matrix' && (
+        <HudGroup label="Sort">
+          <select
+            className="hud-select"
+            aria-label="Sort missions"
+            title={SORT_HINT}
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as SortBy)}
+          >
+            {SORT_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </HudGroup>
+      )}
+      <button
+        type="button"
+        className={`hud-btn ${showCompleted ? 'is-active' : ''}`}
+        onClick={toggleShowCompleted}
+        aria-pressed={showCompleted}
+        title={titleFallback(clearedHint)}
+        {...clearedTipProps}
+      >
+        Cleared
+      </button>
+      {clearedTip}
+    </HudBar>
   );
-}
-
-function InboxContent({
-  tasks,
-  overdueTasks,
-  completedTasks,
-  matrixTasks,
-  quests,
-  showCompleted,
-  loading,
-  viewMode,
-  onAddTask,
-  onToggleBulkImport
-}: {
-  tasks: Task[];
-  overdueTasks: Task[];
-  completedTasks: Task[];
-  matrixTasks: Task[];
-  quests: Quest[];
-  showCompleted: boolean;
-  loading: boolean;
-  viewMode: 'list' | 'buckets' | 'matrix';
-  onAddTask: () => void;
-  onToggleBulkImport: () => void;
-}) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: 'inbox-drop-zone',
-  });
-
-  const isEmpty = tasks.length === 0 && overdueTasks.length === 0;
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`pane-content ${isOver ? 'drag-over-inbox' : ''}`}
-      style={{
-        transition: 'background 0.2s ease',
-        background: isOver ? 'rgba(255, 107, 53, 0.05)' : undefined
-      }}
+    <PanelFrame
+      className={`pane pane-inbox ${isOver ? 'is-drop-target' : ''}`}
+      header={header}
+      bodyRef={setNodeRef}
     >
       {loading ? (
-        <div className="loading">
-          <div className="spinner" />
-        </div>
+        <div className="loading"><div className="spinner" /></div>
       ) : (
         <>
-          {overdueTasks.length > 0 && (
-            <div className="overdue-section">
-              <div className="overdue-header">
-                <span>Overdue ({overdueTasks.length})</span>
+          {overdueTasks.length > 0 && viewMode !== 'matrix' && (
+            <section className="overdue-section" aria-label="Overdue missions">
+              <div className="section-header section-header--danger" title={titleFallback(OVERDUE_HINT)} {...overdueTipProps}>
+                <span>Overdue</span>
+                <span className="num">{overdueTasks.length}</span>
               </div>
+              {overdueTip}
               <div className="task-list">
                 {overdueTasks.map(task => (
-                  <TaskCard key={task.task_id} task={task} />
+                  <TaskCard key={task.task_id} task={task} hideOperator={hideOperator} />
                 ))}
               </div>
-            </div>
+            </section>
           )}
+
           {viewMode === 'matrix' ? (
-            <MatrixView
-              tasks={matrixTasks}
-              quests={quests}
-              onAddTask={onAddTask}
-              onToggleBulkImport={onToggleBulkImport}
+            <MatrixView tasks={matrixTasks} hideOperator={hideOperator} onAddTask={handleAddTask} onBulkImport={openBulkImport} />
+          ) : inboxTasks.length === 0 && overdueTasks.length === 0 ? (
+            <EmptyState
+              glyph={<Icon name="cache" size={20} />}
+              title="Cache is empty"
+              hint="New missions land here until you load them or file them under a quest."
+              actions={<ActionButtons onAddTask={handleAddTask} onBulkImport={openBulkImport} />}
             />
-          ) : isEmpty && !showCompleted ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">◇</div>
-              <div className="empty-state-text">
-                Nothing here yet
-              </div>
-            </div>
           ) : viewMode === 'list' ? (
-            <ListView tasks={tasks} onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
+            <div className="task-list">
+              {inboxTasks.map(task => (
+                <TaskCard key={task.task_id} task={task} hideOperator={hideOperator} />
+              ))}
+              <ActionButtons onAddTask={handleAddTask} onBulkImport={openBulkImport} inline />
+            </div>
           ) : (
-            <BucketsView tasks={tasks} onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
+            <div className="inventory-grid">
+              {inboxTasks.map(task => (
+                <TaskCard key={task.task_id} task={task} tier="cell" hideOperator={hideOperator} />
+              ))}
+              <button type="button" className="action-card action-card--cell" onClick={handleAddTask}>
+                <span className="action-card__glyph" aria-hidden="true"><Icon name="plus" /></span>
+                <span>New mission</span>
+              </button>
+              <button type="button" className="action-card action-card--cell" onClick={openBulkImport}>
+                <span className="action-card__glyph" aria-hidden="true"><Icon name="import" /></span>
+                <span>Bulk import</span>
+              </button>
+            </div>
           )}
         </>
       )}
 
       {showCompleted && (
-        <div className="completed-section">
-          <div className="completed-header">
-            <span>Completed ({completedTasks.length})</span>
+        <section className="completed-section" aria-label="Cleared missions">
+          <div className="section-header">
+            <span>Cleared</span>
+            <span className="num">{completedTasks.length}</span>
           </div>
           {completedTasks.length === 0 ? (
-            <div className="empty-state" style={{ padding: '1rem' }}>
-              <div className="empty-state-text" style={{ fontSize: '0.75rem' }}>
-                No completed missions
-              </div>
-            </div>
+            <EmptyState compact title="No cleared missions yet" />
           ) : (
             <div className="task-list completed-list">
               {completedTasks.map(task => (
-                <CompletedTaskCard key={task.task_id} task={task} />
+                <TaskCard key={task.task_id} task={task} completed hideOperator={hideOperator} />
               ))}
             </div>
           )}
-        </div>
+        </section>
       )}
+    </PanelFrame>
+  );
+}
 
+function ActionButtons({ onAddTask, onBulkImport, inline }: { onAddTask: () => void; onBulkImport: () => void; inline?: boolean }) {
+  return (
+    <div className={`action-row ${inline ? 'action-row--inline' : ''}`}>
+      <button type="button" className="action-card" onClick={onAddTask}>
+        <span className="action-card__glyph" aria-hidden="true"><Icon name="plus" /></span>
+        <span>New mission</span>
+      </button>
+      <button type="button" className="action-card" onClick={onBulkImport}>
+        <span className="action-card__glyph" aria-hidden="true"><Icon name="import" /></span>
+        <span>Bulk import</span>
+      </button>
     </div>
   );
 }
 
 const matrixPriorities = [
-  { level: 1, label: 'P1', description: 'Highest priority' },
-  { level: 2, label: 'P2', description: 'Medium priority' },
-  { level: 3, label: 'P3', description: 'Lower priority' },
+  { level: 1, label: 'P1', description: 'Highest' },
+  { level: 2, label: 'P2', description: 'Standard' },
+  { level: 3, label: 'P3', description: 'Lower' },
 ];
 
 const matrixChallenges: { challenge: Challenge; label: string; description: string }[] = [
-  { challenge: 'low', label: 'CR 1', description: 'Light effort' },
-  { challenge: 'medium', label: 'CR 2', description: 'Moderate effort' },
-  { challenge: 'high', label: 'CR 3', description: 'Heavy effort' },
+  { challenge: 'low', label: 'CR 1', description: '1 cell' },
+  { challenge: 'medium', label: 'CR 2', description: '2 cells' },
+  { challenge: 'high', label: 'CR 3', description: '3 cells' },
 ];
 
 function MatrixView({
   tasks,
-  quests,
+  hideOperator,
   onAddTask,
-  onToggleBulkImport,
+  onBulkImport,
 }: {
   tasks: Task[];
-  quests: Quest[];
+  hideOperator: boolean;
   onAddTask: () => void;
-  onToggleBulkImport: () => void;
+  onBulkImport: () => void;
 }) {
-  const questById = useMemo(() => (
-    quests.reduce<Record<string, Quest>>((map, quest) => {
-      map[quest.quest_id] = quest;
-      return map;
-    }, {})
-  ), [quests]);
-
   const tasksByCell = useMemo(() => (
     tasks.reduce<Record<string, Task[]>>((groups, task) => {
-      const priorityLevel = getPriorityLevel(task.priority);
-      const challenge = task.challenge || 'medium';
-      const key = `${priorityLevel}-${challenge}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(task);
+      const key = `${getPriorityLevel(task.priority)}-${task.challenge || 'medium'}`;
+      (groups[key] ||= []).push(task);
       return groups;
     }, {})
   ), [tasks]);
 
   if (tasks.length === 0) {
     return (
-      <div className="matrix-empty-state">
-        <div className="empty-state">
-          <div className="empty-state-icon">▦</div>
-          <div className="empty-state-text">No open missions for this filter</div>
-          <div className="empty-state-subtext">The matrix includes inbox, loadout, and quest missions.</div>
-        </div>
-        <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
-      </div>
+      <EmptyState
+        glyph={<Icon name="matrix" size={20} />}
+        title="No open missions for this operator"
+        hint="The matrix includes cache, loadout, and quest missions."
+        actions={<ActionButtons onAddTask={onAddTask} onBulkImport={onBulkImport} />}
+      />
     );
   }
 
   return (
-    <div className="mission-matrix-wrap">
-      <div className="mission-matrix-note">
-        Showing all open missions for this assignee, including Loadout and Quest missions.
+    <div className="matrix-wrap">
+      <div className="matrix-note t-xs">
+        All open missions for this operator — cache, loadout, and quests. Priority down, CR across.
       </div>
-      <div className="mission-matrix" role="grid" aria-label="Open missions by priority and effort">
-        <div className="matrix-corner" aria-hidden="true">
-          Priority x Effort
-        </div>
+      <div className="matrix" role="grid" aria-label="Open missions by priority and CR">
+        <div className="matrix__corner t-2xs" aria-hidden="true">P × CR</div>
         {matrixChallenges.map(({ challenge, label, description }) => (
-          <div key={challenge} className={`matrix-axis-heading effort-${challenge}`}>
-            <span>{label}</span>
-            <small>{description}</small>
+          <div key={challenge} className="matrix__axis" role="columnheader">
+            <span className="num">{label}</span>
+            <small className="t-2xs">{description}</small>
           </div>
         ))}
 
         {matrixPriorities.map(({ level, label, description }) => (
           <React.Fragment key={level}>
-            <div className={`matrix-axis-heading priority-p${level}`}>
-              <span>{label}</span>
-              <small>{description}</small>
+            <div className={`matrix__axis matrix__axis--p${level}`} role="rowheader">
+              <span className="num">{label}</span>
+              <small className="t-2xs">{description}</small>
             </div>
             {matrixChallenges.map(({ challenge }) => {
               const cellTasks = tasksByCell[`${level}-${challenge}`] || [];
               return (
-                <div key={`${level}-${challenge}`} className="matrix-cell" role="gridcell">
-                  <div className="matrix-cell-count">{cellTasks.length}</div>
+                <div key={`${level}-${challenge}`} className="matrix__cell" role="gridcell">
+                  <div className="matrix__count num t-2xs">{cellTasks.length}</div>
                   {cellTasks.length > 0 ? (
-                    <div className="matrix-cell-list">
+                    <div className="matrix__list">
                       {cellTasks.map(task => (
-                        <div key={task.task_id} className={`matrix-mission ${task.today_slot ? 'in-loadout' : ''}`}>
-                          <TaskCard task={task} compact />
-                          <MissionLocationBadges task={task} quest={task.quest_id ? questById[task.quest_id] : undefined} />
-                        </div>
+                        <TaskCard key={task.task_id} task={task} tier="compact" hideOperator={hideOperator} hidePriority hideCr showLoaded />
                       ))}
                     </div>
                   ) : (
-                    <div className="matrix-cell-empty">Clear</div>
+                    <div className="matrix__empty t-xs">Clear</div>
                   )}
                 </div>
               );
@@ -376,119 +305,7 @@ function MatrixView({
           </React.Fragment>
         ))}
       </div>
-
-      <div className="matrix-actions">
-        <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
-      </div>
+      <ActionButtons onAddTask={onAddTask} onBulkImport={onBulkImport} />
     </div>
   );
 }
-
-function MissionLocationBadges({ task, quest }: { task: Task; quest?: Quest }) {
-  const hasLoadout = Boolean(task.today_slot);
-  const hasQuest = Boolean(quest);
-
-  if (!hasLoadout && !hasQuest) {
-    return (
-      <div className="matrix-location-row">
-        <span className="matrix-location-badge inbox">Inbox</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="matrix-location-row">
-      {hasLoadout && (
-        <span className="matrix-location-badge loadout">
-          Today's Loadout{task.today_slot ? ` #${task.today_slot}` : ''}
-        </span>
-      )}
-      {quest && (
-        <span
-          className="matrix-location-badge quest"
-          style={quest.color ? ({ '--quest-color': quest.color } as React.CSSProperties) : undefined}
-        >
-          {quest.title}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function ActionCards({ onAddTask, onToggleBulkImport }: { onAddTask: () => void; onToggleBulkImport: () => void }) {
-  return (
-    <>
-      <button className="mission-action-card" onClick={onAddTask}>
-        <span className="mission-action-icon">+</span>
-        <span className="mission-action-label">New Mission</span>
-      </button>
-      <button className="mission-action-card" onClick={onToggleBulkImport}>
-        <span className="mission-action-icon">◆</span>
-        <span className="mission-action-label">Bulk Import</span>
-      </button>
-    </>
-  );
-}
-
-function ListView({ tasks, onAddTask, onToggleBulkImport }: { tasks: Task[]; onAddTask: () => void; onToggleBulkImport: () => void }) {
-  return (
-    <div className="task-list">
-      {tasks.map(task => (
-        <TaskCard key={task.task_id} task={task} />
-      ))}
-      <ActionCards onAddTask={onAddTask} onToggleBulkImport={onToggleBulkImport} />
-    </div>
-  );
-}
-
-function BucketsView({ tasks, onAddTask, onToggleBulkImport }: { tasks: Task[]; onAddTask: () => void; onToggleBulkImport: () => void }) {
-  const priorityOrder: Record<Priority, number> = {
-    urgent: 0,
-    high: 1,
-    medium: 2,
-    low: 3,
-  };
-
-  const sortedTasks = [...tasks].sort((a, b) =>
-    priorityOrder[a.priority] - priorityOrder[b.priority]
-  );
-
-  return (
-    <div className="inventory-grid">
-      {sortedTasks.map(task => (
-        <TaskCard key={task.task_id} task={task} compact />
-      ))}
-      <button className="mission-action-card mission-action-card--grid" onClick={onAddTask}>
-        <span className="mission-action-icon">+</span>
-        <span className="mission-action-label">New Mission</span>
-      </button>
-      <button className="mission-action-card mission-action-card--grid" onClick={onToggleBulkImport}>
-        <span className="mission-action-icon">◆</span>
-        <span className="mission-action-label">Bulk Import</span>
-      </button>
-    </div>
-  );
-}
-
-function CompletedTaskCard({ task }: { task: Task }) {
-  const { openTaskModal } = useApp();
-  
-  const completedDate = task.completed_at 
-    ? new Date(task.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : '';
-  
-  return (
-    <div 
-      className="task-card completed"
-      onClick={() => openTaskModal(task)}
-    >
-      <div className="task-content">
-        <div className="task-title">{task.title}</div>
-        <div className="task-meta">
-          <span className="completed-date">Done {completedDate}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-

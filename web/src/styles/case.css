@@ -1,0 +1,449 @@
+/* ==============================================================
+   THE CASE — loadout grid, overflow tray, Load-from-Missions picker
+   (docs/CHASSIS_BRIEF.md §4.5, §4.6, §6)
+
+   Rules (same as index.css): --t-* font sizes only, fixed heights
+   from --h-*, 1px hard borders at rest, shadows only on lifted
+   states (the hover toolbar), hit areas via .hit / --hit-min.
+   ============================================================== */
+
+/* ---- Container -------------------------------------------------- */
+.case {
+  --case-gap: 3px; /* keep in sync with CASE_CELL_GAP_PX */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-2xs);
+  background: var(--ground);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-card);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.case.is-drop-target {
+  border-color: var(--accent);
+}
+
+.case > .empty-state {
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* ---- Grid ------------------------------------------------------- */
+.case-grid {
+  display: grid;
+  grid-auto-rows: var(--h-cell);
+  gap: var(--case-gap);
+  min-width: 0;
+}
+
+/* One element per grid cell, always cols×rows of them. Items overlay them. */
+.case-cell {
+  position: relative;
+  min-width: 0;
+  height: var(--h-cell);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-chip);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+/* Free: empty, subtle dashed inner border */
+.case-cell--free::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: var(--border-w) dashed var(--border-strong);
+  border-radius: 2px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.case-cell--free.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.case-cell--free.is-over::after {
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 1;
+}
+
+/* Occupied: sits under an item; plain so the item's own border reads */
+.case-cell--occupied {
+  background: var(--surface-2);
+}
+
+/* Locked: visible, disabled — hatched, dimmed, padlock */
+.case-cell--locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  background: repeating-linear-gradient(135deg, var(--surface) 0 5px, var(--surface-2) 5px 10px);
+  opacity: 0.65;
+}
+
+.case-cell__lock {
+  opacity: 0.85;
+}
+
+/* ---- Item in the case ------------------------------------------- */
+.case-item {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  height: var(--h-cell);
+  border-radius: var(--radius-card);
+}
+
+.case-item:hover,
+.case-item:focus-within {
+  z-index: 3;
+}
+
+.case-item.is-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.case-item .item-card {
+  width: 100%;
+  height: 100%;
+}
+
+/* The ItemCard's own action zone would eat the cell's width; the Case
+   supplies its own floating toolbar instead (see .case-item__actions). */
+.case-item .item-card__actions {
+  display: none;
+}
+
+/* (case.css is imported before index.css's rules, so these out-specify the
+   .item-card--cell tier rules rather than relying on source order.) */
+.case-item .item-card--cell .item-card__main {
+  padding: var(--space-2xs) 5px;
+  gap: 2px;
+}
+
+.case-item .item-card--cell .item-card__title {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Tight CR1 cell: priority chip only (the CR is the cell itself) */
+.case-item--tight .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3) {
+  display: none;
+}
+
+.case-item--tight .item-card--cell .item-card__main {
+  padding-left: 4px;
+  padding-right: 3px;
+}
+
+/* Hover toolbar: ← → ✕ ✓ (fine pointer) / ⋯ menu (coarse). Floating, so a
+   lift shadow is allowed. Anchored bottom-right over the stat row so the
+   title stays readable while you decide. */
+.case-item__actions {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+}
+
+.case-item__strip {
+  display: none;
+  align-items: center;
+  gap: 1px;
+  padding: 1px;
+  background: var(--surface-3);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-lift);
+}
+
+.case-item:hover .case-item__strip,
+.case-item:focus-within .case-item__strip {
+  display: inline-flex;
+}
+
+.case-item__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: calc(var(--radius-control) - 1px);
+  color: var(--text-2);
+  line-height: 1;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.case-item__btn:hover:not(:disabled) {
+  background: var(--surface-pressed);
+  color: var(--text);
+}
+
+.case-item__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.case-item__btn--clear:hover:not(:disabled) {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.case-item__check {
+  stroke-width: 3;
+}
+
+.case-item__menu {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .case-item__strip { display: none !important; }
+  .case-item__menu { display: inline-flex; }
+  .case-item__menu .case-item__btn {
+    background: var(--surface-3);
+    border: var(--border-w) solid var(--border-strong);
+  }
+  /* Leave room for the ⋯ trigger so it never sits on the chips. */
+  .case-item .item-card__stats { padding-right: 24px; }
+}
+
+/* Read-only (another operator's case): no drop affordance, no toolbar */
+.case.is-readonly .case-cell--free::after {
+  opacity: 0.35;
+}
+
+/* ---- Overflow tray (rendered only when overloaded) --------------- */
+.case-tray {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-card);
+}
+
+.case-tray.is-over-budget {
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+.case-tray__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+  padding: 0 var(--space-2xs);
+  color: var(--text-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.case-tray.is-over-budget .case-tray__head {
+  color: var(--danger);
+}
+
+.case-tray__over {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.case-tray__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.case-tray__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2xs);
+  align-items: center;
+  border-radius: var(--radius-card);
+}
+
+.case-tray__item.is-over-budget .item-card {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
+}
+
+.case-tray__item.is-over-budget .item-card:hover {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface-2));
+}
+
+.case-tray__item.is-drop-target {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent-line);
+}
+
+.case-tray__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.case-tray__hint {
+  color: var(--text-3);
+}
+
+.case-tray__shift:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---- CapacityBar info ------------------------------------------- */
+.cap-bar__info {
+  width: 20px;
+  height: 20px;
+  color: var(--text-3);
+}
+
+.cap-bar__info:hover {
+  color: var(--text);
+}
+
+/* ---- Load from Missions picker ---------------------------------- */
+.pick-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.pick-row {
+  --card-accent: var(--border-strong);
+}
+
+.pick-row--p1 { --card-accent: var(--priority-1); }
+.pick-row--p2 { --card-accent: var(--priority-2); }
+.pick-row--p3 { --card-accent: var(--priority-3); }
+
+.pick-row__label {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-xs);
+  min-height: var(--h-row);
+  padding: 0 var(--space-xs) 0 var(--space-xs);
+  background: var(--surface-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.pick-row__label:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.pick-row.is-checked .pick-row__label {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* The native checkbox covers the whole row (full hit area) but is invisible;
+   the box below is its visual. */
+.pick-row__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pick-row__input:disabled {
+  cursor: not-allowed;
+}
+
+.pick-row__box {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background: var(--ground);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-chip);
+  color: var(--text-on-accent);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.pick-row.is-checked .pick-row__box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pick-row__check {
+  stroke-width: 3;
+}
+
+.pick-row__input:focus-visible ~ .pick-row__box {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pick-row__bar {
+  width: 3px;
+  flex-shrink: 0;
+  margin: 6px 0;
+  border-radius: 1px;
+  background: var(--card-accent);
+}
+
+.pick-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: var(--space-2xs) 0;
+}
+
+.pick-row__title {
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.pick-row__stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--h-chip);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pick-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: auto;
+  min-height: var(--hit-min);
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.pick-total.is-over {
+  color: var(--danger);
+}
+
+.pick-total__sep {
+  color: var(--text-3);
+}

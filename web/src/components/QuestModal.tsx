@@ -3,12 +3,16 @@ import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
 import type { CreateQuestInput, UpdateQuestInput } from '../types';
 import { PRIORITY_ORDER } from '../types';
+import { isOverdueDate } from '../utils/dueDate';
+import { Dialog, StatChip } from './primitives';
 
 const QUEST_PRESET_COLORS = [
   '#7b68ee', '#00d4aa', '#d4a84b', '#ff4757', '#ff7b4a',
   '#9b59b6', '#3498db', '#2ecc71', '#e74c3c', '#1abc9c',
   '#e67e22', '#95a5a6',
 ];
+
+const TRACK_FOCUS_LIMIT = 5;
 
 export function QuestModal() {
   const {
@@ -34,19 +38,6 @@ export function QuestModal() {
   const [color, setColor] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isQuestModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isQuestModalOpen]);
-
-  // Populate form when editing
   useEffect(() => {
     if (selectedQuest) {
       setTitle(selectedQuest.title);
@@ -54,39 +45,25 @@ export function QuestModal() {
       setLeaderEmail(selectedQuest.leader_email || selectedQuest.assignee);
       setColor(selectedQuest.color || '');
     } else {
-      // Reset for new quest
       setTitle('');
       setNotes('');
       setLeaderEmail(johnEmail);
       setColor('');
     }
-  }, [selectedQuest, johnEmail]);
+  }, [selectedQuest, johnEmail, isQuestModalOpen]);
 
-  if (!isQuestModalOpen) return null;
-
-  // Missions in this quest (open, not in loadout)
   const questMissions = selectedQuest
     ? tasks
         .filter(t => t.status === 'open' && t.quest_id === selectedQuest.quest_id && !t.today_slot)
         .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
     : [];
-
-  // Count overdue missions
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const overdueCount = questMissions.filter(t => {
-    if (!t.due_date) return false;
-    const due = new Date(t.due_date);
-    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-    return dueDay.getTime() < today.getTime();
-  }).length;
+  const overdueCount = questMissions.filter(t => isOverdueDate(t.due_date)).length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setSaving(true);
-
     try {
       if (isCreatingQuest) {
         const input: CreateQuestInput = {
@@ -109,29 +86,21 @@ export function QuestModal() {
         await updateQuest(input);
       }
     } catch {
-      // Error already handled in context
+      // handled in context
     } finally {
       setSaving(false);
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      closeQuestModal();
-    }
-  };
-
   const handleToggleTracked = async () => {
     if (!selectedQuest) return;
-
     try {
       await toggleQuestTracked(selectedQuest.quest_id);
     } catch {
-      // Error handled in context
+      // handled in context
     }
   };
 
-  // Open the mission creation modal with this quest preselected
   const handleAddMission = () => {
     if (!selectedQuest) return;
     const questId = selectedQuest.quest_id;
@@ -146,191 +115,158 @@ export function QuestModal() {
       await requestCompleteQuest(selectedQuest.quest_id);
       closeQuestModal();
     } catch {
-      // Error already handled in context
+      // handled in context
     } finally {
       setSaving(false);
     }
   };
 
-  const isEditMode = !isCreatingQuest && selectedQuest;
+  const isEditMode = Boolean(!isCreatingQuest && selectedQuest);
+
+  const footer = (
+    <>
+      <button type="button" className="btn btn--secondary" onClick={closeQuestModal} disabled={saving}>
+        Close
+      </button>
+      {isEditMode && (
+        <button type="button" className="btn btn--danger" onClick={handleCompleteQuest} disabled={saving}>
+          Clear quest
+        </button>
+      )}
+      <button type="submit" className="btn btn--primary" disabled={saving || !title.trim()}>
+        {saving ? 'Saving…' : isCreatingQuest ? 'Create quest' : 'Save changes'}
+      </button>
+    </>
+  );
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className={`modal ${isEditMode ? 'modal-wide' : ''}`} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{isCreatingQuest ? 'New Quest' : 'Quest Details'}</h3>
+    <Dialog
+      open={isQuestModalOpen}
+      title={isCreatingQuest ? 'New quest' : 'Quest'}
+      onClose={closeQuestModal}
+      footer={footer}
+      busy={saving}
+      size={isEditMode ? 'lg' : 'md'}
+      formProps={{ onSubmit: handleSubmit }}
+    >
+      <div className="form-group">
+        <label htmlFor="quest-title">Title</label>
+        <input
+          id="quest-title"
+          type="text"
+          className="form-input"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="What's the goal?"
+          data-autofocus
+          required
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="quest-notes">Notes</label>
+        <textarea
+          id="quest-notes"
+          className="form-textarea"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Any context or details…"
+        />
+      </div>
+
+      <div className="form-grid">
+        <div className="form-group">
+          <label htmlFor="quest-assignee">Lead</label>
+          <select id="quest-assignee" className="form-select" value={leaderEmail} onChange={e => setLeaderEmail(e.target.value)}>
+            <option value={johnEmail}>John</option>
+            <option value={stephEmail}>Stef</option>
+            <option value={meganEmail}>Megan</option>
+          </select>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label htmlFor="quest-title">Title *</label>
-              <input
-                id="quest-title"
-                type="text"
-                className="form-input"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="What's the goal?"
-                autoFocus
-                required
+        <div className="form-group">
+          <span className="form-label">Color</span>
+          <div className="color-picker">
+            {QUEST_PRESET_COLORS.map(hex => (
+              <button
+                key={hex}
+                type="button"
+                className={`color-swatch hit ${color === hex ? 'is-active' : ''}`}
+                style={{ background: hex }}
+                onClick={() => setColor(hex)}
+                title={hex}
+                aria-label={`Color ${hex}`}
+                aria-pressed={color === hex}
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="quest-notes">Notes</label>
-              <textarea
-                id="quest-notes"
-                className="form-textarea"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Any context or details..."
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="quest-assignee">Lead</label>
-              <select
-                id="quest-assignee"
-                className="form-select"
-                value={leaderEmail}
-                onChange={e => setLeaderEmail(e.target.value)}
-              >
-                <option value={johnEmail}>John</option>
-                <option value={stephEmail}>Stef</option>
-                <option value={meganEmail}>Megan</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Color</label>
-              <div className="quest-color-picker">
-                {QUEST_PRESET_COLORS.map(hex => (
-                  <button
-                    key={hex}
-                    type="button"
-                    className={`quest-color-swatch ${color === hex ? 'active' : ''}`}
-                    style={{ background: hex }}
-                    onClick={() => setColor(hex)}
-                    title={hex}
-                  />
-                ))}
-                <input
-                  type="text"
-                  className="quest-color-hex"
-                  placeholder="#hex"
-                  value={color && !QUEST_PRESET_COLORS.includes(color) ? color : ''}
-                  onChange={e => {
-                    const v = e.target.value.trim().replace(/^#/, '');
-                    setColor(v ? '#' + v.slice(0, 6) : '');
-                  }}
-                  maxLength={7}
-                />
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Missions in this quest use this color; drag to Cache to reset to Threat Level color.
-              </div>
-            </div>
-
-            {!isCreatingQuest && selectedQuest && (
-              <div className="form-group">
-                <label id="quest-tracking-label">Tracking</label>
-                <div className="track-switch-row">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={selectedQuest.is_tracked}
-                    aria-labelledby="quest-tracking-label"
-                    className={`track-switch ${selectedQuest.is_tracked ? 'on' : ''}`}
-                    onClick={handleToggleTracked}
-                  >
-                    <span className="track-switch-knob" />
-                  </button>
-                  <span className="track-switch-status">
-                    {selectedQuest.is_tracked
-                      ? 'Tracked — shown on the Quests board'
-                      : 'Not tracked — resting in Inactive'}
-                  </span>
-                  <span className="track-switch-count">
-                    {trackedQuests.length} tracked
-                  </span>
-                </div>
-                {trackedQuests.length > 5 && (
-                  <div style={{ marginTop: '8px', fontSize: '0.68rem', color: 'var(--warning)' }}>
-                    Warning: You are tracking {trackedQuests.length} quests. Focus is best with 5 or fewer.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Missions section - edit mode only */}
-            {isEditMode && (
-              <div className="quest-details-missions">
-                <div className="quest-details-header">
-                  <span>Missions ({questMissions.length})</span>
-                  {overdueCount > 0 && (
-                    <span className="quest-overdue-badge">{overdueCount} overdue</span>
-                  )}
-                </div>
-
-                {questMissions.length > 0 ? (
-                  <div className="quest-details-list">
-                    {questMissions.map(mission => (
-                      <TaskCard
-                        key={mission.task_id}
-                        task={mission}
-                        compact
-                        showDragHandle={false}
-                        questColor={selectedQuest.color || undefined}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="quest-details-empty">
-                    <span className="quest-details-empty-text">No missions in this quest</span>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className="add-task-btn"
-                  onClick={handleAddMission}
-                >
-                  + Add Mission
-                </button>
-              </div>
-            )}
+            ))}
+            <input
+              type="text"
+              className="form-input form-input--hex num"
+              placeholder="#hex"
+              aria-label="Custom hex color"
+              value={color && !QUEST_PRESET_COLORS.includes(color) ? color : ''}
+              onChange={e => {
+                const v = e.target.value.trim().replace(/^#/, '');
+                setColor(v ? '#' + v.slice(0, 6) : '');
+              }}
+              maxLength={7}
+            />
           </div>
+          <div className="form-hint t-xs">Missions in this quest carry this color as their quest chip.</div>
+        </div>
+      </div>
 
-          <div className="modal-footer">
+      {isEditMode && selectedQuest && (
+        <div className="form-group">
+          <span className="form-label" id="quest-tracking-label">Tracking</span>
+          <div className="track-row">
             <button
               type="button"
-              className="btn btn-secondary"
-              onClick={closeQuestModal}
-              disabled={saving}
+              role="switch"
+              aria-checked={selectedQuest.is_tracked}
+              aria-labelledby="quest-tracking-label"
+              className={`switch ${selectedQuest.is_tracked ? 'is-on' : ''}`}
+              onClick={handleToggleTracked}
             >
-              Close
+              <span className="switch__knob" />
             </button>
-            {!isCreatingQuest && (
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleCompleteQuest}
-                disabled={saving}
-              >
-                Complete Quest
-              </button>
-            )}
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={saving || !title.trim()}
-            >
-              {saving ? 'Saving...' : isCreatingQuest ? 'Create Quest' : 'Save Changes'}
-            </button>
+            <span className="track-row__status t-sm">
+              {selectedQuest.is_tracked ? 'Tracked — pinned to the HUD' : 'Not tracked — resting in the log'}
+            </span>
+            <StatChip mono title="Quests currently tracked">{trackedQuests.length} tracked</StatChip>
           </div>
-        </form>
-      </div>
-    </div>
+          {trackedQuests.length > TRACK_FOCUS_LIMIT && (
+            <div className="form-hint form-hint--warning t-xs">
+              Tracking {trackedQuests.length} quests. Focus holds best at {TRACK_FOCUS_LIMIT} or fewer.
+            </div>
+          )}
+        </div>
+      )}
+
+      {isEditMode && selectedQuest && (
+        <section className="dialog-section" aria-label="Missions in this quest">
+          <div className="section-header">
+            <span>Missions</span>
+            <span className="num">{questMissions.length}</span>
+            {overdueCount > 0 && <StatChip tone="danger" mono>{overdueCount} late</StatChip>}
+          </div>
+
+          {questMissions.length > 0 ? (
+            <div className="task-list">
+              {questMissions.map(mission => (
+                <TaskCard key={mission.task_id} task={mission} tier="compact" hideQuest draggable={false} />
+              ))}
+            </div>
+          ) : (
+            <div className="quest-block__empty t-xs">No open missions in this quest</div>
+          )}
+
+          <button type="button" className="action-card action-card--slim" onClick={handleAddMission}>
+            <span className="action-card__glyph" aria-hidden="true">+</span>
+            <span>Mission</span>
+          </button>
+        </section>
+      )}
+    </Dialog>
   );
 }

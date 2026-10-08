@@ -2,47 +2,63 @@
 
 > **Note to AI agents:** This README is the canonical reference for the current state of the app. Keep it updated whenever you add, remove, or change features, data models, API endpoints, or setup steps.
 
-An ADHD-friendly mission tracker with a **1-3-5 Loadout planner**, quest system, and timer — built for two users (John & Stef), backed by Google Sheets.
+An ADHD-friendly mission tracker with an energy-budgeted **Loadout**, a quest system, and a dense "mission control" UI — built for a small crew of operators, backed by Google Sheets.
 
 ## Overview
 
-Fire Brain is a task management system with a gaming-inspired UI. It organizes work into **missions** (atomic tasks) and **quests** (long-term goals), with a daily **loadout** based on the 1-3-5 method.
+Fire Brain organizes work into **missions** (atomic tasks) and **quests** (long-term goals). Each day an operator builds a **Loadout** — the short list of missions they intend to clear — from the mission **Cache**.
 
-**Two users:**
-- **John** and **Stef** each have their own loadout, quests, and missions
+**Operators:**
+- **John**, **Stef** and **Megan** each have their own loadout, quests and missions
 - Authentication via email + password with 30-day session tokens
+- You can *view* anyone's loadout; you can only *edit* your own
 
-### The 1-3-5 Loadout
+### Vocabulary
 
-Each user's daily loadout is limited to 9 missions:
-- **1** Big mission (B1)
-- **3** Medium missions (M1-M3)
-- **5** Small missions (S1-S5)
+| Term | Meaning |
+|------|---------|
+| **Mission** | An atomic task |
+| **Quest** | A long-term goal that groups missions |
+| **Cache** | Open missions that are not loaded (the "inbox") |
+| **Loadout** | Today's ordered list of missions for one operator |
+| **CR** (1–3) | Challenge rating / energy cost of a mission (low / medium / high) |
+| **Energy** | Daily capacity: Light = 7, Medium = 10, Heavy = 12 points |
+| **P1 / P2 / P3** | Priority (high+urgent / medium / low) |
+| **Cleared** | Completed |
+
+### The Loadout
+
+A loadout is an ordered list (slot `1`, `2`, `3`, …) with no hard slot count. Instead, each mission's **CR** is summed against the operator's chosen **Energy** level and shown as a capacity bar. Going over is allowed but visibly flagged.
 
 ### Quests
 
-Quests are long-term goals that group related missions. Users can track as many quests as they want, with a focus warning shown when more than 4 are tracked. Quests have custom colors that visually tag their nested missions.
+Quests group related missions and carry a colour that tags their nested missions everywhere. Any number of quests can be tracked; tracked quests pin to the top of the Quests pane, the rest live in the Log. Completing a quest either detaches its open missions back to the cache or cascades completion to them.
 
 ## Tech Stack
 
 - **Backend**: Google Apps Script + Google Sheets (2 sheets: Tasks, Quests)
 - **Frontend**: React 18 + TypeScript 5 + Vite 5
 - **Drag & Drop**: @dnd-kit (core, sortable, utilities)
-- **State Management**: React Context (AppContext, ThemeContext, TimerContext)
-- **Styling**: Single CSS file with CSS variables, 3 themes
-- **Audio**: Web Audio API for procedural sound effects
+- **State Management**: React Context (`AppContext`, `ThemeContext`)
+- **Styling**: CSS custom properties. `styles/tokens.css` holds the design tokens (type scale, colours, spacing, fixed heights, hit areas, motion, `--ground-texture`); `styles/index.css` holds the structural "chassis" and imports the feature sheets (`case.css`, `settings.css`, `gadgets.css`). **Skins** (`src/skins/<id>.css`) override tokens only, scoped under `html[data-skin="<id>"]`; the registry is `src/skins/index.ts`. Shipped skins: **Graphite** (default, neutral) and **Sci-fi**. A unit test enforces the skin contract (every rule scoped, no font-size/italic changes, motion ≤ 200 ms).
+- **Icons**: hand-drawn inline SVG set in `primitives/Icon.tsx` (`<Icon name="load" size={16} />`), no icon library.
+- **Audio**: Web Audio API for procedural sound effects (mutable in Settings)
+- **Testing**: Vitest unit tests + a headless-browser smoke harness with a mocked backend (see [Testing](#testing))
 - **Auth**: Session tokens stored in Google Apps Script PropertiesService
 
 ## Features
 
-- **Loadout planner** — drag missions from the cache into 1-3-5 slots; swap between slots; view either user's loadout
-- **Mission cache** — create, edit, filter (by assignee), sort (by priority or challenge), and bulk import missions
-- **Quest panel** — create quests, resize the panel width, flow quests into multiple columns when wide, track any number of quests (warning after 4), and nest missions via drag & drop with custom quest colors
-- **Timer widget** — start a timer on any loadout mission; progress bar overlay; persists across page refresh
-- **Accomplished today** — completed missions from today shown below the loadout
-- **Bulk import** — paste multiple missions with syntax: `-priority`, `@date`, `#notes`
-- **Themes** — Arcane Void (default), Ancient Grimoire, Studio; persisted to localStorage
-- **View modes** — list or grid view for the mission cache
+- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld) where each mission occupies `CR` cells; Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and clear. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
+- **Missions (Cache)** — create, edit, filter by operator, sort by priority or CR; **List**, **Grid** (grouped by priority) and **Matrix** (P × CR) views; an **Overdue** section at the top gathers every open, unloaded mission past its due date (including quest missions); **Cleared** toggle shows completed missions
+- **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions with inline "+ Mission"; progress `done / total` and a late count per quest
+- **Accomplished today** — missions cleared today for the operator being viewed, collapsible under the loadout
+- **Bulk import** — paste multiple missions with syntax: `-p1/-p2/-p3`, `~low/~medium/~high`, `@today/@tomorrow/@nextweek/@YYYY-MM-DD`, `#notes`
+- **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Clear; keyboard: Enter opens, Space clears; tooltip carries full title, notes, created and due dates
+- **Bulk import / quick add grammar** — `Title -p1 ~high @tomorrow #notes` (`-p1/-p2/-p3` priority, `~low/~medium/~high` CR, `@today/@tomorrow/@nextweek/@YYYY-MM-DD` due, `#` notes). Parser lives in `utils/parseMission.ts`.
+- **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 %, click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`).
+- **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space clears, Esc closes).
+- **Teaching tooltips** — every control explains itself on hover/focus (one sentence, game vocabulary); every icon-only control also has an `aria-label` for touch and screen readers.
+- **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 4 × 3
 
 ## Data Models
 
@@ -57,12 +73,12 @@ Quests are long-term goals that group related missions. Users can track as many 
 | `updated_by` | string | Email |
 | `title` | string | Mission title |
 | `notes` | string | Optional notes |
-| `priority` | `low` \| `medium` \| `high` \| `urgent` | Urgency level |
-| `challenge` | `low` \| `medium` \| `high` \| `''` | Difficulty level |
+| `priority` | `low` \| `medium` \| `high` \| `urgent` | Urgency level (shown as P3 / P2 / P1 / P1) |
+| `challenge` | `low` \| `medium` \| `high` \| `''` | CR / energy cost (1 / 2 / 3 points; `''` counts as medium) |
 | `assignee` | string | Email |
-| `status` | `open` \| `done` \| `archived` | Current status |
+| `status` | `open` \| `done` \| `archived` \| `canceled` | Current status |
 | `due_date` | string | `YYYY-MM-DD` |
-| `today_slot` | `B1` \| `M1-M3` \| `S1-S5` \| `''` | Loadout slot |
+| `today_slot` | string \| `''` | Loadout position (`'1'`, `'2'`, …); empty when not loaded |
 | `today_set_at` | string | When added to loadout |
 | `completed_at` | string | When completed |
 | `today_user` | string | Email of loadout owner |
@@ -82,9 +98,19 @@ Quests are long-term goals that group related missions. Users can track as many 
 | `is_tracked` | boolean | Whether actively tracked |
 | `tracked_at` | string | When tracking started |
 | `assignee` | string | Email |
-| `status` | `open` \| `done` \| `archived` | Current status |
+| `leader_email` | string | Email of the quest leader |
+| `status` | `open` \| `done` \| `archived` \| `canceled` | Current status |
 | `completed_at` | string | When completed |
 | `color` | string | Hex color for visual grouping |
+| `sort_order` | number \| `''` | Manual ordering on the Quests pane (`''` sorts last) |
+
+### Loadout config (per operator)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `energy_level` | `light` \| `medium` \| `heavy` | Today's energy budget |
+| `points_used` | number | Sum of CR of loaded missions |
+| `points_limit` | number | 7 / 10 / 12 |
 
 ## API Endpoints
 
@@ -97,14 +123,20 @@ All endpoints are accessed via the `action` query parameter on the Apps Script W
 | `createTask` | POST | Create a mission |
 | `updateTask` | POST | Update mission fields |
 | `completeTask` | POST | Mark mission as done |
-| `assignToday` | POST | Add mission to a loadout slot (supports slot swapping) |
-| `clearToday` | POST | Remove mission from loadout |
+| `cancelTask` | POST | Cancel (soft-delete) a mission |
+| `assignToday` | POST | Load a mission into a loadout position (supports reordering) |
+| `clearToday` | POST | Unload a mission |
 | `bulkCreateTasks` | POST | Import multiple missions at once |
+| `getLoadoutConfig` | GET | Energy level and points used / limit for the current operator |
+| `setEnergyLevel` | POST | Change today's energy level |
 | `getQuests` | GET | List quests |
 | `createQuest` | POST | Create a quest |
 | `updateQuest` | POST | Update quest fields |
 | `toggleQuestTracked` | POST | Track or untrack a quest |
-| `completeQuest` | POST | Mark quest as done |
+| `reorderQuests` | POST | Persist manual quest order |
+| `completeQuest` | POST | Mark quest as done (`detach_open` or `cascade_done`) |
+
+The frontend talks to the API only through `web/src/api/client.ts`; all Sheet-isms (string booleans, legacy slot names, etc.) are normalised there.
 
 ## Project Structure
 
@@ -114,17 +146,32 @@ Firebrain v1/
 │   └── Code.gs              # Backend: auth, CRUD, all API endpoints
 ├── web/
 │   ├── src/
-│   │   ├── api/client.ts     # API wrapper, session management
-│   │   ├── components/       # React components (~14 files)
-│   │   ├── context/          # AppContext, ThemeContext, TimerContext
-│   │   ├── styles/index.css  # All styles, themes, CSS variables
+│   │   ├── api/client.ts     # API wrapper, session management (only place that knows Sheet quirks)
+│   │   ├── components/
+│   │   │   ├── primitives/   # Chassis primitives: PanelFrame, HudBar, ItemCard, QuestLogEntry,
+│   │   │   │                 #   StatChip, SegmentedControl, CapacityBar, Slot, CaseGrid, Dialog,
+│   │   │   │                 #   ActionMenu, Tooltip, Notice, OperatorBadge, EmptyState, Icon
+│   │   │   ├── gadgets/      # Gadget drawer tiles: Stopwatch, QuickAdd, Launchpad, Shortcuts
+│   │   │   ├── TaskCard.tsx  # Mission → ItemCard (context + dnd wiring)
+│   │   │   ├── QuestCard.tsx # Quest → QuestLogEntry
+│   │   │   ├── TodayPlanner.tsx / Inbox.tsx / QuestsPanel.tsx   # the three panes
+│   │   │   ├── LoadFromMissionsModal.tsx, SettingsModal.tsx, GadgetDrawer.tsx
+│   │   │   └── *Modal.tsx, Toast.tsx, PasswordScreen.tsx
+│   │   ├── context/          # AppContext (data + actions), ThemeContext (skin, UI scale, sound, motion)
+│   │   ├── skins/            # index.ts registry + <id>.css token overrides (graphite, scifi)
+│   │   ├── styles/
+│   │   │   ├── tokens.css    # Design tokens, reset, utilities (.num, .t-*, .clamp-*, .hit)
+│   │   │   ├── index.css     # Structural chassis styles (imports the files below + skins)
+│   │   │   └── case.css / settings.css / gadgets.css
 │   │   ├── types/            # TypeScript type definitions
-│   │   ├── utils/            # Sound effects (Web Audio API)
-│   │   ├── App.tsx           # Root component, drag & drop context
+│   │   ├── utils/            # casePacking, caseShape, parseMission, stopwatch, dueDate, operators, sounds
+│   │   ├── App.tsx           # Root component, drag & drop context, desktop/mobile shell
 │   │   └── main.tsx          # Entry point
+│   ├── test/smoke/           # Headless smoke harness: run.mjs, scenarios.mjs, mockApi.mjs
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── .env
+├── docs/                     # PLAN.md, CHASSIS_BRIEF.md
 └── README.md
 ```
 
@@ -140,7 +187,7 @@ Firebrain v1/
 
 1. In the spreadsheet: **Extensions > Apps Script**
 2. Paste the contents of `apps-script/Code.gs`
-3. Update the constants at the top: `JOHN_EMAIL`, `STEPH_EMAIL`, `USER_PASSWORDS`
+3. Update the constants at the top: `JOHN_EMAIL`, `STEPH_EMAIL`, `MEGAN_EMAIL`, `USER_PASSWORDS`
 4. Run `setupSheet` once to initialize
 5. Deploy as Web App: Execute as **Me**, Access **Anyone**
 6. Copy the Web App URL
@@ -158,6 +205,7 @@ Edit `.env`:
 VITE_API_BASE_URL=<your Apps Script Web App URL>
 VITE_JOHN_EMAIL=john@example.com
 VITE_STEPH_EMAIL=stef@example.com
+VITE_MEGAN_EMAIL=megan@example.com
 ```
 
 ```bash
@@ -166,6 +214,32 @@ npm run dev       # Dev server at localhost:3000
 npm run build     # Production build
 npm run preview   # Preview production build
 ```
+
+## Testing
+
+**Never test against live data** by completing, deleting or dragging real missions. The test
+tooling below never reaches the Sheet.
+
+```bash
+cd web
+npm run typecheck   # tsc --noEmit
+npm run test        # Vitest unit tests (pure logic: casePacking, parseMission, stopwatch, dueDate, skins contract…)
+npm run smoke       # Headless browser run against a MOCKED backend (screenshots in test/smoke/out/)
+npm run check       # all of the above + build — run before handing work off
+```
+
+The smoke harness (`test/smoke/run.mjs`) starts Vite on a spare port, launches a local
+Chromium (Edge/Chrome; override with `FB_BROWSER=<path>`), intercepts every call to the Apps
+Script host and answers from the in-memory mock in `mockApi.mjs` (mutations work, so flows
+like load → clear → reload can be exercised). Each scenario in `scenarios.mjs` gets a
+logged-in page with fixture data, takes screenshots and may assert. After every scenario the
+harness checks the chassis invariants from `docs/CHASSIS_BRIEF.md` §5: no document scroll,
+no console errors, no italic text, and every visible control ≥ 32 px (44 px on touch
+viewports) unless marked `data-hit-exempt="reason"`.
+
+Protocol for new work: add a unit test for any pure helper, append a smoke scenario for any
+new surface (filter with `npm run smoke -- <name>`), read the screenshots, and finish with
+`npm run check` green. Use `FB_SMOKE_PORT=<port>` if two runs must overlap.
 
 ## Roadmap & Design Docs
 

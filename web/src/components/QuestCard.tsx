@@ -1,28 +1,29 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Quest } from '../types';
 import { useApp } from '../context/AppContext';
+import { describeOperator } from '../utils/operators';
+import { isOverdueDate } from '../utils/dueDate';
+import { QuestLogEntry } from './primitives';
 
 interface QuestCardProps {
   quest: Quest;
-  isCollapsed?: boolean;
-  missionCount?: number;
-  onToggleCollapse?: (questId: string) => void;
+  expanded: boolean;
+  onToggle: (questId: string) => void;
   /** Disables drag-to-reorder (e.g. on mobile) */
   dragDisabled?: boolean;
 }
 
-export function QuestCard({
-  quest,
-  isCollapsed = false,
-  missionCount = 0,
-  onToggleCollapse,
-  dragDisabled = false,
-}: QuestCardProps) {
-  const { openQuestModal, johnEmail, stephEmail, meganEmail } = useApp();
+/**
+ * QuestCard — connects a quest to the app and renders it through the
+ * QuestLogEntry primitive. Progress is derived from real data only:
+ * `done/total` once completed missions are loaded, `n open` otherwise.
+ */
+export function QuestCard({ quest, expanded, onToggle, dragDisabled = false }: QuestCardProps) {
+  const { openQuestModal, toggleQuestTracked, tasks, completedTasks, johnEmail, stephEmail, meganEmail } = useApp();
 
-  // The whole card header is the drag handle; only tracked, open quests reorder
-  const canDrag = !dragDisabled && quest.is_tracked && quest.status !== 'done';
+  const isCompleted = quest.status === 'done';
+  const canDrag = !dragDisabled && quest.is_tracked && !isCompleted;
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `quest-${quest.quest_id}`,
@@ -30,16 +31,35 @@ export function QuestCard({
     disabled: !canDrag,
   });
 
-  // After a real drag, the browser still fires a click on the card —
-  // swallow it so finishing a drag doesn't pop the quest modal open.
+  // After a real drag the browser still fires a click on the row — swallow it
+  // so finishing a drag doesn't pop the quest dialog open.
   const wasDraggedRef = useRef(false);
   useEffect(() => {
-    if (isDragging) {
-      wasDraggedRef.current = true;
-    }
+    if (isDragging) wasDraggedRef.current = true;
   }, [isDragging]);
 
-  const handleClick = () => {
+  const leader = useMemo(
+    () => describeOperator(quest.leader_email || quest.assignee, { johnEmail, stephEmail, meganEmail }),
+    [quest.leader_email, quest.assignee, johnEmail, stephEmail, meganEmail],
+  );
+
+  const { openCount, overdueCount } = useMemo(() => {
+    let open = 0;
+    let overdue = 0;
+    for (const t of tasks) {
+      if (t.status !== 'open' || t.quest_id !== quest.quest_id) continue;
+      open += 1;
+      if (isOverdueDate(t.due_date)) overdue += 1;
+    }
+    return { openCount: open, overdueCount: overdue };
+  }, [tasks, quest.quest_id]);
+
+  const doneCount = useMemo(
+    () => (completedTasks.length > 0 ? completedTasks.filter(t => t.quest_id === quest.quest_id).length : undefined),
+    [completedTasks, quest.quest_id],
+  );
+
+  const handleOpen = () => {
     if (wasDraggedRef.current) {
       wasDraggedRef.current = false;
       return;
@@ -47,71 +67,23 @@ export function QuestCard({
     openQuestModal(quest);
   };
 
-  const handleToggleCollapse = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggleCollapse?.(quest.quest_id);
-  };
-
-  const truncatedTitle = isCollapsed && quest.title.length > 36
-    ? quest.title.substring(0, 36) + '...'
-    : quest.title;
-  const leaderEmail = quest.leader_email || quest.assignee;
-  const leaderName = leaderEmail === johnEmail
-    ? 'John'
-    : leaderEmail === stephEmail
-      ? 'Stef'
-      : leaderEmail === meganEmail
-        ? 'Megan'
-        : leaderEmail.split('@')[0];
-
-  const isCompleted = quest.status === 'done';
-
   return (
-    <div
-      ref={setNodeRef}
-      className={[
-        'quest-card',
-        quest.is_tracked ? 'tracked' : '',
-        isCollapsed ? 'collapsed' : '',
-        isDragging ? 'dragging' : '',
-        isCompleted ? 'completed' : '',
-        canDrag ? 'draggable' : '',
-      ].filter(Boolean).join(' ')}
-      onClick={handleClick}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-      {...(canDrag ? { ...listeners, ...attributes } : {})}
-    >
-      {quest.is_tracked && (
-        <div className="quest-tracked-indicator">
-          <span>Tracked</span>
-        </div>
-      )}
-
-      <div className="quest-content">
-        <div className="quest-title">{truncatedTitle}</div>
-        <div className="quest-leader">
-          Led by {leaderName}
-          {isCollapsed && ` · ${missionCount} mission${missionCount === 1 ? '' : 's'}`}
-        </div>
-        {!isCollapsed && quest.notes && (
-          <div className="quest-notes">{quest.notes}</div>
-        )}
-      </div>
-
-      {!isCompleted && (
-        <button
-          type="button"
-          className={`quest-collapse-btn ${isCollapsed ? 'is-collapsed' : ''}`}
-          onClick={handleToggleCollapse}
-          onPointerDown={e => e.stopPropagation()}
-          title={isCollapsed ? 'Expand quest' : 'Collapse quest'}
-          aria-label={isCollapsed ? 'Expand quest' : 'Collapse quest'}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 15 12 9 18 15" />
-          </svg>
-        </button>
-      )}
-    </div>
+    <QuestLogEntry
+      title={quest.title}
+      color={quest.color || undefined}
+      leader={leader}
+      progress={{ open: openCount, done: doneCount }}
+      overdueCount={overdueCount}
+      tracked={quest.is_tracked}
+      expanded={expanded}
+      completed={isCompleted}
+      dragging={isDragging}
+      onToggle={() => onToggle(quest.quest_id)}
+      onOpen={handleOpen}
+      onTrackToggle={() => { void toggleQuestTracked(quest.quest_id).catch(() => {}); }}
+      rootRef={canDrag ? setNodeRef : undefined}
+      rootProps={canDrag ? ({ ...attributes, ...listeners } as React.HTMLAttributes<HTMLElement>) : undefined}
+      className={canDrag ? 'is-draggable' : ''}
+    />
   );
 }

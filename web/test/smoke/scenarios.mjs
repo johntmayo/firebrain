@@ -1,0 +1,533 @@
+// Smoke scenarios. Each: { name, viewport?: 'desktop'|'laptop'|'phone', run(ctx) }.
+// ctx: { page, api, log, sleep, shot(label), expect(cond, msg), click(sel), clickText(sel, text), count(sel), text(sel) }
+// Keep scenarios short and visual; put logic assertions in vitest unit tests.
+
+export const scenarios = [
+  {
+    name: 'desktop-overview',
+    run: async ({ shot, count, expect, text }) => {
+      await shot();
+      expect((await count('.pane-today .item-card')) >= 5, 'loadout shows the 5 loaded missions');
+      expect((await count('.overdue-section .item-card')) === 2, 'overdue section lists quest + cache overdue missions');
+      expect((await count('.accomplished__list .item-card')) === 2, 'accomplished today shows 2 cleared missions');
+      const cap = await text('.cap-bar__label');
+      expect(cap && /10\s*\/\s*10/.test(cap), `capacity label reads 10 / 10 (got "${cap}")`);
+    },
+  },
+  {
+    name: 'desktop-hover-and-tooltip',
+    run: async ({ page, sleep, shot, count, expect }) => {
+      await page.hover('.pane-inbox .item-card');
+      await sleep(600);
+      expect((await count('.tooltip')) === 1, 'tooltip shows on hover');
+      await shot('hover');
+      // Moving the pointer away must dismiss it even without a synthetic mouseleave.
+      await page.mouse.move(5, 5);
+      await sleep(150);
+      expect((await count('.tooltip')) === 0, 'tooltip dismissed after pointer leaves');
+      // Opening the dialog from a hovered card must not leave a tooltip behind.
+      await page.hover('.pane-inbox .item-card');
+      await sleep(600);
+      await page.click('.pane-inbox .item-card');
+      await sleep(300);
+      expect((await count('.tooltip')) === 0, 'tooltip dismissed when the card is clicked');
+      await shot('dialog');
+      await page.keyboard.press('Escape');
+      await sleep(200);
+      expect((await count('.dialog')) === 0, 'Escape closes the dialog');
+    },
+  },
+  {
+    name: 'desktop-menus-and-bulk',
+    run: async ({ page, sleep, shot, click, clickText, count, expect }) => {
+      await click('.operator-menu-trigger');
+      expect((await count('.action-menu')) === 1, 'operator menu opens');
+      await shot('operator-menu');
+      await page.keyboard.press('Escape');
+      await clickText('.action-card', 'Bulk');
+      expect((await count('.dialog')) === 1, 'bulk import opens as a dialog');
+      await shot('bulk');
+      await page.keyboard.press('Escape');
+      await sleep(200);
+    },
+  },
+  {
+    name: 'desktop-views',
+    run: async ({ page, sleep, shot, click }) => {
+      await click('.seg__btn[data-value="buckets"]');
+      await shot('grid');
+      await click('.seg__btn[data-value="matrix"]');
+      await shot('matrix');
+      await click('.seg__btn[data-value="list"]');
+    },
+  },
+  {
+    name: 'desktop-notices-stack',
+    run: async ({ page, sleep, shot, click, count, expect }) => {
+      await click('.seg__btn[data-value="heavy"]');
+      await click('.seg__btn[data-value="light"]');
+      await sleep(200);
+      expect((await count('.notice')) >= 2, 'rapid toasts stack instead of replacing each other');
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-complete-mission',
+    run: async ({ page, sleep, shot, count, expect, log }) => {
+      const before = await count('.pane-inbox .item-card');
+      await page.hover('.pane-inbox .item-card');
+      await sleep(200);
+      await page.click('.pane-inbox .item-card .item-card__done');
+      await sleep(500);
+      expect((await count('.pane-inbox .item-card')) === before - 1, 'completing a mission removes it from the cache');
+      expect(log.apiCalls.some(c => c.action === 'completeTask'), 'completeTask was called on the (mock) API');
+      await shot();
+    },
+  },
+  {
+    name: 'laptop-overview',
+    viewport: 'laptop',
+    run: async ({ shot }) => { await shot(); },
+  },
+  {
+    name: 'phone-tabs',
+    viewport: 'phone',
+    run: async ({ shot, clickText, count, expect, page, sleep }) => {
+      await shot('default');
+      await clickText('.mobile-tab', 'Loadout');
+      await shot('loadout');
+      await clickText('.mobile-tab', 'Missions');
+      await shot('missions');
+      await page.click('.pane-inbox .item-card');
+      await sleep(400);
+      expect((await count('.dialog')) === 1, 'tapping a mission opens the sheet');
+      await shot('sheet');
+    },
+  },
+
+  // ---- Settings & skins ------------------------------------------------------
+  {
+    name: 'desktop-settings',
+    run: async ({ page, sleep, shot, click, clickText, count, expect }) => {
+      await click('.operator-menu-trigger');
+      expect((await count('.action-menu')) === 1, 'operator menu opens');
+      expect((await count('.action-menu .menu-setting')) === 0, 'UI scale no longer lives inline in the menu');
+      await clickText('.action-menu__item', 'Settings');
+      await sleep(250);
+      expect((await count('.dialog')) === 1, 'Settings opens as a dialog');
+      expect((await count('.skin-card')) >= 2, 'skin picker lists at least Graphite and Sci-fi');
+      expect((await count('.dialog .seg__btn[data-value="1"]')) === 1, 'UI scale control moved into Settings');
+      expect((await count('.dialog .settings-account__logout')) === 1, 'Account section has Log out');
+      await shot();
+      await page.keyboard.press('Escape');
+      await sleep(200);
+      expect((await count('.dialog')) === 0, 'Escape closes Settings');
+    },
+  },
+  {
+    name: 'desktop-skin-scifi',
+    run: async ({ page, sleep, shot, click, clickText, count, expect }) => {
+      await click('.operator-menu-trigger');
+      await clickText('.action-menu__item', 'Settings');
+      await sleep(250);
+      await click('.skin-card[data-skin-id="scifi"]');
+      const skin = await page.evaluate(() => document.documentElement.dataset.skin);
+      expect(skin === 'scifi', `data-skin is scifi after clicking the card (got "${skin}")`);
+      const motion = await page.evaluate(() => document.documentElement.dataset.motion);
+      expect(motion === 'snappy', `data-motion follows the skin (got "${motion}")`);
+      await shot('settings');
+      await page.keyboard.press('Escape');
+      await sleep(300);
+      await page.evaluate(() => document.fonts.ready);
+      await shot();
+      // Mission dialog in the skin
+      await page.click('.pane-inbox .item-card');
+      await sleep(300);
+      expect((await count('.dialog')) === 1, 'mission dialog opens in the Sci-fi skin');
+      await shot('dialog');
+      await page.keyboard.press('Escape');
+      await sleep(200);
+      // Operator menu in the skin
+      await click('.operator-menu-trigger');
+      expect((await count('.action-menu')) === 1, 'operator menu opens in the Sci-fi skin');
+      await shot('menu');
+      await page.keyboard.press('Escape');
+      await sleep(150);
+      // Tooltip + views in the skin
+      await page.hover('.pane-inbox .item-card');
+      await sleep(600);
+      await shot('tooltip');
+      await page.mouse.move(5, 5);
+      await click('.seg__btn[data-value="matrix"]');
+      await shot('matrix');
+      await click('.seg__btn[data-value="list"]');
+    },
+  },
+  {
+    name: 'desktop-skin-persists',
+    run: async ({ page, sleep, click, clickText, expect }) => {
+      await click('.operator-menu-trigger');
+      await clickText('.action-menu__item', 'Settings');
+      await sleep(250);
+      await click('.skin-card[data-skin-id="scifi"]');
+      await page.keyboard.press('Escape');
+      const stored = await page.evaluate(() => localStorage.getItem('firebrain_skin'));
+      expect(stored === 'scifi', `skin persisted to localStorage (got "${stored}")`);
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.app', { timeout: 10000 });
+      await sleep(300);
+      const skin = await page.evaluate(() => document.documentElement.dataset.skin);
+      expect(skin === 'scifi', `skin survives a reload (got "${skin}")`);
+    },
+  },
+  {
+    name: 'phone-skin-scifi',
+    viewport: 'phone',
+    run: async ({ page, sleep, shot, clickText, count, expect }) => {
+      await page.evaluate(() => localStorage.setItem('firebrain_skin', 'scifi'));
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.app', { timeout: 10000 });
+      await sleep(400);
+      await page.evaluate(() => document.fonts.ready);
+      const skin = await page.evaluate(() => document.documentElement.dataset.skin);
+      expect(skin === 'scifi', `phone boots into the stored skin (got "${skin}")`);
+      await shot('quests');
+      await clickText('.mobile-tab', 'Loadout');
+      await shot('loadout');
+      await clickText('.mobile-tab', 'Missions');
+      await shot('missions');
+      await page.click('.pane-inbox .item-card');
+      await sleep(400);
+      expect((await count('.dialog')) === 1, 'mission sheet opens in the Sci-fi skin');
+      await shot('sheet');
+      await page.keyboard.press('Escape');
+      await sleep(200);
+    },
+  },
+
+  // ---- Gadget drawer (bottom tool belt) -----------------------------------
+  {
+    name: 'desktop-gadgets-open',
+    run: async ({ page, sleep, shot, click, count, expect }) => {
+      expect((await count('.gadget-drawer.is-open')) === 0, 'belt starts collapsed');
+      await click('.gadget-drawer__tab');
+      expect((await count('.gadget-drawer.is-open')) === 1, 'pull tab opens the belt');
+      expect((await count('.gadget')) === 4, 'four gadget tiles on the belt');
+      const tray = await page.$eval('.gadget-drawer__tray', el => el.getBoundingClientRect().height);
+      expect(Math.round(tray) === 168, `tray is exactly --h-drawer 168px (got ${tray})`);
+      const tile = await page.$eval('.gadget', el => { const r = el.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; });
+      expect(tile[0] === 240 && tile[1] === 136, `tile is 240×136 (got ${tile.join('×')})`);
+      await page.hover('.gadget--stopwatch .gadget__title');
+      await sleep(600);
+      expect((await count('.tooltip')) === 1, 'gadget title shows its teaching tooltip');
+      const file = await shot();
+      // 1:1 crop of the belt so the tile detail (1px borders, mono numerals) is reviewable.
+      const vp = page.viewport();
+      await page.screenshot({ path: file.replace(/\.png$/, '-belt.png'), clip: { x: 0, y: vp.height - 200, width: vp.width, height: 200 } });
+      await page.mouse.move(5, 5);
+      // Esc from inside the belt collapses it.
+      await page.focus('.quick-add__input');
+      await page.keyboard.press('Escape');
+      await sleep(250);
+      expect((await count('.gadget-drawer.is-open')) === 0, 'Esc inside the belt collapses it');
+    },
+  },
+  {
+    name: 'desktop-gadgets-stopwatch',
+    run: async ({ page, sleep, shot, click, text, expect }) => {
+      await click('.gadget-drawer__tab');
+      expect((await text('.stopwatch__display')) === '00:00', 'stopwatch starts at 00:00');
+      await click('.gadget--stopwatch [data-action="start"]');
+      await sleep(1200);
+      const running = await text('.stopwatch__display');
+      expect(running !== '00:00', `display advanced while running (got "${running}")`);
+      await click('.gadget--stopwatch [data-action="pause"]');
+      const paused = await text('.stopwatch__display');
+      await sleep(1100);
+      expect((await text('.stopwatch__display')) === paused, 'display holds while paused');
+      await shot();
+      // Countdown presets show the full preset time and the belt tab echoes a running watch.
+      await click('.stopwatch__modes .seg__btn[data-value="25"]');
+      expect((await text('.stopwatch__display')) === '25:00', 'selecting 25 min shows 25:00');
+      await click('.gadget--stopwatch [data-action="start"]');
+      await click('.gadget-drawer__tab');
+      await sleep(300);
+      const readout = await text('.gadget-drawer__readout');
+      expect(readout && /^\d\d:\d\d$/.test(readout), `collapsed tab shows the running readout (got "${readout}")`);
+      await shot('collapsed-running');
+    },
+  },
+  {
+    name: 'desktop-gadgets-quickadd',
+    run: async ({ page, sleep, shot, click, count, text, expect, log }) => {
+      await click('.gadget-drawer__tab');
+      const before = await count('.pane-inbox .item-card');
+      await page.focus('.quick-add__input');
+      await page.keyboard.type('Smoke mission -p1 ~low @tomorrow');
+      await sleep(150);
+      expect((await text('.quick-add__title')) === 'Smoke mission', 'preview strips tokens from the title');
+      expect((await count('.quick-add__preview .stat-chip')) >= 3, 'preview shows P · CR · due chips');
+      await shot('preview');
+      await page.keyboard.press('Enter');
+      await sleep(600);
+      const call = log.apiCalls.find(c => c.action === 'createTask');
+      expect(Boolean(call), 'Enter calls createTask on the (mock) API');
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      const tomorrow = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      expect(call && call.body.title === 'Smoke mission', `title sent (got "${call && call.body.title}")`);
+      expect(call && (call.body.priority === 'high' || call.body.priority === 'urgent'), `-p1 → priority high (got "${call && call.body.priority}")`);
+      expect(call && call.body.challenge === 'low', `~low → challenge low (got "${call && call.body.challenge}")`);
+      expect(call && call.body.due_date === tomorrow, `@tomorrow → ${tomorrow} (got "${call && call.body.due_date}")`);
+      expect((await count('.pane-inbox .item-card')) === before + 1, 'cache count increased by one');
+      expect((await page.$eval('.quick-add__input', el => el.value)) === '', 'input clears after creating');
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-gadgets-persist',
+    run: async ({ page, sleep, click, count, expect }) => {
+      await click('.gadget-drawer__tab');
+      expect((await count('.gadget-drawer.is-open')) === 1, 'belt open before reload');
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.app', { timeout: 10000 });
+      await sleep(400);
+      expect((await count('.gadget-drawer.is-open')) === 1, 'belt still open after reload');
+      expect((await page.evaluate(() => localStorage.getItem('firebrain_gadgets_open'))) === '1', 'open state persisted under firebrain_gadgets_open');
+    },
+  },
+
+  // ---- The Case (CHASSIS_BRIEF §6) -----------------------------------------
+  // John's loadout is CR 1+2+2+2+3 = 10. At Medium (10 live of 6×2) the packing
+  // contract (casePacking.ts, no auto-reflow) places 4 items and squeezes the
+  // CR3 into the tray: row 2 has only four live cells and 2 are already taken.
+  {
+    name: 'desktop-case',
+    run: async ({ page, sleep, shot, count, expect, text }) => {
+      expect((await count('.pane-today .case-grid[data-cols="6"][data-rows="2"]')) === 1, 'desktop case is a 6×2 grid');
+      expect((await count('.case-cell')) === 12, '12 cells are always rendered');
+      expect((await count('.case-cell--locked')) === 2, '2 cells locked at Medium');
+      expect((await count('.case-cell--free')) === 3, '3 free cells (the row-1 gap and two in row 2)');
+      expect((await count('.case-item')) === 4, '4 missions placed in the case');
+      expect((await count('.case-tray .case-tray__item.is-squeezed')) === 1, 'the CR3 is squeezed out (within budget) into the tray');
+      expect((await count('.case-tray__item.is-over-budget')) === 0, 'nothing is over budget at Medium');
+      const spans = await page.$$eval('.case-item', els => els.map(e => e.dataset.span).join(''));
+      expect(spans === '1222', `items span their CR (got ${spans})`);
+      const cap = await text('.cap-bar__label');
+      expect(cap && /10\s*\/\s*10/.test(cap), `capacity reads 10 / 10 (got "${cap}")`);
+      expect((await count('.cap-bar__seg')) === 10, 'one capacity segment per live cell');
+      await shot();
+      // Hover toolbar: ← → ✕ ✓ appear on the item and are ≥ 32px targets.
+      await page.hover('.case-item[data-span="2"]');
+      await sleep(200);
+      expect((await count('.case-item:hover .case-item__strip .case-item__btn')) === 4, 'hover shows shift/unload/clear actions');
+      await shot('hover');
+      await page.mouse.move(5, 5);
+    },
+  },
+  {
+    name: 'desktop-case-overflow',
+    run: async ({ page, sleep, shot, click, count, expect, text }) => {
+      await click('.seg__btn[data-value="light"]');
+      await sleep(300);
+      expect((await count('.case-cell--locked')) === 5, '5 cells locked at Light');
+      expect((await count('.case-item')) === 3, '3 missions fit in 7 live cells');
+      expect((await count('.case-tray')) === 1, 'overflow tray renders when overloaded');
+      expect((await count('.case-tray__item.is-over-budget')) === 1, 'the CR3 is over budget (danger)');
+      expect((await count('.case-tray__item.is-squeezed')) === 1, 'the squeezed CR2 stays neutral');
+      const over = await text('.case-tray__over');
+      expect(over === '+3', `tray header shows +3 (got "${over}")`);
+      const cap = await text('.cap-bar__label');
+      expect(cap && /10\s*\/\s*7/.test(cap) && /\+3/.test(cap), `capacity reads 10 / 7 +3 (got "${cap}")`);
+      expect((await count('.cap-bar__seg.is-over')) === 3, '3 danger segments appended');
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-case-heavy',
+    run: async ({ sleep, shot, click, count, expect }) => {
+      await click('.seg__btn[data-value="heavy"]');
+      await sleep(300);
+      expect((await count('.case-cell--locked')) === 0, 'no locked cells at Heavy');
+      expect((await count('.case-item')) === 5, 'all 5 missions fit in 12 live cells');
+      expect((await count('.case-tray')) === 0, 'tray is not rendered when nothing overflows');
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-case-actions',
+    run: async ({ page, sleep, shot, count, expect, log }) => {
+      // Click equivalents of drag: shift the squeezed CR3 earlier until everything packs.
+      // a b c d E → (↑ from the tray) a b c E d: E lands in row 2, d is squeezed out instead.
+      const before = await count('.case-item');
+      await page.click('.case-tray__shift');
+      await sleep(400);
+      expect((await count('.case-item')) === before, 'one shift swaps which mission is squeezed out');
+      expect((await count('.case-item[data-index="3"][data-span="3"]')) === 1, 'the CR3 is now placed at index 3');
+      expect(log.apiCalls.filter(c => c.action === 'assignToday').length >= 2, 'reorder renumbers slots via assignToday');
+      // ← on the placed CR3: a b E c d → row 1 = a E E E b b, row 2 = c c d d. All five fit.
+      await page.hover('.case-item[data-index="3"]');
+      await sleep(200);
+      await page.click('.case-item[data-index="3"] .case-item__btn[aria-label="Shift earlier"]');
+      await sleep(400);
+      const after = await count('.case-item');
+      expect(after === before + 1, `second shift packs all missions into the case (${before} → ${after})`);
+      expect((await count('.case-tray')) === 0, 'tray disappears once everything fits');
+      await page.mouse.move(5, 5);
+      await shot('packed');
+      // ✕ on hover unloads.
+      await page.hover('.case-item[data-index="0"]');
+      await sleep(200);
+      await page.click('.case-item[data-index="0"] .case-item__btn[aria-label="Unload from today"]');
+      await sleep(400);
+      expect(log.apiCalls.some(c => c.action === 'clearToday'), 'unload calls clearToday');
+      expect((await count('.case-item')) === after - 1, 'unloaded mission leaves the case');
+      await page.mouse.move(5, 5);
+      await shot('unloaded');
+    },
+  },
+  {
+    name: 'desktop-case-drop',
+    run: async ({ page, sleep, shot, count, expect, log }) => {
+      // Drag a CR1 from the cache onto the free cell at the end of row 1 (n=5).
+      // insertIndexForCell(5) = 3 → it lands before "Zone 153" and fills the gap.
+      const src = await page.$('.pane-inbox .overdue-section .item-card'); // "Overdue in a quest", CR1
+      const cell = await page.$('.case-cell--free[data-cell="5"]');
+      expect(Boolean(src && cell), 'source card and free cell 5 exist');
+      const s = await src.boundingBox();
+      const c = await cell.boundingBox();
+      await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(s.x + s.width / 2 + 16, s.y + s.height / 2 + 4, { steps: 4 });
+      await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 20 });
+      await sleep(150);
+      expect((await count('.case-cell--free[data-cell="5"].is-over')) === 1, 'hovered free cell highlights as the drop target');
+      await shot('dragging');
+      await page.mouse.up();
+      await sleep(600);
+      expect((await count('.case-item[data-cell="5"][data-span="1"][data-index="3"]')) === 1, 'dropped mission occupies cell 5 at index 3');
+      expect((await count('.case-item')) === 5, 'five missions placed (CR3 pushed to the tray, now over budget)');
+      expect((await count('.case-tray__item.is-over-budget')) === 1, 'the CR3 is flagged over budget');
+      const assigns = log.apiCalls.filter(c => c.action === 'assignToday');
+      expect(assigns.length === 6, `insert renumbers every slot via assignToday (got ${assigns.length})`);
+      const slots = assigns.map(a => `${a.body.task_id}:${a.body.today_slot}`).join(' ');
+      expect(/t6:4\b/.test(slots) && /t4:5\b/.test(slots) && /t5:6\b/.test(slots), `new order is 1..6 with t6 at slot 4 (got ${slots})`);
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-load-picker',
+    run: async ({ page, sleep, shot, clickText, count, expect, log, text }) => {
+      const itemsBefore = (await count('.case-item')) + (await count('.case-tray__item'));
+      await clickText('.pane-today .hud-btn', 'Load');
+      expect((await count('.dialog')) === 1, 'Load from Missions opens as a dialog');
+      const rows = await count('.pick-row');
+      expect(rows >= 2, `picker lists John's unloaded missions (got ${rows})`);
+      await page.click('.pick-row:nth-child(1)');
+      await page.click('.pick-row:nth-child(2)');
+      await sleep(150);
+      expect((await count('.pick-row.is-checked')) === 2, 'two rows checked');
+      const total = await text('.pick-total');
+      expect(total && /^\+\d+ CR/.test(total), `running total shows +N CR (got "${total}")`);
+      await shot('picker');
+      await clickText('.dialog__foot .btn--primary', 'Load');
+      await sleep(900);
+      const assigns = log.apiCalls.filter(c => c.action === 'assignToday');
+      expect(assigns.length === 2, `confirm assigns each selected mission (got ${assigns.length})`);
+      const slots = assigns.map(c => c.body.today_slot).join(',');
+      expect(slots === '6,7', `new missions take the next slots in order (got ${slots})`);
+      expect((await count('.dialog')) === 0, 'picker closes after loading');
+      const itemsAfter = (await count('.case-item')) + (await count('.case-tray__item'));
+      expect(itemsAfter === itemsBefore + 2, `case gains two missions (${itemsBefore} → ${itemsAfter})`);
+      await shot();
+    },
+  },
+  {
+    name: 'desktop-case-list-toggle',
+    run: async ({ page, sleep, shot, click, count, expect }) => {
+      await click('.pane-today .seg__btn[data-value="list"]');
+      expect((await count('.pane-today .loadout-list')) === 1, 'List format shows the ordered list');
+      expect((await count('.case-grid')) === 0, 'Case grid is gone in List format');
+      expect((await count('.pane-today .loadout-row')) === 5, 'list shows all 5 loaded missions');
+      const stored = await page.evaluate(() => localStorage.getItem('firebrain_loadout_format'));
+      expect(stored === 'list', `format persisted to localStorage (got ${stored})`);
+      await shot('list');
+      await click('.pane-today .seg__btn[data-value="case"]');
+      expect((await count('.case-grid')) === 1, 'switching back restores the Case');
+      await sleep(100);
+    },
+  },
+  {
+    name: 'phone-case',
+    viewport: 'phone',
+    run: async ({ shot, clickText, count, expect }) => {
+      await clickText('.mobile-tab', 'Loadout');
+      expect((await count('.case-grid[data-cols="4"][data-rows="3"]')) === 1, 'handheld case is 4×3');
+      expect((await count('.case-cell')) === 12, '12 cells on the phone too');
+      expect((await count('.case-cell--locked')) === 2, '2 locked at Medium');
+      expect((await count('.case-item__menu')) >= 1, 'touch gets a ⋯ menu per item (click path for every drag action)');
+      await shot();
+    },
+  },
+
+  // ---- Teaching tooltips ----------------------------------------------------
+  // Every control teaches itself on hover: one sentence, what it does + how to
+  // use it. Exactly one tooltip at a time; icon-only buttons are always labelled.
+  {
+    name: 'desktop-teaching-tooltips',
+    run: async ({ page, sleep, shot, count, expect }) => {
+      const targets = [
+        ['Who segment', '.pane-inbox .seg__btn[data-value="john"]'],
+        ['View segment', '.pane-inbox .seg__btn[data-value="matrix"]'],
+        ['Energy segment', '.pane-today .seg__btn[data-value="medium"]'],
+        ['Case/List toggle', '.pane-today .seg__btn[data-value="list"]'],
+        ['Load button', '.pane-today .hud-bar .hud-btn'],
+        ['quest chevron', '.quest-entry__chevron'],
+        ['operator menu trigger', '.operator-menu-trigger'],
+      ];
+      for (const [label, selector] of targets) {
+        await page.hover(selector);
+        await sleep(600);
+        const tips = await count('.tooltip');
+        expect(tips === 1, `${label}: exactly one tooltip while hovered (got ${tips})`);
+        const text = (await page.$$eval('.tooltip', els => els.map(e => e.textContent.trim()).join(' | '))) || '';
+        expect(text.length > 0, `${label}: tooltip text is non-empty`);
+        expect(text.length <= 140, `${label}: tooltip is one sentence, ≤ 140 chars (got ${text.length}: "${text}")`);
+        if (label === 'Energy segment') await shot('energy');
+        await page.mouse.move(5, 5);
+        await sleep(150);
+        expect((await count('.tooltip')) === 0, `${label}: tooltip dismissed after pointer leaves`);
+      }
+      // Tooltips are hidden on touch, so meaning can never live in them alone:
+      // every icon-only button carries an aria-label or title.
+      const offenders = await page.evaluate(() => (
+        [...document.querySelectorAll('button:not([aria-label]):not([title])')]
+          .filter(b => !b.textContent.trim())
+          .map(b => `button.${[...b.classList].slice(0, 2).join('.')}`)
+      ));
+      expect(offenders.length === 0, `icon-only buttons without aria-label/title: ${offenders.join(', ')}`);
+      // The one first-use teaching surface: the own-loadout empty state explains
+      // the loop. Empty the loadout through the List format's hover ✕ (click path).
+      await page.click('.pane-today .seg__btn[data-value="list"]');
+      await sleep(200);
+      for (let i = 0; i < 8; i++) {
+        const row = await page.$('.pane-today .loadout-row .item-card');
+        if (!row) break;
+        await row.hover();
+        await sleep(150);
+        const unload = await row.$('.item-card__hover-actions [aria-label="Unload from today"]');
+        if (!unload) break;
+        await unload.click();
+        await sleep(350);
+      }
+      await page.mouse.move(5, 5);
+      await sleep(150);
+      expect((await count('.pane-today .loadout-row')) === 0, 'own loadout emptied via the ✕ click path');
+      await page.click('.pane-today .seg__btn[data-value="case"]');
+      await page.mouse.move(5, 5);
+      await sleep(200);
+      const hint = await page.$eval('.pane-today .empty-state__hint', el => el.textContent).catch(() => '');
+      expect(/Load missions from the cache/.test(hint) && /Energy sets how many cells are live/.test(hint) && /Accomplished Today/.test(hint), `empty loadout teaches the loop (got "${hint}")`);
+      await shot('empty-loadout');
+    },
+  },
+];

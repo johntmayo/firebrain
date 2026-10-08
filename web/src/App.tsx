@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -27,14 +27,25 @@ import { QuestModal } from './components/QuestModal';
 import { QuestsPanel } from './components/QuestsPanel';
 import { Toast } from './components/Toast';
 import { QuestCompleteModal } from './components/QuestCompleteModal';
-
+import { BulkImportModal } from './components/BulkImportModal';
 import { PasswordScreen } from './components/PasswordScreen';
-import { Gizmodroar } from './components/Gizmodroar';
+import { GadgetDrawer } from './components/GadgetDrawer';
+import { SettingsModal } from './components/SettingsModal';
 import { clearSessionToken, isAuthenticated } from './api/client';
 import { sounds } from './utils/sounds';
+import { describeOperator } from './utils/operators';
 import { getPriorityLevel } from './types';
 import type { Task, Quest } from './types';
 import firebrainLogo from './assets/firebrain_logo.svg';
+import {
+  ActionMenu,
+  Icon,
+  OperatorBadge,
+  PaneDragHandleContext,
+  PriorityChip,
+  type ActionMenuItem,
+  type IconName,
+} from './components/primitives';
 
 type MobilePane = 'today' | 'quests' | 'inbox';
 type DesktopPane = 'today' | 'quests' | 'inbox';
@@ -69,23 +80,29 @@ function getDesktopPaneLabel(pane: DesktopPane) {
   return 'Missions';
 }
 
+function getPaneIcon(pane: DesktopPane): IconName {
+  if (pane === 'today') return 'loadout';
+  if (pane === 'quests') return 'quest';
+  return 'cache';
+}
+
 function AppContent() {
-  const { 
-    currentUser, 
-    johnEmail, 
+  const {
+    currentUser,
+    johnEmail,
     stephEmail,
     meganEmail,
     viewingLoadoutUser,
-    assignToday, 
+    loadTask,
     reorderLoadoutTasks,
     clearToday,
     showToast,
-    loadoutConfig,
     loadoutTasks,
     updateTask,
     reorderQuests,
   } = useApp();
-  
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
   const [activeQuest, setActiveQuest] = React.useState<Quest | null>(null);
   const [activePanel, setActivePanel] = React.useState<DesktopPane | null>(null);
@@ -110,7 +127,7 @@ function AppContent() {
   React.useEffect(() => {
     localStorage.setItem(DESKTOP_PANE_ORDER_KEY, JSON.stringify(desktopPaneOrder));
   }, [desktopPaneOrder]);
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -119,8 +136,8 @@ function AppContent() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 8,
+        delay: 250,
+        tolerance: 10,
       },
     })
   );
@@ -133,7 +150,7 @@ function AppContent() {
 
     return collisions.filter(collision => isDesktopPane(String(collision.id)));
   }, []);
-  
+
   const handleDragStart = (event: DragStartEvent) => {
     const panel = event.active.data.current?.panel as DesktopPane | undefined;
     const task = event.active.data.current?.task as Task | undefined;
@@ -142,16 +159,18 @@ function AppContent() {
       setActivePanel(panel);
     } else if (task) {
       setActiveTask(task);
+      sounds.dragStart();
     } else if (quest) {
       setActiveQuest(quest);
+      sounds.dragStart();
     }
   };
-  
+
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveTask(null);
     setActiveQuest(null);
     setActivePanel(null);
-    
+
     const { active, over } = event;
     const draggedPanel = active.data.current?.panel as DesktopPane | undefined;
 
@@ -171,9 +190,9 @@ function AppContent() {
       sounds.dropSuccess();
       return;
     }
-    
+
     const isViewingOwnLoadout = viewingLoadoutUser === currentUser;
-    
+
     if (!over) {
       // Dropped outside any droppable - if from a slot, clear it (only if viewing own loadout)
       const fromSlot = active.data.current?.fromSlot;
@@ -190,9 +209,9 @@ function AppContent() {
       }
       return;
     }
-    
+
     const overId = over.id as string;
-    
+
     // Quest drags reorder the Quests board (drop on another quest)
     if (active.data.current?.type === 'quest') {
       const draggedQuest = active.data.current?.quest as Quest;
@@ -206,41 +225,63 @@ function AppContent() {
         }
       } else if (overId === 'loadout-drop-zone') {
         sounds.dropCancel();
-        showToast('Quests can\'t go in the loadout — drag individual missions instead', 'error');
+        showToast('Quests can\'t be loaded — load their missions instead', 'error');
       } else {
         sounds.dropCancel();
       }
       return;
     }
-    
-    const appendTaskToLoadout = (task: Task) => {
-      const parseLoadoutSlotOrder = (slotValue: string) => {
-        const slot = (slotValue || '').toString().trim();
-        if (!slot) return 0;
 
-        const numeric = parseInt(slot, 10);
-        if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+    // Dropped on a Case cell (free cell or an item's cell). The droppable
+    // carries `insertIndex` from casePacking.insertIndexForCell: a free cell
+    // inserts after everything that starts before it, an item cell inserts
+    // before that item. Slots are renumbered 1..n in the resulting order.
+    if (overId.startsWith('case-cell-')) {
+      if (!isViewingOwnLoadout) {
+        showToast('You can only edit your own loadout', 'error');
+        sounds.dropCancel();
+        return;
+      }
 
-        const legacyOrder: Record<string, number> = {
-          B1: 1, M1: 2, M2: 3, M3: 4, S1: 5, S2: 6, S3: 7, S4: 8, S5: 9,
-        };
-        return legacyOrder[slot.toUpperCase()] || 0;
-      };
+      const task = active.data.current?.task as Task | undefined;
+      if (!task) {
+        sounds.dropCancel();
+        return;
+      }
+      const ids = loadoutTasks.map(loadoutTask => loadoutTask.task_id);
+      const rawIndex = Number(over.data.current?.insertIndex);
+      const insertIndex = Number.isFinite(rawIndex) ? Math.max(0, Math.min(rawIndex, ids.length)) : ids.length;
+      const fromIndex = ids.indexOf(task.task_id);
 
-      const nextSlot = String(
-        loadoutTasks.reduce((max, loadoutTask) => {
-          const order = parseLoadoutSlotOrder(loadoutTask.today_slot || '');
-          return order > max ? order : max;
-        }, 0) + 1
-      );
+      let nextIds: string[];
+      if (fromIndex === -1) {
+        if (insertIndex >= ids.length) {
+          sounds.dropSuccess();
+          void loadTask(task.task_id);
+          return;
+        }
+        nextIds = [...ids.slice(0, insertIndex), task.task_id, ...ids.slice(insertIndex)];
+      } else {
+        const toIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+        if (toIndex === fromIndex) {
+          sounds.dropCancel();
+          return;
+        }
+        nextIds = arrayMove(ids, fromIndex, toIndex);
+      }
 
-      sounds.dropSuccess();
-      assignToday(task.task_id, nextSlot);
-    };
+      try {
+        await reorderLoadoutTasks(nextIds);
+        sounds.dropSuccess();
+      } catch {
+        sounds.dropCancel();
+      }
+      return;
+    }
 
     if (overId.startsWith('loadout-task-')) {
       if (!isViewingOwnLoadout) {
-        showToast('You can only edit your own Today slots', 'error');
+        showToast('You can only edit your own loadout', 'error');
         sounds.dropCancel();
         return;
       }
@@ -252,7 +293,8 @@ function AppContent() {
       const toIndex = loadoutTasks.findIndex(loadoutTask => loadoutTask.task_id === targetTaskId);
 
       if (fromIndex === -1 || toIndex === -1) {
-        appendTaskToLoadout(task);
+        sounds.dropSuccess();
+        void loadTask(task.task_id);
         return;
       }
 
@@ -273,14 +315,15 @@ function AppContent() {
     // Dropped on loadout flow: append when not targeting a specific row.
     if (overId === 'loadout-drop-zone') {
       if (!isViewingOwnLoadout) {
-        showToast('You can only edit your own Today slots', 'error');
+        showToast('You can only edit your own loadout', 'error');
         sounds.dropCancel();
         return;
       }
 
       const task = active.data.current?.task as Task;
       if (!task) return;
-      appendTaskToLoadout(task);
+      sounds.dropSuccess();
+      void loadTask(task.task_id);
     }
     // Dropped on a Quest - assign mission to that quest
     else if (overId.startsWith('quest-drop-')) {
@@ -302,7 +345,7 @@ function AppContent() {
       }
       return;
     }
-    // Dropped on Cache (inbox) - clear from loadout and clear from quest so it uses priority color again
+    // Dropped on the Cache - unload and detach from any quest
     else if (overId === 'inbox-drop-zone') {
       const task = active.data.current?.task as Task;
       if (!task) {
@@ -313,48 +356,43 @@ function AppContent() {
         if (task.today_slot && isViewingOwnLoadout) {
           await clearToday(task.task_id);
         }
-        await updateTask({ task_id: task.task_id, quest_id: '' });
+        if (task.quest_id) {
+          await updateTask({ task_id: task.task_id, quest_id: '' });
+        }
         sounds.dropSuccess();
       } catch {
         sounds.dropCancel();
       }
       return;
     } else {
-      // Dropped somewhere invalid
       sounds.dropCancel();
     }
   };
-  
+
   const handleDragCancel = () => {
     setActiveTask(null);
     setActiveQuest(null);
     setActivePanel(null);
     sounds.dropCancel();
   };
-  
-  const displayName = currentUser === johnEmail ? 'John' : 
-                      currentUser === stephEmail ? 'Stef' : 
-                      currentUser === meganEmail ? 'Megan' :
-                      currentUser.split('@')[0];
-  const userBadgeClass = currentUser === johnEmail
-    ? 'john'
-    : currentUser === stephEmail
-      ? 'steph'
-      : currentUser === meganEmail
-        ? 'megan'
-        : 'user';
-  
-  // Calculate some stats for status bar
-  const energyPercent = loadoutConfig
-    ? Math.max(0, Math.round((loadoutConfig.points_used / Math.max(loadoutConfig.points_limit, 1)) * 100))
-    : 0;
+
+  const operator = useMemo(
+    () => describeOperator(currentUser, { johnEmail, stephEmail, meganEmail }),
+    [currentUser, johnEmail, stephEmail, meganEmail],
+  );
 
   const handleLogout = () => {
     clearSessionToken();
     localStorage.removeItem('firebrain_user_email');
     window.location.reload();
   };
-  
+
+  const operatorMenuItems: ActionMenuItem[] = [
+    { id: 'settings', label: 'Settings…', glyph: <Icon name="settings" />, onSelect: () => setSettingsOpen(true) },
+    { id: 'sep', separator: true },
+    { id: 'logout', label: 'Log out', glyph: <Icon name="logout" />, onSelect: handleLogout },
+  ];
+
   return (
     <DndContext
       sensors={sensors}
@@ -366,56 +404,47 @@ function AppContent() {
       <div className={`app ${isMobileViewport ? 'mobile-mode' : ''}`}>
         <header className="app-header">
           <div className="app-logo">
-            <img className="app-logo-image" src={firebrainLogo} alt="Fire Brain logo" />
-            <h1>Fire Brain</h1>
+            <img className="app-logo__image" src={firebrainLogo} alt="" />
+            <h1 className="app-logo__name t-display">Fire Brain</h1>
           </div>
-          
-          <div className="user-info">
-            <span className={`user-badge ${userBadgeClass}`}>
-              {displayName}
-            </span>
-            <button className="logout-btn" onClick={handleLogout} title="Log out">
-              Log out
-            </button>
-          </div>
+
+          <ActionMenu
+            label={`${operator.name} — settings and sign out`}
+            hint="Settings and sign out"
+            items={operatorMenuItems}
+            triggerClassName="operator-menu-trigger"
+            trigger={<OperatorBadge operator={operator} withName size="sm" title="" />}
+          />
         </header>
-        
+
         {isMobileViewport ? (
           <>
             <main className="app-main mobile-layout">
-              <section className={`mobile-pane ${activeMobilePane === 'quests' ? 'active' : ''}`}>
+              <section className={`mobile-pane ${activeMobilePane === 'quests' ? 'is-active' : ''}`}>
                 <QuestsPanel />
               </section>
-              <section className={`mobile-pane ${activeMobilePane === 'inbox' ? 'active' : ''}`}>
+              <section className={`mobile-pane ${activeMobilePane === 'inbox' ? 'is-active' : ''}`}>
                 <Inbox />
               </section>
-              <section className={`mobile-pane ${activeMobilePane === 'today' ? 'active' : ''}`}>
+              <section className={`mobile-pane ${activeMobilePane === 'today' ? 'is-active' : ''}`}>
                 <TodayPlanner />
               </section>
             </main>
 
-            <nav className="mobile-tab-bar" aria-label="Mobile navigation">
-              <button
-                type="button"
-                className={`mobile-tab-btn ${activeMobilePane === 'quests' ? 'active' : ''}`}
-                onClick={() => setActiveMobilePane('quests')}
-              >
-                Quests
-              </button>
-              <button
-                type="button"
-                className={`mobile-tab-btn ${activeMobilePane === 'inbox' ? 'active' : ''}`}
-                onClick={() => setActiveMobilePane('inbox')}
-              >
-                Missions
-              </button>
-              <button
-                type="button"
-                className={`mobile-tab-btn ${activeMobilePane === 'today' ? 'active' : ''}`}
-                onClick={() => setActiveMobilePane('today')}
-              >
-                Loadout
-              </button>
+            <nav className="mobile-tab-bar" aria-label="Panes">
+              {(['quests', 'inbox', 'today'] as MobilePane[]).map(pane => (
+                <button
+                  key={pane}
+                  type="button"
+                  className={`mobile-tab ${activeMobilePane === pane ? 'is-active' : ''}`}
+                  onClick={() => setActiveMobilePane(pane)}
+                  aria-current={activeMobilePane === pane ? 'page' : undefined}
+                  aria-label={`${getDesktopPaneLabel(pane)} pane`}
+                >
+                  <Icon name={getPaneIcon(pane)} size={20} className="mobile-tab__icon" />
+                  <span className="mobile-tab__label">{getDesktopPaneLabel(pane)}</span>
+                </button>
+              ))}
             </nav>
           </>
         ) : (
@@ -435,78 +464,37 @@ function AppContent() {
             </SortableContext>
           </main>
         )}
-        
-        <footer className="status-bar">
-          <div className="status-group">
-            <div className="status-item">
-              <span className="label">Sync</span>
-              <div className="scan-bar"></div>
-            </div>
-            <div className="status-item">
-              <span className="label">Energy</span>
-              <div className="energy-bar">
-                <div className="energy-bar-fill" style={{ width: `${energyPercent}%` }}></div>
-              </div>
-              <span className="value">{energyPercent}%</span>
-            </div>
-          </div>
-          <div className="status-group">
-            <div className="status-item">
-              <span className="label">Streak</span>
-              <span className="value gold">0 days</span>
-            </div>
-            <div className="status-item">
-              <span className="label">Rank</span>
-              <span className="value purple">Initiate</span>
-            </div>
-            <div className="status-item">
-              <span className="label">XP</span>
-              <span className="value">0</span>
-            </div>
-          </div>
-        </footer>
 
-        <Gizmodroar />
-        
+        <GadgetDrawer />
+
         <TaskModal />
         <QuestModal />
         <QuestCompleteModal />
+        <BulkImportModal />
+        <SettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          operator={operator}
+          onLogout={handleLogout}
+        />
         <Toast />
       </div>
-      
-      <DragOverlay>
+
+      <DragOverlay dropAnimation={null}>
         {activePanel ? (
-          <div className="drag-preview panel-drag-preview">
-            <div style={{ fontWeight: 600 }}>{getDesktopPaneLabel(activePanel)}</div>
-            <div style={{
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              marginTop: '4px'
-            }}>
-              Drop left, middle, or right
-            </div>
+          <div className="drag-preview drag-preview--panel">
+            <div className="drag-preview__title">{getDesktopPaneLabel(activePanel)}</div>
+            <div className="drag-preview__hint t-xs">Drop left, middle, or right</div>
           </div>
         ) : activeQuest ? (
           <div className="drag-preview">
-            <div style={{ fontWeight: 500 }}>{activeQuest.title}</div>
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: 'var(--text-muted)',
-              marginTop: '4px' 
-            }}>
-              Drop on another quest to reorder
-            </div>
+            <div className="drag-preview__title">{activeQuest.title}</div>
+            <div className="drag-preview__hint t-xs">Drop on another quest to reorder</div>
           </div>
         ) : activeTask ? (
           <div className="drag-preview">
-            <div style={{ fontWeight: 500 }}>{activeTask.title}</div>
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: 'var(--text-muted)',
-              marginTop: '4px' 
-            }}>
-              P{getPriorityLevel(activeTask.priority)}
-            </div>
+            <div className="drag-preview__title">{activeTask.title}</div>
+            <div className="drag-preview__hint"><PriorityChip level={getPriorityLevel(activeTask.priority)} /></div>
           </div>
         ) : null}
       </DragOverlay>
@@ -514,6 +502,10 @@ function AppContent() {
   );
 }
 
+/**
+ * Desktop panes are sortable. The pane's own HudBar title is the drag handle
+ * (via PaneDragHandleContext); nothing floats over the header controls.
+ */
 function SortableDesktopPane({ pane, children }: { pane: DesktopPane; children: React.ReactNode }) {
   const {
     attributes,
@@ -533,24 +525,20 @@ function SortableDesktopPane({ pane, children }: { pane: DesktopPane; children: 
     transition,
   };
 
+  const handle = useMemo(
+    () => ({ attributes: attributes as React.HTMLAttributes<HTMLElement>, listeners, label: getDesktopPaneLabel(pane) }),
+    [attributes, listeners, pane],
+  );
+
   return (
     <section
       ref={setNodeRef}
-      className={`desktop-pane-shell desktop-pane-shell-${pane} ${isDragging ? 'dragging' : ''} ${isOver ? 'drop-target' : ''}`}
+      className={`desktop-pane-shell desktop-pane-shell--${pane} ${isDragging ? 'is-dragging' : ''} ${isOver ? 'is-drop-target' : ''}`}
       style={style}
     >
-      <button
-        type="button"
-        className="desktop-pane-drag-handle"
-        title={`Drag ${getDesktopPaneLabel(pane)} pane`}
-        aria-label={`Drag ${getDesktopPaneLabel(pane)} pane`}
-        {...attributes}
-        {...listeners}
-      >
-        <span aria-hidden="true">⋮⋮</span>
-        <span>{getDesktopPaneLabel(pane)}</span>
-      </button>
-      {children}
+      <PaneDragHandleContext.Provider value={handle}>
+        {children}
+      </PaneDragHandleContext.Provider>
     </section>
   );
 }
@@ -560,7 +548,6 @@ export default function App() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check if user is already authenticated
     if (isAuthenticated()) {
       setAuthenticated(true);
     }
@@ -572,7 +559,7 @@ export default function App() {
   };
 
   if (checking) {
-    return null; // Or a loading spinner
+    return null;
   }
 
   if (!authenticated) {
@@ -591,4 +578,3 @@ export default function App() {
     </ThemeProvider>
   );
 }
-

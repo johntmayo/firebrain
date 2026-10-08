@@ -1,0 +1,255 @@
+/* ==============================================================
+   SETTINGS DIALOG — Appearance · Sound · Account
+   Chassis rules apply: tokens only, no literal colours/sizes except the
+   miniature skin preview, which is painted from the skin's own swatches.
+   ============================================================== */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.settings-section + .settings-section {
+  padding-top: var(--space-md);
+  border-top: var(--border-w) solid var(--border);
+}
+
+.settings-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin: 0;
+  color: var(--text-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.settings-field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: var(--hit-min);
+}
+
+.settings-field__label {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.settings-note {
+  color: var(--text-3);
+}
+
+/* ---- Skin picker: a row of preview cards; click applies instantly ------- */
+.skin-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--space-xs);
+}
+
+.skin-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  text-align: left;
+  background: var(--surface-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.skin-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.skin-card.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.skin-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skin-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.skin-card__name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.skin-card__blurb {
+  color: var(--text-3);
+  line-height: 1.35;
+}
+
+.skin-card__check {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 50%;
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+/* Miniature scene painted from the skin's preview swatches (--pv-*). */
+.skin-card__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 64px;
+  padding: 6px;
+  border-radius: var(--radius-chip);
+  background: var(--pv-ground);
+  border: var(--border-w) solid color-mix(in srgb, var(--pv-text) 18%, transparent);
+  overflow: hidden;
+}
+
+.skin-card__pv-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  padding: 4px 5px;
+  border-radius: 2px;
+  background: var(--pv-surface);
+  border: 1px solid color-mix(in srgb, var(--pv-text) 16%, transparent);
+}
+
+.skin-card__pv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.skin-card__pv-title {
+  display: block;
+  width: 34%;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--pv-text);
+}
+
+.skin-card__pv-count {
+  display: block;
+  width: 10px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--pv-accent);
+}
+
+.skin-card__pv-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.skin-card__pv-bar {
+  display: block;
+  width: 2px;
+  height: 7px;
+  background: color-mix(in srgb, var(--pv-text) 40%, transparent);
+}
+
+.skin-card__pv-bar--p1 {
+  background: var(--pv-p1);
+}
+
+.skin-card__pv-line {
+  display: block;
+  width: 48%;
+  height: 3px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--pv-text) 55%, transparent);
+}
+
+.skin-card__pv-line--wide {
+  width: 70%;
+}
+
+.skin-card__pv-swatches {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+  flex-shrink: 0;
+}
+
+.skin-card__pv-swatches > i {
+  display: block;
+  flex: 1;
+  border-radius: 1px;
+  font-style: normal;
+}
+
+/* ---- Account ------------------------------------------------------------- */
+.settings-account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--hit-min);
+}
+
+.settings-account__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.settings-account__name {
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-account__email {
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-account__logout {
+  flex-shrink: 0;
+}
+
+@media (max-width: 479px) {
+  .settings-field--row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-field--row .seg {
+    display: flex;
+  }
+}

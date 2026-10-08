@@ -1,119 +1,25 @@
 import React, { useState } from 'react';
-import type { Priority, Challenge, CreateTaskInput } from '../types';
 import { getPriorityLevel } from '../types';
 import type { BulkImportResult } from '../api/client';
 import { useApp } from '../context/AppContext';
+import { parseMissionLines, type ParsedMission } from '../utils/parseMission';
+import { Dialog, PriorityChip, StatChip, CrPips, challengeToCr } from './primitives';
 
-interface ParsedTask extends Omit<CreateTaskInput, 'priority'> {
-  priority: Priority;
-  challenge?: Challenge;
-  originalText: string;
-}
+type ParsedTask = ParsedMission;
 
-interface BulkImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-  urgent: 'var(--priority-1)',
-  high: 'var(--priority-1)',
-  medium: 'var(--priority-2)',
-  low: 'var(--priority-3)',
-};
-
-export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
-  const { createTask, bulkCreateTasks, showToast } = useApp();
+/**
+ * BulkImportModal — rendered once at App level (portaled by Dialog), opened
+ * via `openBulkImport()` from anywhere. Never nested inside a pane.
+ */
+export function BulkImportModal() {
+  const { createTask, bulkCreateTasks, showToast, isBulkImportOpen: isOpen, closeBulkImport: onClose } = useApp();
   const [inputText, setInputText] = useState('');
   const [parsedTasks, setParsedTasks] = useState<ParsedTask[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; results: BulkImportResult[] } | null>(null);
 
-  const parseTaskLine = (line: string): ParsedTask => {
-    let title = line;
-    let priority: Priority = 'medium';
-    let challenge: Challenge | undefined;
-    let due_date = '';
-    let notes = '';
-
-    // Extract notes — everything after the last # that isn't part of a word
-    const notesMatch = title.match(/#\s*(.+)$/);
-    if (notesMatch) {
-      notes = notesMatch[1].trim();
-      title = title.replace(notesMatch[0], '').trim();
-    }
-
-    // Extract priority: -p1 / -p2 / -p3 (legacy -urgent / -high / -medium / -low also accepted)
-    const priorityMatch = title.match(/-\s*(p[123]|urgent|high|medium|low)\b/i);
-    if (priorityMatch) {
-      const token = priorityMatch[1].toLowerCase();
-      const tokenMap: Record<string, Priority> = {
-        p1: 'high', p2: 'medium', p3: 'low',
-        urgent: 'high', high: 'high', medium: 'medium', low: 'low',
-      };
-      priority = tokenMap[token];
-      title = title.replace(priorityMatch[0], '').trim();
-    }
-
-    // Extract challenge/effort: ~low / ~medium / ~high (case insensitive)
-    const challengeMatch = title.match(/~\s*(low|medium|high)\b/i);
-    if (challengeMatch) {
-      challenge = challengeMatch[1].toLowerCase() as Challenge;
-      title = title.replace(challengeMatch[0], '').trim();
-    }
-
-    // Extract due date: @today, @tomorrow, @nextweek, @YYYY-MM-DD, @MM/DD/YY
-    const dateMatch = title.match(/@\s*([\w/.-]+)/);
-    if (dateMatch) {
-      const dateValue = dateMatch[1].toLowerCase();
-      if (dateValue === 'today') {
-        due_date = new Date().toISOString().split('T')[0];
-      } else if (dateValue === 'tomorrow') {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        due_date = d.toISOString().split('T')[0];
-      } else if (dateValue === 'nextweek' || dateValue === 'next-week') {
-        const d = new Date();
-        d.setDate(d.getDate() + 7);
-        due_date = d.toISOString().split('T')[0];
-      } else {
-        // MM/DD/YY or MM/DD/YYYY
-        const slashMatch = dateValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-        if (slashMatch) {
-          let [, month, day, year] = slashMatch;
-          if (year.length === 2) year = '20' + year;
-          const d = new Date(Number(year), Number(month) - 1, Number(day));
-          if (!isNaN(d.getTime())) due_date = d.toISOString().split('T')[0];
-        } else {
-          // YYYY-MM-DD or other parseable formats
-          const parsed = new Date(dateValue);
-          if (!isNaN(parsed.getTime()) && dateValue.match(/\d/)) {
-            due_date = parsed.toISOString().split('T')[0];
-          }
-        }
-      }
-      title = title.replace(dateMatch[0], '').trim();
-    }
-
-    // Clean up any leftover double-spaces
-    title = title.replace(/\s{2,}/g, ' ').trim();
-
-    return {
-      title,
-      priority,
-      challenge,
-      due_date: due_date || undefined,
-      notes: notes || undefined,
-      originalText: line,
-    };
-  };
-
-  const parseTasks = (text: string): ParsedTask[] =>
-    text.split('\n')
-      .map(l => l.trim())
-      .filter(Boolean)
-      .map(parseTaskLine)
-      .filter(t => t.title);
+  // Grammar lives in utils/parseMission.ts (shared with the Quick add gadget).
+  const parseTasks = (text: string): ParsedTask[] => parseMissionLines(text);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
@@ -165,124 +71,98 @@ export function BulkImportModal({ isOpen, onClose }: BulkImportModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   const successCount = importProgress?.results.filter((r: BulkImportResult) => r.success).length ?? 0;
+  const allSucceeded = importProgress ? successCount === importProgress.total : false;
+
+  const footer = (
+    <>
+      <button type="button" className="btn btn--secondary" onClick={handleClose} disabled={isImporting}>
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="btn btn--primary"
+        onClick={handleImport}
+        disabled={parsedTasks.length === 0 || isImporting}
+      >
+        {isImporting ? 'Importing…' : `Import ${parsedTasks.length || 0} mission${parsedTasks.length !== 1 ? 's' : ''}`}
+      </button>
+    </>
+  );
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Bulk Import</h3>
-          <button className="modal-close" onClick={handleClose} disabled={isImporting}>×</button>
-        </div>
-
-        <div className="modal-body">
-          <div className="form-group">
-            <label htmlFor="bulk-input">One mission per line</label>
-            <textarea
-              id="bulk-input"
-              className="form-input"
-              value={inputText}
-              onChange={handleInputChange}
-              placeholder={`Fix login bug -p1 ~high @today
+    <Dialog open={isOpen} title="Bulk import" onClose={handleClose} footer={footer} busy={isImporting}>
+      <div className="form-group">
+        <label htmlFor="bulk-input">One mission per line</label>
+        <textarea
+          id="bulk-input"
+          className="form-textarea form-textarea--mono"
+          value={inputText}
+          onChange={handleInputChange}
+          placeholder={`Fix login bug -p1 ~high @today
 Write project spec ~medium @nextweek
 Call dentist @tomorrow #bring insurance card
 Review pull requests -p2 ~low`}
-              rows={7}
-              disabled={isImporting}
-              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', lineHeight: '1.6' }}
-            />
-          </div>
+          rows={7}
+          disabled={isImporting}
+          data-autofocus
+        />
+      </div>
 
-          <div className="bulk-syntax-ref">
-            <div className="bulk-syntax-title">Syntax</div>
-            <div className="bulk-syntax-grid">
-              <span className="bulk-syntax-token">-p1 / -p2 / -p3</span>
-              <span className="bulk-syntax-desc">priority (P1 = top)</span>
-              <span className="bulk-syntax-token">~high / ~medium / ~low</span>
-              <span className="bulk-syntax-desc">effort (CR points)</span>
-              <span className="bulk-syntax-token">@today / @tomorrow / @nextweek</span>
-              <span className="bulk-syntax-desc">due date</span>
-              <span className="bulk-syntax-token">@2026-05-20 / @5/20/26</span>
-              <span className="bulk-syntax-desc">specific date</span>
-              <span className="bulk-syntax-token">#your note text here</span>
-              <span className="bulk-syntax-desc">notes (at end of line)</span>
-            </div>
-          </div>
-
-          {parsedTasks.length > 0 && (
-            <div className="form-group">
-              <label>Preview — {parsedTasks.length} mission{parsedTasks.length !== 1 ? 's' : ''}</label>
-              <div className="bulk-preview-list">
-                {parsedTasks.map((task, i) => (
-                  <div key={i} className="bulk-preview-row">
-                    <span className="bulk-preview-title">{task.title}</span>
-                    <div className="bulk-preview-tags">
-                      <span
-                        className="bulk-preview-tag"
-                        style={{ color: PRIORITY_COLORS[task.priority], borderColor: PRIORITY_COLORS[task.priority] }}
-                      >
-                        P{getPriorityLevel(task.priority)}
-                      </span>
-                      {task.challenge && (
-                        <span className="bulk-preview-tag bulk-preview-tag--challenge">
-                          CR {task.challenge === 'low' ? '1' : task.challenge === 'medium' ? '2' : '3'}
-                        </span>
-                      )}
-                      {task.due_date && (
-                        <span className="bulk-preview-tag bulk-preview-tag--date">{task.due_date}</span>
-                      )}
-                      {task.notes && (
-                        <span className="bulk-preview-tag bulk-preview-tag--notes" title={task.notes}>note</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {importProgress && (
-            <div className="form-group">
-              <label>Progress</label>
-              <div className="bulk-progress">
-                <div className="bulk-progress-bar-track">
-                  <div
-                    className="bulk-progress-bar-fill"
-                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
-                  />
-                </div>
-                <div className="bulk-progress-stats">
-                  <span>{importProgress.current} / {importProgress.total}</span>
-                  <span style={{ color: successCount === importProgress.total ? 'var(--success)' : 'var(--warning)' }}>
-                    {successCount} succeeded
-                  </span>
-                </div>
-                {importProgress.results.some(r => !r.success) && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '0.25rem' }}>
-                    Some missions failed — check your formatting and try again.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={handleClose} disabled={isImporting}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleImport}
-            disabled={parsedTasks.length === 0 || isImporting}
-          >
-            {isImporting ? 'Importing…' : `Import ${parsedTasks.length || 0} Mission${parsedTasks.length !== 1 ? 's' : ''}`}
-          </button>
+      <div className="syntax-ref">
+        <div className="syntax-ref__title t-2xs">Syntax</div>
+        <div className="syntax-ref__grid">
+          <code className="num">-p1 / -p2 / -p3</code>
+          <span>priority (P1 = top)</span>
+          <code className="num">~high / ~medium / ~low</code>
+          <span>CR (energy cost: 3 / 2 / 1 cells)</span>
+          <code className="num">@today / @tomorrow / @nextweek</code>
+          <span>due date</span>
+          <code className="num">@2026-05-20 / @5/20/26</code>
+          <span>specific date</span>
+          <code className="num">#your note text here</code>
+          <span>notes (at end of line)</span>
         </div>
       </div>
-    </div>
+
+      {parsedTasks.length > 0 && (
+        <div className="form-group">
+          <span className="form-label">Preview · <span className="num">{parsedTasks.length}</span> mission{parsedTasks.length !== 1 ? 's' : ''}</span>
+          <div className="preview-list">
+            {parsedTasks.map((task, i) => (
+              <div key={i} className="preview-row">
+                <span className="preview-row__title clamp-1">{task.title}</span>
+                <div className="preview-row__tags">
+                  <PriorityChip level={getPriorityLevel(task.priority)} />
+                  {task.challenge && <CrPips cr={challengeToCr(task.challenge)} />}
+                  {task.due_date && <StatChip mono>{task.due_date}</StatChip>}
+                  {task.notes && <StatChip title={task.notes}>note</StatChip>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {importProgress && (
+        <div className="form-group">
+          <span className="form-label">Progress</span>
+          <div className="progress">
+            <div className="progress__track">
+              <div className="progress__fill" style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }} />
+            </div>
+            <div className="progress__stats num t-xs">
+              <span>{importProgress.current} / {importProgress.total}</span>
+              <span className={allSucceeded ? 'is-success' : 'is-warning'}>{successCount} succeeded</span>
+            </div>
+            {importProgress.results.some(r => !r.success) && (
+              <div className="form-hint form-hint--danger t-xs">
+                Some missions failed — check your formatting and try again.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Dialog>
   );
 }

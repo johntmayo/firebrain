@@ -1,0 +1,453 @@
+/* ==============================================================
+   GADGET DRAWER — the operator's gadget belt (desktop only)
+
+   Collapsed: a 24px full-width pull tab on the bottom edge.
+   Expanded:  one fixed-height tray (--h-drawer) of 240×136 gadget tiles,
+              overlaid on the panes (position: fixed) so the shell never
+              reflows and the document never scrolls. Tiles scroll
+              horizontally if the viewport is narrower than the belt.
+
+   Same rules as index.css: --t-* tokens only, .num for numerals, 1px hard
+   borders at rest, hit areas ≥ --hit-min for every control.
+   ============================================================== */
+.gadget-drawer {
+  --h-drawer: 168px;
+  --h-tab: 24px;
+  --gadget-w: 240px;
+  --gadget-h: 136px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: none;
+}
+
+.gadget-drawer > * {
+  pointer-events: auto;
+}
+
+/* ---- Pull tab -------------------------------------------------- */
+.gadget-drawer__tab-anchor {
+  width: 100%;
+}
+
+.gadget-drawer__tab {
+  width: 100%;
+  height: var(--h-tab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  border-top: var(--border-w) solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.gadget-drawer__tab:hover,
+.gadget-drawer.is-open .gadget-drawer__tab {
+  background: var(--surface-hover);
+  color: var(--text-2);
+}
+
+.gadget-drawer__tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.gadget-drawer__label {
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.gadget-drawer__readout {
+  margin-left: var(--space-2xs);
+  padding: 0 var(--space-2xs);
+  height: 16px;
+  line-height: 16px;
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-chip);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gadget-drawer__chevron {
+  margin-left: var(--space-2xs);
+}
+
+/* ---- Tray ------------------------------------------------------ */
+.gadget-drawer__tray {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  background: var(--surface);
+  border-top: var(--border-w) solid var(--border);
+  transition: height var(--dur-normal) var(--ease-out), visibility 0s linear var(--dur-normal);
+}
+
+.gadget-drawer.is-open .gadget-drawer__tray {
+  height: var(--h-drawer);
+  visibility: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transition: height var(--dur-normal) var(--ease-out);
+}
+
+.gadget-drawer__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: max-content;
+  min-width: 100%;
+  justify-content: center;
+  height: var(--h-drawer);
+  padding: calc((var(--h-drawer) - var(--gadget-h)) / 2) var(--space-sm);
+}
+
+/* ---- Gadget tile ---------------------------------------------- */
+.gadget {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--gadget-w);
+  width: var(--gadget-w);
+  height: var(--gadget-h);
+  min-width: 0;
+  background: var(--ground);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.gadget__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0 var(--space-xs);
+  border-bottom: var(--border-w) solid var(--border);
+}
+
+.gadget__title-anchor {
+  min-width: 0;
+}
+
+.gadget__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  color: var(--text-2);
+  min-width: 0;
+}
+
+.gadget__icon {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.gadget__name {
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gadget__action {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gadget__body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Shared small button for gadget bodies: 32px tall, text label, 1px border. */
+.gadget-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--hit-min);
+  min-width: var(--hit-min);
+  padding: 0 var(--space-xs);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.gadget-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.gadget-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gadget-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.gadget-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--accent);
+}
+
+/* ---- Stopwatch ------------------------------------------------- */
+.stopwatch {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--space-xs);
+}
+
+.stopwatch__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  height: var(--hit-min);
+}
+
+.stopwatch__display {
+  display: inline-block;
+  font-size: var(--t-xl);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  min-width: 5ch;
+}
+
+.stopwatch__display.is-running {
+  color: var(--accent);
+}
+
+.stopwatch__display.is-done {
+  color: var(--success);
+}
+
+.stopwatch__controls {
+  display: inline-flex;
+  gap: var(--space-2xs);
+}
+
+.stopwatch__track {
+  height: 2px;
+  flex-shrink: 0;
+  background: var(--surface-3);
+  margin: -2px 0 0;
+}
+
+.stopwatch__fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-normal) linear;
+}
+
+.stopwatch__modes .seg__btn {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Quick add ------------------------------------------------- */
+.quick-add {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--space-xs);
+}
+
+.quick-add__input {
+  width: 100%;
+  height: var(--hit-min);
+  padding: 0 var(--space-xs);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-size: var(--t-sm);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.quick-add__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.quick-add__input::placeholder {
+  color: var(--text-3);
+}
+
+.quick-add__input:disabled {
+  opacity: 0.6;
+}
+
+.quick-add__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.quick-add__title {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--text);
+  height: 16px;
+  line-height: 16px;
+}
+
+.quick-add__title.is-empty {
+  color: var(--danger);
+}
+
+.quick-add__chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  height: var(--h-chip);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.quick-add__hint {
+  color: var(--text-3);
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-add__hint .num {
+  color: var(--text-2);
+}
+
+/* ---- Launchpad ------------------------------------------------- */
+.launchpad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.launchpad__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  height: var(--hit-min);
+  padding: 0 var(--space-xs);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-2);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.launchpad__link:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.launchpad__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: invert(1);
+  opacity: 0.8;
+}
+
+.launchpad__link:hover .launchpad__icon {
+  opacity: 1;
+}
+
+.launchpad__label {
+  flex: 1;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.launchpad__ext {
+  color: var(--text-3);
+}
+
+.launchpad__hint {
+  color: var(--text-3);
+  line-height: 16px;
+  padding: 0 var(--space-2xs);
+}
+
+/* ---- Shortcuts ------------------------------------------------- */
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.shortcuts__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 28px;
+}
+
+.shortcuts__keys {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+  width: 52px;
+}
+
+.shortcuts__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--h-chip);
+  padding: 0 var(--space-2xs);
+  border: var(--border-w) solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.shortcuts__what {
+  color: var(--text-2);
+  min-width: 0;
+}
+
+/* ---- Hidden on handheld (Phase 2 revisits the belt for touch) --- */
+@media (max-width: 900px) {
+  .app.mobile-mode .gadget-drawer {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .gadget-drawer {
+    display: none;
+  }
+}

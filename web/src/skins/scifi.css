@@ -1,0 +1,152 @@
+/* ==============================================================
+   SKIN — SCI-FI (docs/CHASSIS_BRIEF.md §7, the contract's acceptance test)
+
+   Deep-space HUD: navy/near-black ground with a faint grid, cyan
+   readouts, hot-magenta / amber / steel-blue priorities, hard 2–4px
+   corners, Orbitron pane titles, Share Tech Mono numerals, snappy motion.
+
+   Rules for this file:
+   - every selector is scoped under html[data-skin="scifi"]
+   - token overrides only (ground texture goes through --ground-texture),
+     plus frame artwork via ::before on .panel-frame / .slot / .item-card
+     (all `position: relative` in the chassis) — no layout, sizing,
+     hit-area, or behaviour changes
+   - no font-size changes, no italics
+   ============================================================== */
+
+html[data-skin="scifi"] {
+  color-scheme: dark;
+
+  /* ---- Typefaces: wide display, condensed-but-legible body, techy mono.
+     Share Tech Mono is single-weight; font-synthesis: none keeps the
+     browser from smearing a faux bold onto the 600-weight numerals.   */
+  --font-body: 'Rajdhani', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Orbitron', 'Rajdhani', 'Inter', sans-serif;
+  --font-mono: 'Share Tech Mono', 'JetBrains Mono', Consolas, monospace;
+  --display-weight: 700;
+  --display-tracking: 0.14em;
+  --display-transform: uppercase;
+  font-synthesis: none;
+
+  /* ---- Ground & surfaces: deep navy stepping up to steel ------------ */
+  --ground: #070b14;
+  /* Faint 24px grid + a cyan wash at the top edge, layered over --ground. */
+  --ground-texture:
+    linear-gradient(rgba(53, 224, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53, 224, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(53, 224, 255, 0.10), transparent 70%);
+  --ground-texture-size: 24px 24px, 24px 24px, 100% 100%;
+  --surface: #0d1526;
+  --surface-2: #111c31;
+  --surface-3: #16243d;
+  --surface-hover: #142138;
+  --surface-pressed: #1a2b48;
+  --backdrop: rgba(2, 5, 12, 0.72);
+
+  /* ---- Borders: 1px, cool, a step lighter than the panel ------------ */
+  --border: #1d2d4a;
+  --border-strong: #2c4269;
+  --border-focus: var(--accent);
+
+  /* ---- Text: cool off-white; --text-3 is 6.8:1 on --surface --------- */
+  --text: #e4f0ff;
+  --text-2: #b4c6e0;
+  --text-3: #8aa0bd;
+  --text-on-accent: #04111c;
+
+  /* ---- Accent: cyan readout ----------------------------------------- */
+  --accent: #35e0ff;
+  --accent-soft: rgba(53, 224, 255, 0.12);
+  --accent-line: rgba(53, 224, 255, 0.45);
+
+  /* ---- Priority: P1 hot magenta / P2 amber / P3 steel blue ---------- */
+  --priority-1: #ff4fa8;
+  --priority-2: #ffb547;
+  --priority-3: #7fa6d9;
+  --priority-1-soft: rgba(255, 79, 168, 0.14);
+  --priority-2-soft: rgba(255, 181, 71, 0.14);
+  --priority-3-soft: rgba(127, 166, 217, 0.14);
+
+  /* ---- Status --------------------------------------------------------- */
+  --danger: #ff5a6e;
+  --danger-soft: rgba(255, 90, 110, 0.14);
+  --success: #3ef0a3;
+  --success-soft: rgba(62, 240, 163, 0.14);
+  --warning: #ffb547;
+  --warning-soft: rgba(255, 181, 71, 0.14);
+
+  /* ---- Operators (cooler, more saturated tones) ----------------------- */
+  --op-john: #9d8cff;
+  --op-steph: #3fe0b8;
+  --op-megan: #ffb547;
+  --op-other: #8aa0bd;
+
+  /* ---- Shape: hard edges (panels 4 / cards 2 / chips 2) ---------------- */
+  --radius-panel: 4px;
+  --radius-card: 2px;
+  --radius-chip: 2px;
+  --radius-control: 2px;
+
+  /* ---- Lifted / floating states: faint cyan glow + deep drop ------------ */
+  --shadow-lift: 0 0 0 1px rgba(53, 224, 255, 0.22), 0 0 14px rgba(53, 224, 255, 0.10), 0 6px 18px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 0 0 1px rgba(53, 224, 255, 0.28), 0 0 28px rgba(53, 224, 255, 0.14), 0 14px 40px rgba(0, 0, 0, 0.7);
+
+  /* ---- Motion: snappy (chassis cap is 200ms) ---------------------------- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --dur-fast: 0.08s;
+  --dur-normal: 0.14s;
+}
+
+/* ---- PanelFrame: HUD corner brackets (frame artwork, §7) ---------------
+   .panel-frame is position: relative + overflow: hidden in the chassis.
+   z-index sits above the sticky head (5) so the top ticks stay visible;
+   pointer-events: none keeps every hit area untouched.                   */
+html[data-skin="scifi"] .panel-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--accent), var(--accent)) top left / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) top left / 1px 12px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) top right / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) top right / 1px 12px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) bottom left / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) bottom left / 1px 12px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) bottom right / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) bottom right / 1px 12px no-repeat;
+  opacity: 0.55;
+}
+
+/* ---- Slot: empty cells carry a faint centre reticle ----------------------
+   .slot is position: relative in the chassis. Filled cells are covered by
+   their ItemCard; locked cells already carry the lock glyph.              */
+html[data-skin="scifi"] .slot--empty::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background:
+    linear-gradient(var(--border-strong), var(--border-strong)) center / 11px 1px no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) center / 1px 11px no-repeat;
+}
+
+/* ---- ItemCard: one accent notch in the top-right corner -------------------
+   .item-card is position: relative + overflow: hidden in the chassis. The
+   notch is 7px, far from the 22px action zone centred on the right edge.  */
+html[data-skin="scifi"] .item-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  background: linear-gradient(225deg, var(--accent-line) 50%, transparent 50%);
+}

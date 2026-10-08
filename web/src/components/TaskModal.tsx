@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { normalizePriority } from '../types';
 import type { Priority, Challenge, CreateTaskInput, UpdateTaskInput } from '../types';
+import { Dialog, SegmentedControl, type SegmentOption } from './primitives';
+
+const PRIORITY_OPTIONS: SegmentOption<Priority>[] = [
+  { value: 'high', label: 'P1', title: 'P1 — highest', hint: 'P1 — do first' },
+  { value: 'medium', label: 'P2', title: 'P2 — standard', hint: 'P2 — standard' },
+  { value: 'low', label: 'P3', title: 'P3 — lower', hint: 'P3 — when there\'s room' },
+];
+
+type ChallengeChoice = Challenge | 'unset';
+
+const CR_OPTIONS: SegmentOption<ChallengeChoice>[] = [
+  { value: 'low', label: 'CR 1', title: '1 cell', hint: 'CR 1 — light, costs 1 cell' },
+  { value: 'medium', label: 'CR 2', title: '2 cells', hint: 'CR 2 — standard, costs 2 cells' },
+  { value: 'high', label: 'CR 3', title: '3 cells', hint: 'CR 3 — heavy, costs 3 cells' },
+  { value: 'unset', label: '—', title: 'Not set (counts as CR 2)', hint: '— — unset, counted as CR 2' },
+];
 
 export function TaskModal() {
   const {
@@ -29,19 +45,7 @@ export function TaskModal() {
   const [questId, setQuestId] = useState('');
   const [saving, setSaving] = useState(false);
   const [addToLoadout, setAddToLoadout] = useState(false);
-  
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isModalOpen]);
-  
+
   // Populate form for edit/create; include modal/create flags so repeated "new mission"
   // openings always reset form state.
   useEffect(() => {
@@ -54,7 +58,6 @@ export function TaskModal() {
       setDueDate(selectedTask.due_date ? selectedTask.due_date.substring(0, 10) : '');
       setQuestId(selectedTask.quest_id || '');
     } else {
-      // Reset for new mission
       setTitle('');
       setNotes('');
       setPriority('medium');
@@ -65,10 +68,8 @@ export function TaskModal() {
       setAddToLoadout(false);
     }
   }, [isModalOpen, isCreating, selectedTask, johnEmail, taskModalDefaultQuestId]);
-  
-  if (!isModalOpen) return null;
-  
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -86,13 +87,9 @@ export function TaskModal() {
       closeModal();
       void createTask(input)
         .then(newTask => {
-          if (addToLoadout && newTask) {
-            return assignToday(newTask.task_id);
-          }
+          if (addToLoadout && newTask) return assignToday(newTask.task_id);
         })
-        .catch(() => {
-          // Error already handled in context.
-        });
+        .catch(() => { /* handled in context */ });
       return;
     }
 
@@ -109,192 +106,136 @@ export function TaskModal() {
       };
 
       closeModal();
-      void updateTask(input).catch(() => {
-        // Error already handled in context.
-      });
-    }
-  };
-  
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      closeModal();
+      void updateTask(input).catch(() => { /* handled in context */ });
     }
   };
 
   const handleDeleteMission = async () => {
     if (!selectedTask || isCreating || saving) return;
-    const confirmed = window.confirm('Delete this mission? You can not undo this.');
-    if (!confirmed) return;
+    if (!window.confirm('Delete this mission? You can not undo this.')) return;
 
     setSaving(true);
     try {
       await cancelTask(selectedTask.task_id);
       closeModal();
     } catch {
-      // Error already handled in context
+      // handled in context
     } finally {
       setSaving(false);
     }
   };
-  
+
+  const isEditingSelected = !isCreating && selectedTask;
+  const isReadOnly = Boolean(isEditingSelected && selectedTask.status === 'done');
+
+  const footer = (
+    <>
+      <button type="button" className="btn btn--secondary" onClick={closeModal} disabled={saving}>
+        Close
+      </button>
+      {isEditingSelected && !isReadOnly && (
+        <button type="button" className="btn btn--danger" onClick={handleDeleteMission} disabled={saving}>
+          Delete
+        </button>
+      )}
+      {!isReadOnly && (
+        <button type="submit" className="btn btn--primary" disabled={saving || !title.trim()}>
+          {saving ? 'Saving…' : isCreating ? 'Create mission' : 'Save changes'}
+        </button>
+      )}
+    </>
+  );
+
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{isCreating ? 'New Mission' : 'Mission Details'}</h3>
+    <Dialog
+      open={isModalOpen}
+      title={isCreating ? 'New mission' : 'Mission'}
+      onClose={closeModal}
+      footer={footer}
+      busy={saving}
+      formProps={{ onSubmit: handleSubmit }}
+    >
+      <fieldset className="form-fields" disabled={isReadOnly}>
+        <div className="form-group">
+          <label htmlFor="title">Title</label>
+          <input
+            id="title"
+            type="text"
+            className="form-input"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="What needs doing?"
+            data-autofocus
+            required
+          />
         </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label htmlFor="title">Title *</label>
-              <input
-                id="title"
-                type="text"
-                className="form-input"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="What needs to be done?"
-                autoFocus
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="notes">Notes</label>
-              <textarea
-                id="notes"
-                className="form-textarea"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="Any extra details..."
-              />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="form-group">
-                <label htmlFor="priority">Priority</label>
-                <select
-                  id="priority"
-                  className="form-select"
-                  value={priority}
-                  onChange={e => setPriority(e.target.value as Priority)}
-                >
-                  <option value="high">P1 — Critical</option>
-                  <option value="medium">P2 — Standard</option>
-                  <option value="low">P3 — Low</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="challenge">Effort</label>
-                <select
-                  id="challenge"
-                  className="form-select"
-                  value={challenge}
-                  onChange={e => setChallenge(e.target.value as Challenge | '')}
-                >
-                  <option value="">Not set</option>
-                  <option value="low">Low (1pt)</option>
-                  <option value="medium">Medium (2pt)</option>
-                  <option value="high">High (3pt)</option>
-                </select>
-              </div>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="form-group">
-                <label htmlFor="assignee">Assignee</label>
-                <select
-                  id="assignee"
-                  className="form-select"
-                  value={assignee}
-                  onChange={e => setAssignee(e.target.value)}
-                >
-                  <option value={johnEmail}>John</option>
-                  <option value={stephEmail}>Stef</option>
-                  <option value={meganEmail}>Megan</option>
-                </select>
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="dueDate">Due Date</label>
-                <input
-                  id="dueDate"
-                  type="date"
-                  className="form-input"
-                  value={dueDate}
-                  onChange={e => setDueDate(e.target.value)}
-                />
-              </div>
-            </div>
+        <div className="form-group">
+          <label htmlFor="notes">Notes</label>
+          <textarea
+            id="notes"
+            className="form-textarea"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Any extra details…"
+          />
+        </div>
 
-            <div className="form-group">
-              <label htmlFor="questId">Quest</label>
-              <select
-                id="questId"
-                className="form-select"
-                value={questId}
-                onChange={e => setQuestId(e.target.value)}
-              >
-                <option value="">No quest</option>
-                {quests.map(q => (
-                  <option key={q.quest_id} value={q.quest_id}>
-                    {q.is_tracked ? '⚡ ' : ''}{q.title}
-                  </option>
-                ))}
-                {selectedTask?.quest_id && !quests.some(q => q.quest_id === selectedTask.quest_id) && (
-                  <option value={selectedTask.quest_id}>
-                    (COMPLETED/UNKNOWN QUEST)
-                  </option>
-                )}
-              </select>
-            </div>
-
-            {isCreating && (
-              <label className="loadout-checkbox-label">
-                <input
-                  type="checkbox"
-                  className="loadout-checkbox"
-                  checked={addToLoadout}
-                  onChange={e => setAddToLoadout(e.target.checked)}
-                />
-                Add to today's loadout
-              </label>
-            )}
-
+        <div className="form-grid">
+          <div className="form-group">
+            <span className="form-label" id="priority-label">Priority</span>
+            <SegmentedControl ariaLabel="Priority" size="md" block options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
           </div>
-          
-          <div className="modal-footer">
-            <button 
-              type="button" 
-              className="btn btn-secondary" 
-              onClick={closeModal}
-              disabled={saving}
-            >
-              Close
-            </button>
-            {!isCreating && (
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleDeleteMission}
-                disabled={saving}
-              >
-                Delete
-              </button>
-            )}
-            <button 
-              type="submit" 
-              className="btn btn-primary"
-              disabled={saving || !title.trim()}
-            >
-              {saving ? 'Saving...' : isCreating ? 'Create Mission' : 'Save Changes'}
-            </button>
+          <div className="form-group">
+            <span className="form-label" id="cr-label">CR · energy cost</span>
+            <SegmentedControl
+              ariaLabel="Challenge rating"
+              size="md"
+              block
+              options={CR_OPTIONS}
+              value={challenge || 'unset'}
+              onChange={v => setChallenge(v === 'unset' ? '' : v)}
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="assignee">Operator</label>
+            <select id="assignee" className="form-select" value={assignee} onChange={e => setAssignee(e.target.value)}>
+              <option value={johnEmail}>John</option>
+              <option value={stephEmail}>Stef</option>
+              <option value={meganEmail}>Megan</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="dueDate">Due</label>
+            <input id="dueDate" type="date" className="form-input num" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="questId">Quest</label>
+          <select id="questId" className="form-select" value={questId} onChange={e => setQuestId(e.target.value)}>
+            <option value="">No quest</option>
+            {quests.map(q => (
+              <option key={q.quest_id} value={q.quest_id}>
+                {q.is_tracked ? '● ' : '○ '}{q.title}
+              </option>
+            ))}
+            {selectedTask?.quest_id && !quests.some(q => q.quest_id === selectedTask.quest_id) && (
+              <option value={selectedTask.quest_id}>(cleared or unknown quest)</option>
+            )}
+          </select>
+        </div>
+
+        {isCreating && (
+          <label className="form-check">
+            <input type="checkbox" checked={addToLoadout} onChange={e => setAddToLoadout(e.target.checked)} />
+            Load into today's loadout
+          </label>
+        )}
+      </fieldset>
+    </Dialog>
   );
 }
-

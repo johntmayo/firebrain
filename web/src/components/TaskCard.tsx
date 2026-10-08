@@ -1,174 +1,156 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Task } from '../types';
 import { getPriorityLevel } from '../types';
 import { useApp } from '../context/AppContext';
+import { describeOperator } from '../utils/operators';
+import { getDueDateStatus } from '../utils/dueDate';
+import { ItemCard, Icon, challengeToCr, type ActionMenuItem, type ItemCardTier } from './primitives';
 
 interface TaskCardProps {
   task: Task;
-  compact?: boolean;
-  showDragHandle?: boolean;
+  tier?: ItemCardTier;
+  /** Rendered inside the loadout list. */
   inSlot?: boolean;
   completed?: boolean;
-  /** When set (e.g. from nested quest), mission uses this color instead of priority */
-  questColor?: string;
+  /** Hide the operator chip (e.g. the list is already filtered to one operator). */
+  hideOperator?: boolean;
+  /** Hide the quest chip (e.g. nested inside its own quest). */
+  hideQuest?: boolean;
+  /** Show a "Loaded" chip when the mission is in a loadout (matrix view). */
+  showLoaded?: boolean;
+  /** Hide priority / CR when the layout already encodes them (matrix cells). */
+  hidePriority?: boolean;
+  hideCr?: boolean;
+  draggable?: boolean;
 }
 
+/**
+ * TaskCard — connects a mission to the app (context, drag-and-drop) and
+ * renders it through the ItemCard primitive. All presentation lives in
+ * ItemCard; this file only decides *what* to show and wires the actions.
+ */
 export function TaskCard({
   task,
-  compact = false,
-  showDragHandle = true,
+  tier = 'row',
   inSlot = false,
   completed = false,
-  questColor: questColorProp,
+  hideOperator = false,
+  hideQuest = false,
+  showLoaded = false,
+  hidePriority = false,
+  hideCr = false,
+  draggable = true,
 }: TaskCardProps) {
-  const { completeTask, openTaskModal, johnEmail, stephEmail, meganEmail, questColorById } = useApp();
+  const {
+    completeTask,
+    cancelTask,
+    openTaskModal,
+    updateTask,
+    loadTask,
+    clearToday,
+    currentUser,
+    viewingLoadoutUser,
+    johnEmail,
+    stephEmail,
+    meganEmail,
+    quests,
+  } = useApp();
 
-  // Resolve quest color: prop override, or from task.quest_id
-  const questColor = questColorProp ?? (task.quest_id ? questColorById[task.quest_id] : undefined);
-  const hasQuestColor = Boolean(questColor && questColor.trim());
+  const isCompleted = completed || task.status === 'done';
+  const canDrag = draggable && !isCompleted;
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.task_id,
     data: { task, fromSlot: inSlot },
-    disabled: completed, // Disable dragging for completed tasks
+    disabled: !canDrag,
   });
 
-  const handleDone = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!completed) {
-      completeTask(task.task_id);
+  const operator = useMemo(
+    () => describeOperator(task.assignee, { johnEmail, stephEmail, meganEmail }),
+    [task.assignee, johnEmail, stephEmail, meganEmail],
+  );
+
+  const quest = useMemo(() => {
+    if (hideQuest || !task.quest_id) return undefined;
+    const q = quests.find(x => x.quest_id === task.quest_id);
+    return q ? { title: q.title, color: q.color || undefined } : undefined;
+  }, [hideQuest, task.quest_id, quests]);
+
+  const due = getDueDateStatus(task.due_date);
+  const canEditLoadout = viewingLoadoutUser === currentUser;
+
+  const completedLabel = isCompleted && task.completed_at
+    ? `Cleared ${new Date(task.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : undefined;
+
+  const loadAction = !isCompleted && canEditLoadout
+    ? task.today_slot
+      ? { kind: 'unload' as const, onSelect: () => { void clearToday(task.task_id); } }
+      : { kind: 'load' as const, onSelect: () => { void loadTask(task.task_id); } }
+    : undefined;
+
+  // The "more" menu duplicates the hover actions so that touch (where load/edit
+  // are hidden to save width) still has a click path for every drag action.
+  const menuItems: ActionMenuItem[] = [];
+  if (!isCompleted) {
+    if (loadAction) {
+      menuItems.push({
+        id: 'load',
+        label: loadAction.kind === 'load' ? 'Load into today' : 'Unload from today',
+        glyph: <Icon name={loadAction.kind === 'load' ? 'load' : 'unload'} />,
+        onSelect: loadAction.onSelect,
+      });
     }
-  };
-  
-  const handleClick = () => {
-    openTaskModal(task);
-  };
-  
-  const handleDragHandleClick = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation(); // Prevent opening modal when clicking handle
-  };
-  
-  const dueStatus = getDueDateStatus(task.due_date);
-  const priorityLevel = getPriorityLevel(task.priority);
-  const challengeLevel = task.challenge || 'medium';
-  const challengePoints = challengeLevel === 'low' ? 1 : challengeLevel === 'high' ? 3 : 2;
-  const assigneeName = task.assignee === johnEmail ? 'John' :
-                       task.assignee === stephEmail ? 'Stef' :
-                       task.assignee === meganEmail ? 'Megan' :
-                       task.assignee.split('@')[0];
-  
-  const isCompleted = completed || task.status === 'done';
-  
+    menuItems.push({ id: 'edit', label: 'Edit mission', glyph: <Icon name="edit" />, onSelect: () => openTaskModal(task) });
+    if (task.quest_id) {
+      menuItems.push({
+        id: 'unquest',
+        label: 'Remove from quest',
+        glyph: <Icon name="unlink" />,
+        onSelect: () => { void updateTask({ task_id: task.task_id, quest_id: '' }).catch(() => {}); },
+      });
+    }
+    menuItems.push({ id: 'sep', separator: true });
+    menuItems.push({
+      id: 'delete',
+      label: 'Delete mission',
+      glyph: <Icon name="trash" />,
+      danger: true,
+      onSelect: () => {
+        if (window.confirm('Delete this mission? You can not undo this.')) {
+          void cancelTask(task.task_id).catch(() => {});
+        }
+      },
+    });
+  }
+
   return (
-    <div
-      ref={setNodeRef}
-      className={`task-card ${isDragging ? 'dragging' : ''} ${compact ? 'compact' : ''} ${isCompleted ? 'completed' : ''} ${hasQuestColor ? 'quest-colored' : ''}`}
-      onClick={handleClick}
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        position: 'relative',
-        ...(hasQuestColor && questColor ? ({ '--task-accent': questColor } as React.CSSProperties) : {}),
-      }}
-    >
-      {showDragHandle && !isCompleted && (
-          <div 
-            className="drag-handle"
-            {...listeners}
-            {...attributes}
-            onClick={handleDragHandleClick}
-            onTouchStart={handleDragHandleClick}
-            title="Drag to move"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="12" r="1"/>
-              <circle cx="9" cy="5" r="1"/>
-              <circle cx="9" cy="19" r="1"/>
-              <circle cx="15" cy="12" r="1"/>
-              <circle cx="15" cy="5" r="1"/>
-              <circle cx="15" cy="19" r="1"/>
-            </svg>
-          </div>
-      )}
-      <div className="task-card-header">
-        <div className="task-content">
-          <div className="task-title">{task.title}</div>
-          <div className="task-meta">
-            <span className={`priority-tag p${priorityLevel}`} title={`Priority ${priorityLevel}`}>
-              P{priorityLevel}
-            </span>
-            <span className={`challenge-pill ${challengeLevel}`}>
-              CR {challengePoints}
-            </span>
-
-            {!inSlot && (
-              <span className="task-assignee">{assigneeName}</span>
-            )}
-
-            {task.due_date && !inSlot && (
-              <span className={`task-due ${dueStatus.badgeClass}`}>
-                {dueStatus.label}
-              </span>
-            )}
-          </div>
-        </div>
-        
-        {!isCompleted && (
-          <div className="task-actions">
-            <button
-              className="btn-done"
-              onClick={handleDone}
-              title="Mark as done"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <ItemCard
+      title={task.title}
+      notes={task.notes}
+      createdAt={task.created_at}
+      priorityLevel={getPriorityLevel(task.priority)}
+      cr={challengeToCr(task.challenge)}
+      crUnset={!task.challenge}
+      due={due}
+      operator={hideOperator ? undefined : operator}
+      quest={quest}
+      loaded={showLoaded && Boolean(task.today_slot)}
+      hidePriority={hidePriority}
+      hideCr={hideCr}
+      tier={tier}
+      completed={isCompleted}
+      completedLabel={completedLabel}
+      dragging={isDragging}
+      onOpen={() => openTaskModal(task)}
+      onDone={isCompleted ? undefined : () => { void completeTask(task.task_id); }}
+      onEdit={isCompleted ? undefined : () => openTaskModal(task)}
+      loadAction={loadAction}
+      menuItems={menuItems}
+      rootRef={canDrag ? setNodeRef : undefined}
+      rootProps={canDrag ? ({ ...attributes, ...listeners } as React.HTMLAttributes<HTMLElement>) : undefined}
+      className={canDrag ? 'is-draggable' : ''}
+    />
   );
 }
-
-export type DueDateTier = 'overdue' | 'today' | 'tomorrow' | 'this-week' | 'none';
-
-interface DueDateStatus {
-  tier: DueDateTier;
-  label: string;
-  badgeClass: string;
-}
-
-export function getDueDateStatus(dueDateStr: string): DueDateStatus {
-  if (!dueDateStr) {
-    return { tier: 'none', label: '', badgeClass: '' };
-  }
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const due = new Date(dueDateStr);
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-
-  const diffMs = dueDay.getTime() - today.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    const overdueDays = Math.abs(diffDays);
-    const label = overdueDays === 1 ? '1d overdue' : `${overdueDays}d overdue`;
-    return { tier: 'overdue', label, badgeClass: 'overdue' };
-  }
-  if (diffDays === 0) {
-    return { tier: 'today', label: 'Today', badgeClass: 'due-today' };
-  }
-  if (diffDays === 1) {
-    return { tier: 'tomorrow', label: 'Tomorrow', badgeClass: 'due-tomorrow' };
-  }
-  if (diffDays <= 7) {
-    const dayName = dueDay.toLocaleDateString('en-US', { weekday: 'short' });
-    return { tier: 'this-week', label: dayName, badgeClass: '' };
-  }
-
-  const formatted = dueDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return { tier: 'none', label: formatted, badgeClass: '' };
-}
-

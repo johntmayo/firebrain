@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
@@ -38,7 +38,8 @@ interface AppContextType {
   isModalOpen: boolean;
   isCreating: boolean;
   taskModalDefaultQuestId: string | null;
-  toast: { message: string; type: 'success' | 'error' } | null;
+  notices: Notice[];
+  isBulkImportOpen: boolean;
   viewingLoadoutUser: string; // Which user's loadout we're viewing
   loadoutConfig: LoadoutConfig | null; // Current user's energy level and points (only for own loadout)
 
@@ -49,6 +50,9 @@ interface AppContextType {
   setSortBy: (sortBy: SortBy) => void;
   openTaskModal: (task: Task | null, creating?: boolean, defaultQuestId?: string) => void;
   closeModal: () => void;
+  openBulkImport: () => void;
+  closeBulkImport: () => void;
+  dismissNotice: (id: number) => void;
   setViewingLoadoutUser: (email: string) => void;
   refreshTasks: () => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<Task>;
@@ -57,6 +61,8 @@ interface AppContextType {
   cancelTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
   assignToday: (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => Promise<void>;
+  /** Append a mission to the end of the viewer's own loadout (click equivalent of drag-to-loadout). */
+  loadTask: (taskId: string) => Promise<void>;
   reorderLoadoutTasks: (orderedTaskIds: string[]) => Promise<void>;
   clearToday: (taskId: string) => Promise<void>;
   refreshLoadoutConfig: () => Promise<void>;
@@ -83,6 +89,15 @@ interface AppContextType {
   trackedQuests: Quest[];
   questColorById: Record<string, string>;
 }
+
+export interface Notice {
+  id: number;
+  message: string;
+  type: 'success' | 'error';
+}
+
+const NOTICE_DURATION_MS = 3500;
+const MAX_VISIBLE_NOTICES = 4;
 
 const AppContext = createContext<AppContextType | null>(null);
 
@@ -176,17 +191,56 @@ export function AppProvider({ children }: AppProviderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [taskModalDefaultQuestId, setTaskModalDefaultQuestId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const noticeTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const nextNoticeId = useRef(1);
   const [viewingLoadoutUser, setViewingLoadoutUser] = useState<string>(() => {
     return loggedInUser;
   }); // Start viewing own loadout
   const [loadoutConfig, setLoadoutConfig] = useState<LoadoutConfig | null>(null);
   
-  // Toast helper
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  // Notices (toasts): each has its own timer, rapid successive notices stack
+  // instead of replacing each other, and any notice can be dismissed early.
+  const dismissNotice = useCallback((id: number) => {
+    const timer = noticeTimers.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      noticeTimers.current.delete(id);
+    }
+    setNotices(prev => prev.filter(n => n.id !== id));
   }, []);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    const id = nextNoticeId.current++;
+    setNotices(prev => {
+      const next = [...prev, { id, message, type }];
+      // Drop the oldest if the stack is too tall; clear its timer too.
+      while (next.length > MAX_VISIBLE_NOTICES) {
+        const dropped = next.shift()!;
+        const timer = noticeTimers.current.get(dropped.id);
+        if (timer) clearTimeout(timer);
+        noticeTimers.current.delete(dropped.id);
+      }
+      return next;
+    });
+    const timer = setTimeout(() => {
+      noticeTimers.current.delete(id);
+      setNotices(prev => prev.filter(n => n.id !== id));
+    }, NOTICE_DURATION_MS);
+    noticeTimers.current.set(id, timer);
+  }, []);
+
+  useEffect(() => {
+    const timers = noticeTimers.current;
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
+
+  const openBulkImport = useCallback(() => setIsBulkImportOpen(true), []);
+  const closeBulkImport = useCallback(() => setIsBulkImportOpen(false), []);
 
   const parseLoadoutOrder = useCallback((slot: string): number => {
     if (!slot) return Number.MAX_SAFE_INTEGER;
@@ -286,6 +340,7 @@ export function AppProvider({ children }: AppProviderProps) {
     refreshTasks();
     refreshQuests(); // Fetch quests
     refreshLoadoutConfig();
+    fetchCompletedTasks(); // Needed for Accomplished Today after a reload
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Modal handlers
@@ -400,7 +455,7 @@ export function AppProvider({ children }: AppProviderProps) {
         };
         setCompletedTasks(prev => [completedTaskData, ...prev]);
       }
-      showToast('Mission completed! 🎉', 'success');
+      showToast('Mission cleared', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to complete mission', 'error');
@@ -426,7 +481,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const assignToday = useCallback(async (taskId: string, slot?: TodaySlot, swapWithTaskId?: string) => {
     // Only allow editing if viewing own loadout
     if (viewingLoadoutUser !== currentUser) {
-      showToast('You can only edit your own Today slots', 'error');
+      showToast('You can only edit your own loadout', 'error');
       return;
     }
     
@@ -462,7 +517,7 @@ export function AppProvider({ children }: AppProviderProps) {
 
   const reorderLoadoutTasks = useCallback(async (orderedTaskIds: string[]) => {
     if (viewingLoadoutUser !== currentUser) {
-      showToast('You can only edit your own Today slots', 'error');
+      showToast('You can only edit your own loadout', 'error');
       return;
     }
 
@@ -496,7 +551,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const clearToday = useCallback(async (taskId: string) => {
     // Only allow editing if viewing own loadout
     if (viewingLoadoutUser !== currentUser) {
-      showToast('You can only edit your own Today slots', 'error');
+      showToast('You can only edit your own loadout', 'error');
       return;
     }
     
@@ -633,12 +688,12 @@ export function AppProvider({ children }: AppProviderProps) {
       if (result.affected_open_missions > 0) {
         const missionNoun = result.affected_open_missions === 1 ? 'mission' : 'missions';
         if (result.completion_mode === 'detach_open') {
-          showToast(`Quest completed. ${result.affected_open_missions} ${missionNoun} moved to Inbox.`, 'success');
+          showToast(`Quest cleared. ${result.affected_open_missions} ${missionNoun} moved to the Cache.`, 'success');
         } else {
-          showToast(`Quest completed. ${result.affected_open_missions} ${missionNoun} completed.`, 'success');
+          showToast(`Quest cleared. ${result.affected_open_missions} ${missionNoun} cleared with it.`, 'success');
         }
       } else {
-        showToast('Quest completed! 🎉', 'success');
+        showToast('Quest cleared', 'success');
       }
     } catch (err) {
       setQuests(previousQuests); // Rollback
@@ -695,7 +750,25 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [quests, showToast]);
 
-  const todayKey = useMemo(() => new Date().toDateString(), []);
+  // "Today" rolls over at local midnight. Recompute when the tab regains
+  // visibility (laptop lid, phone unlock) and on a one-minute tick so a
+  // long-lived tab doesn't keep yesterday's date.
+  const [todayKey, setTodayKey] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const refresh = () => setTodayKey(prev => {
+      const next = new Date().toDateString();
+      return next === prev ? prev : next;
+    });
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const interval = setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   const isOverdue = useCallback((dueDateStr: string) => {
     if (!dueDateStr) return false;
@@ -704,25 +777,33 @@ export function AppProvider({ children }: AppProviderProps) {
     const due = new Date(dueDateStr);
     const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     return dueDay.getTime() < today.getTime();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayKey]);
 
-  const inboxBase = useMemo(() => tasks.filter(t => {
-    if (t.status !== 'open') return false;
-    if (t.today_slot) return false;
-    if (t.quest_id) return false;
+  const matchesAssigneeFilter = useCallback((t: Task) => {
     switch (assigneeFilter) {
       case 'john': return t.assignee === JOHN_EMAIL;
       case 'steph': return t.assignee === STEPH_EMAIL;
       case 'megan': return t.assignee === MEGAN_EMAIL;
       case 'all': return true;
     }
-  }), [assigneeFilter, tasks]);
+  }, [assigneeFilter]);
 
+  const inboxBase = useMemo(() => tasks.filter(t => {
+    if (t.status !== 'open') return false;
+    if (t.today_slot) return false;
+    if (t.quest_id) return false;
+    return matchesAssigneeFilter(t);
+  }), [matchesAssigneeFilter, tasks]);
+
+  // Overdue spans every open mission for the filter — including missions
+  // nested in quests — except those already loaded for today (they're being
+  // handled; listing them again would only duplicate the Loadout).
   const overdueTasks = useMemo(() => (
-    inboxBase
-      .filter(t => isOverdue(t.due_date))
+    tasks
+      .filter(t => t.status === 'open' && !t.today_slot && matchesAssigneeFilter(t) && isOverdue(t.due_date))
       .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
-  ), [inboxBase, isOverdue]);
+  ), [tasks, matchesAssigneeFilter, isOverdue]);
 
   const inboxTasks = useMemo(() => {
     const overdueIds = new Set(overdueTasks.map(t => t.task_id));
@@ -781,17 +862,31 @@ export function AppProvider({ children }: AppProviderProps) {
     })
   ), [parseLoadoutOrder, tasks, viewingLoadoutUser]);
 
+  // Missions completed today belong to the viewer if they were on the
+  // viewer's loadout, or — when completed straight from the cache and so
+  // never loaded (today_user empty) — if the viewer is the assignee.
   const accomplishedToday = useMemo(() => (
     completedTasks.filter(t => {
       if (!t.completed_at) return false;
       const completedDate = new Date(t.completed_at).toDateString();
-      return completedDate === todayKey && t.today_user === viewingLoadoutUser;
+      if (completedDate !== todayKey) return false;
+      return t.today_user
+        ? t.today_user === viewingLoadoutUser
+        : t.assignee === viewingLoadoutUser;
     }).sort((a, b) => {
       const slotDiff = parseLoadoutOrder(a.today_slot || '') - parseLoadoutOrder(b.today_slot || '');
       if (slotDiff !== 0) return slotDiff;
       return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
     })
   ), [completedTasks, parseLoadoutOrder, todayKey, viewingLoadoutUser]);
+
+  const loadTask = useCallback(async (taskId: string) => {
+    const maxOrder = loadoutTasks.reduce((max, t) => {
+      const order = parseLoadoutOrder(t.today_slot || '');
+      return order !== Number.MAX_SAFE_INTEGER && order > max ? order : max;
+    }, 0);
+    await assignToday(taskId, String(maxOrder + 1));
+  }, [assignToday, loadoutTasks, parseLoadoutOrder]);
 
   const trackedQuests = useMemo(() => (
     quests.filter(q => q.is_tracked && q.status === 'open')
@@ -837,13 +932,17 @@ export function AppProvider({ children }: AppProviderProps) {
     isModalOpen,
     isCreating,
     taskModalDefaultQuestId,
-    toast,
+    notices,
+    isBulkImportOpen,
     setAssigneeFilter,
     setViewMode,
     toggleShowCompleted,
     setSortBy,
     openTaskModal,
     closeModal,
+    openBulkImport,
+    closeBulkImport,
+    dismissNotice,
     refreshTasks,
     createTask,
     updateTask,
@@ -851,6 +950,7 @@ export function AppProvider({ children }: AppProviderProps) {
     cancelTask,
     bulkCreateTasks,
     assignToday,
+    loadTask,
     reorderLoadoutTasks,
     clearToday,
     refreshLoadoutConfig,
