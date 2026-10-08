@@ -96,6 +96,9 @@
   min-width: 0;
   height: var(--h-cell);
   border-radius: var(--radius-card);
+  /* Container for the stat-row rules below (tooltips and menus are portaled,
+     so the layout containment this implies costs nothing). */
+  container-type: inline-size;
 }
 
 .case-item:hover,
@@ -122,17 +125,78 @@
 /* (case.css is imported before index.css's rules, so these out-specify the
    .item-card--cell tier rules rather than relying on source order.) */
 .case-item .item-card--cell .item-card__main {
-  padding: var(--space-2xs) 5px;
-  gap: 2px;
+  padding: 6px 6px 5px;
+  gap: 3px;
 }
 
 .case-item .item-card--cell .item-card__title {
-  font-size: var(--t-xs);
+  font-size: var(--t-sm);
   font-weight: 500;
   line-height: 1.2;
 }
 
-/* Tight CR1 cell: priority chip only (the CR is the cell itself) */
+/* Cell chips are a step larger than the row tier: the Case is the primary
+   surface and its 84px cells have the room (--case-chip-h is local). */
+.case-item .item-card--cell {
+  --case-chip-h: 22px;
+}
+
+.case-item .item-card--cell .item-card__stats {
+  height: var(--case-chip-h);
+  gap: 4px;
+}
+
+/* P (≈26px) + gap + CR pips (≈35px) must fit the 70px stat row of an 87px
+   CR1 cell — see CASE_TIGHT_CELL_PX. */
+.case-item .item-card--cell .stat-chip {
+  height: var(--case-chip-h);
+  padding: 0 5px;
+  font-size: var(--t-xs);
+}
+
+.case-item .item-card--cell .stat-chip--cr {
+  padding: 0 4px;
+}
+
+.case-item .item-card--cell .cr-pips {
+  gap: 2px;
+}
+
+.case-item .item-card--cell .cr-pip {
+  width: 7px;
+  height: 7px;
+}
+
+/* CR1 cell (one cell wide, ≥ CASE_TIGHT_CELL_PX): title + P + CR pips. Due
+   and quest chips would only be clipped at this width, so they are left to
+   the tooltip. */
+.case-item--cr1 .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
+  display: none;
+}
+
+/* The quest chip shrinks to its dot before anything else gets clipped; below
+   ~220px (a CR2 at the default pane width) there is no room for it to say
+   anything, so it stays in the tooltip. Due chips are never clipped. */
+@container (max-width: 219px) {
+  .case-item .item-card__stats > .stat-chip--quest {
+    display: none;
+  }
+}
+
+/* A CR2 in a user-shrunk pane (≈60px cells) can't hold P + CR + due either;
+   fall back to the CR1 treatment rather than clip the due chip. */
+@container (max-width: 125px) {
+  .case-item .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
+    display: none;
+  }
+}
+
+.case-item .stat-chip--quest {
+  min-width: 56px;
+}
+
+/* Tight CR1 cell (< CASE_TIGHT_CELL_PX): priority chip only — the CR is the
+   cell itself. Kept for narrow / user-shrunk panes. */
 .case-item--tight .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3) {
   display: none;
 }
@@ -214,6 +278,8 @@
   }
   /* Leave room for the ⋯ trigger so it never sits on the chips. */
   .case-item .item-card__stats { padding-right: 24px; }
+  /* A one-wide cell can't hold P + CR beside the ⋯ trigger; keep P. */
+  .case-item--cr1 .item-card__stats > .stat-chip--cr { display: none; }
 }
 
 /* Read-only (another operator's case): no drop affordance, no toolbar */

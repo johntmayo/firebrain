@@ -3,11 +3,12 @@
  * handheld. The JS layout (`packCase`) and the CSS grid must agree, so the
  * shape is decided once here and both consume the result.
  *
- * The desktop Loadout pane is 360px wide and a phone pane is ~374px, so the
- * pane's own width cannot tell the two apart; the handheld decision comes from
- * the app's mobile breakpoint. Container width is only used as a floor: a
- * desktop pane narrower than `CASE_NARROW_PANE_PX` (e.g. the 300px pane at
- * ≤1100px viewports) can't hold six legible cells and falls back to 4×3.
+ * A user-shrunk desktop Loadout pane and a phone pane can be the same width,
+ * so the pane's own width cannot tell the two apart; the handheld decision
+ * comes from the app's mobile breakpoint. Container width is only used as a
+ * floor: a desktop pane narrower than `CASE_NARROW_PANE_PX` (e.g. the 340px
+ * pane at ≤1100px viewports, whose case is 304px) can't hold six legible
+ * cells and falls back to 4×3.
  */
 import { DESKTOP_CASE, HANDHELD_CASE, type CaseGridShape } from './casePacking';
 
@@ -15,8 +16,13 @@ import { DESKTOP_CASE, HANDHELD_CASE, type CaseGridShape } from './casePacking';
 export const CASE_NARROW_PANE_PX = 320;
 /** Gap between cells, kept in sync with `--case-gap` in case.css. */
 export const CASE_CELL_GAP_PX = 3;
-/** A CR1 cell narrower than this shows only its priority chip. */
-export const CASE_TIGHT_CELL_PX = 72;
+/**
+ * A CR1 cell narrower than this shows only its priority chip; at or above it
+ * the cell carries title + P chip + CR pips (the cell-tier chips in case.css
+ * need ~68px for P + CR plus the card's bar and padding). The default
+ * Loadout pane at 1440px yields 87px cells; a phone yields 82px.
+ */
+export const CASE_TIGHT_CELL_PX = 80;
 
 export function caseShapeFor(containerWidth: number | null, handheld: boolean): CaseGridShape {
   if (handheld) return HANDHELD_CASE;

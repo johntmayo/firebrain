@@ -10,17 +10,21 @@
 
 :root {
   /* ---- UI scale -------------------------------------------------
-     Root type size is 15px × --ui-scale. Presets: 0.85 / 1 / 1.15 / 1.3.
-     Set on <html> by ThemeContext; persisted in localStorage.        */
+     Root type size is 16px × --ui-scale. Presets: 0.85 / 1 / 1.15 / 1.3.
+     Set on <html> by ThemeContext; persisted in localStorage.
+     Oct 2026 density pass: the defaults were deliberately loosened one
+     step after daily use (root 15px → 16px, every --t-* token up one
+     step, fixed heights re-tuned to match). The 0.85 preset reproduces
+     the old density for operators who preferred it.                   */
   --ui-scale: 1;
 
   /* ---- Type scale (the only font sizes allowed in the stylesheet) */
-  --t-2xs: 0.6rem;
-  --t-xs: 0.68rem;
-  --t-sm: 0.78rem;
-  --t-md: 0.88rem;
-  --t-lg: 1rem;
-  --t-xl: 1.2rem;
+  --t-2xs: 0.68rem;
+  --t-xs: 0.75rem;
+  --t-sm: 0.85rem;
+  --t-md: 0.95rem;
+  --t-lg: 1.08rem;
+  --t-xl: 1.3rem;
 
   /* ---- Typefaces -------------------------------------------------
      Graphite is deliberately "unskinned": display = body, no italics. */
@@ -96,11 +100,12 @@
   --border-w: 1px;
 
   /* ---- Fixed heights (density tiers) ----------------------------- */
-  --h-hud: 44px;          /* HudBar */
-  --h-row: 44px;          /* ItemCard row tier, QuestLogEntry */
-  --h-compact: 36px;      /* ItemCard compact tier (matrix) */
-  --h-cell: 64px;         /* ItemCard cell tier (grid / Case) */
-  --h-chip: 18px;         /* StatChip */
+  --h-hud: 48px;          /* HudBar */
+  --h-row: 48px;          /* ItemCard row tier, QuestLogEntry */
+  --h-compact: 40px;      /* ItemCard compact tier (matrix) */
+  --h-cell: 84px;         /* ItemCard cell tier (grid / Case) */
+  --h-chip: 20px;         /* StatChip */
+  --h-control: 40px;      /* form inputs / selects, .seg--md (44 on coarse) */
   --hit-min: 32px;        /* minimum hit area, desktop; also control height */
 
   /* ---- Ground texture: skins may layer gradients over --ground ----- */
@@ -122,6 +127,7 @@
 @media (pointer: coarse) {
   :root {
     --hit-min: 44px;
+    --h-control: 44px;
   }
 }
 
@@ -135,7 +141,7 @@
 }
 
 html {
-  font-size: calc(15px * var(--ui-scale));
+  font-size: calc(16px * var(--ui-scale));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   height: 100%;
