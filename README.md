@@ -24,7 +24,10 @@ Fire Brain organizes work into **missions** (atomic tasks) and **quests** (long-
 | **CR** (1–3) | Challenge rating / energy cost of a mission (low / medium / high) |
 | **Energy** | Daily capacity: Light = 7, Medium = 10, Heavy = 12 points |
 | **P1 / P2 / P3** | Priority (high+urgent / medium / low) |
-| **Cleared** | Completed |
+| **Complete** (verb) | Finish a mission or quest — "Complete mission", "Complete quest", "Mark complete" |
+| **Cleared** (state) | Finished — the "Cleared" toggle, "Cleared Oct 8" on done cards, "Accomplished Today" |
+| **Delete** (verb) | Erase a mission (never "Clear"; quests can't be deleted from the UI) |
+| **Load / Unload** | Put a mission into / take it out of a Loadout (`assignToday` / `clearToday` in the API) |
 
 ### The Loadout
 
@@ -32,7 +35,7 @@ A loadout is an ordered list (slot `1`, `2`, `3`, …) with no hard slot count. 
 
 ### Quests
 
-Quests group related missions and carry a colour that tags their nested missions everywhere. Any number of quests can be tracked; tracked quests pin to the top of the Quests pane, the rest live in the Log. Completing a quest either detaches its open missions back to the cache or cascades completion to them.
+Quests group related missions and carry a colour that tags their nested missions everywhere. Any number of quests can be tracked; tracked quests pin to the top of the Quests pane, the rest live in the Log. A quest's nested list shows **every** open mission, including ones currently loaded into a Loadout (muted, with a **Loaded** chip, not draggable) — `utils/questMissions.ts` is the single definition of "open missions of a quest" used by the pane, the Quest dialog, the progress count and the Complete quest dialog, so the counts always agree. **Complete quest** asks what to do with open missions: *Keep missions — move to Cache* (`detach_open`, default) or *Complete missions too* (`cascade_done`).
 
 ## Tech Stack
 
@@ -48,15 +51,15 @@ Quests group related missions and carry a colour that tags their nested missions
 
 ## Features
 
-- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld) where each mission occupies `CR` cells; Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and clear. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
+- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld) where each mission occupies `CR` cells; Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and complete. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
 - **Missions (Cache)** — create, edit, filter by operator, sort by priority or CR; **List**, **Grid** (grouped by priority) and **Matrix** (P × CR) views; an **Overdue** section at the top gathers every open, unloaded mission past its due date (including quest missions); **Cleared** toggle shows completed missions
-- **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions with inline "+ Mission"; progress `done / total` and a late count per quest
+- **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions (loaded ones included, marked **Loaded**) with inline "+ Mission"; progress `done / total` and a late count per quest; **Complete quest** with a keep-or-complete choice for open missions
 - **Accomplished today** — missions cleared today for the operator being viewed, collapsible under the loadout
 - **Bulk import** — paste multiple missions with syntax: `-p1/-p2/-p3`, `~low/~medium/~high`, `@today/@tomorrow/@nextweek/@YYYY-MM-DD`, `#notes`
-- **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Clear; keyboard: Enter opens, Space clears; tooltip carries full title, notes, created and due dates
+- **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Complete; keyboard: Enter opens, Space completes; tooltip carries full title, notes, created and due dates
 - **Bulk import / quick add grammar** — `Title -p1 ~high @tomorrow #notes` (`-p1/-p2/-p3` priority, `~low/~medium/~high` CR, `@today/@tomorrow/@nextweek/@YYYY-MM-DD` due, `#` notes). Parser lives in `utils/parseMission.ts`.
 - **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 %, click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`).
-- **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space clears, Esc closes).
+- **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space completes, Esc closes).
 - **Teaching tooltips** — every control explains itself on hover/focus (one sentence, game vocabulary); every icon-only control also has an `aria-label` for touch and screen readers.
 - **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 4 × 3
 
@@ -164,7 +167,7 @@ Firebrain v1/
 │   │   │   ├── index.css     # Structural chassis styles (imports the files below + skins)
 │   │   │   └── case.css / settings.css / gadgets.css
 │   │   ├── types/            # TypeScript type definitions
-│   │   ├── utils/            # casePacking, caseShape, parseMission, stopwatch, dueDate, operators, sounds
+│   │   ├── utils/            # casePacking, caseShape, questMissions, parseMission, stopwatch, dueDate, operators, sounds
 │   │   ├── App.tsx           # Root component, drag & drop context, desktop/mobile shell
 │   │   └── main.tsx          # Entry point
 │   ├── test/smoke/           # Headless smoke harness: run.mjs, scenarios.mjs, mockApi.mjs
@@ -223,7 +226,7 @@ tooling below never reaches the Sheet.
 ```bash
 cd web
 npm run typecheck   # tsc --noEmit
-npm run test        # Vitest unit tests (pure logic: casePacking, parseMission, stopwatch, dueDate, skins contract…)
+npm run test        # Vitest unit tests (pure logic: casePacking, caseShape, questMissions, parseMission, stopwatch, dueDate, skins contract…)
 npm run smoke       # Headless browser run against a MOCKED backend (screenshots in test/smoke/out/)
 npm run check       # all of the above + build — run before handing work off
 ```

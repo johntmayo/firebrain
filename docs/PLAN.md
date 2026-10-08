@@ -125,6 +125,25 @@ smoke harness (`web/test/smoke/`) that runs the app against a mocked backend and
 the §5 invariants after every scenario. See README → Testing. Every phase item from here on
 ships with a unit test (if pure) and a smoke scenario (if visible).
 
+**Round 3 fixes (Oct 2026):**
+- *Bug — quest shows "No open missions" while Complete quest counts 1.* Both nested lists
+  excluded loaded missions (`today_slot` set) while the progress count and the completion
+  dialog counted them. Fixed by extracting `utils/questMissions.ts`
+  (`openMissionsOfQuest`, `groupOpenMissionsByQuest`, `orderQuestMissions`) and using it in
+  `QuestsPanel`, `QuestModal`, `QuestCard` and `AppContext.requestCompleteQuest`. Loaded
+  missions now appear in both lists, muted (`is-deemphasized is-loaded`), with the Loaded
+  chip, ordered after unloaded ones, and not draggable (they're already placed — unload from
+  the Loadout). Smoke: `desktop-quest-loaded-mission`.
+- *Vocabulary — "Clear" was ambiguous (finish vs. erase vs. empty).* Decision: **Complete**
+  is the verb for finishing (buttons, menu items, tooltips, dialog titles), **Cleared** is the
+  state (Missions "Cleared" toggle, "Cleared Oct 8", Accomplished Today), **Delete** is the
+  verb for erasing, and the empty matrix cell reads **Empty**. The Complete quest dialog is
+  now *"Title has N open missions. What should happen to them?"* with **Cancel** ·
+  **Complete missions too** (danger, `cascade_done`) · **Keep missions — move to Cache**
+  (primary, `detach_open`); with zero open missions it offers a single **Complete quest**.
+  `clearToday` keeps its API name; the stopwatch "Clear" reset is fine. Smoke:
+  `desktop-vocabulary-complete`.
+
 ### 1.4 Item card (mission)
 - Fixed height; one left accent bar = **priority** (P1 / P2 / P3 tokens). Quest identity is
   a small colored chip with the quest title, not a second bar.

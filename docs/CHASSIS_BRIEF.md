@@ -39,9 +39,17 @@ canonical names in code and in the default UI. Skins may remap display strings o
 | Tracked          | Pinned to the HUD                         | Active      | Active      | Tracked      |
 | Log              | Untracked quests                          | Archive     | Standby     | Journal      |
 | Cache            | Unassigned mission backlog                | Cache       | Depot       | Stash        |
-| Cleared          | Mission/quest completed                   | Complete    | Complete    | Cleared      |
+| Complete (verb)  | Finish a mission / quest (buttons, menus) | Complete    | Complete    | Complete     |
+| Cleared (state)  | Mission/quest finished (labels, toggles)  | Complete    | Complete    | Cleared      |
+| Delete (verb)    | Erase a mission — never "Clear"           | Delete      | Delete      | Delete       |
+| Load / Unload    | Put into / take out of the Loadout        | Load        | Issue       | Pack         |
 
 (Skin columns are starting suggestions, not decisions.)
+
+**"Clear" is reserved** (decided Oct 2026): it was doing three jobs — finish, erase and
+"empty". The verb for finishing is *Complete*, the past-tense state is *Cleared*, the verb for
+erasing is *Delete*, and an empty matrix cell says *Empty*. `clearToday` survives only as the
+API name for unloading; "Clear" as a stopwatch reset is also fine.
 
 ## 4. Structural elements
 Each element lists: role · anatomy (fixed) · what a skin may change.
@@ -97,7 +105,10 @@ Skin: segment shape, colors, glow.
 Role: a quest in the Quests pane, tracked or untracked.
 Anatomy: color dot · title (CSS 1-line clamp) · leader initial · progress (`3/8` mono +
 thin bar when done-count known; `5 open` otherwise) · overdue chip · chevron (≥ 32px).
-Expanded: nested ItemCards (row tier) + "+ Mission". Hover: Track/Untrack.
+Expanded: nested ItemCards (row tier) + "+ Mission". Hover: Track/Untrack. The nested list
+is *every* open mission of the quest; a mission that is loaded into a Loadout stays listed,
+muted, with a Loaded chip and no drag handle, so the list, the progress count and the
+Complete quest dialog can never disagree.
 Skin: entry fill, dot/progress styling, chevron glyph.
 
 ### 4.8 SegmentedControl
@@ -171,7 +182,7 @@ Same case switched to Heavy (all 12 live), then overloaded by a CR3:
 ```
 Interactions: drop onto any free cell to insert at that position; drop onto an occupied
 cell to insert before it; ✕ on hover to unload; ↑/↓ to shift; click a card to open it;
-✓ to clear it (it moves to Accomplished and its cells free up — the satisfying moment).
+✓ to complete it (it moves to Accomplished and its cells free up — the satisfying moment).
 
 Loadout format toggle (HudBar, right side): **Case · List**. Both share the same data;
 switching is instant. Future template formats (e.g. 1-3-5: one CR3 + three CR2 + five
