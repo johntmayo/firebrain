@@ -11,6 +11,7 @@ export interface CaseGridActions {
   onUnload?: (item: PlacedItem) => void;
   onShiftEarlier?: (item: PlacedItem) => void;
   onShiftLater?: (item: PlacedItem) => void;
+  /** Mark the mission complete (UI verb "Complete"; the resulting state is "Cleared"). */
   onClear?: (item: PlacedItem) => void;
 }
 
@@ -159,7 +160,7 @@ function CaseItemView({ item, layout, editable, actions, isFirst, isLast, tight,
     }
     if (actions?.onClear) {
       if (menuItems.length) menuItems.push({ id: 'sep', separator: true });
-      menuItems.push({ id: 'clear', label: 'Mark cleared', glyph: <Icon name="check" />, onSelect: () => actions.onClear?.(item) });
+      menuItems.push({ id: 'complete', label: 'Mark complete', glyph: <Icon name="check" />, onSelect: () => actions.onClear?.(item) });
     }
   }
 
@@ -198,7 +199,7 @@ function CaseItemView({ item, layout, editable, actions, isFirst, isLast, tight,
               </button>
             )}
             {actions?.onClear && (
-              <button type="button" className="case-item__btn case-item__btn--clear hit" onClick={() => actions.onClear?.(item)} title="Mark cleared" aria-label="Mark cleared">
+              <button type="button" className="case-item__btn case-item__btn--clear hit" onClick={() => actions.onClear?.(item)} title="Mark complete" aria-label="Mark complete">
                 <Icon name="check" size={12} className="case-item__check" />
               </button>
             )}

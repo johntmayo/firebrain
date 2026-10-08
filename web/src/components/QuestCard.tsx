@@ -4,6 +4,7 @@ import type { Quest } from '../types';
 import { useApp } from '../context/AppContext';
 import { describeOperator } from '../utils/operators';
 import { isOverdueDate } from '../utils/dueDate';
+import { openMissionsOfQuest } from '../utils/questMissions';
 import { QuestLogEntry } from './primitives';
 
 interface QuestCardProps {
@@ -43,15 +44,11 @@ export function QuestCard({ quest, expanded, onToggle, dragDisabled = false }: Q
     [quest.leader_email, quest.assignee, johnEmail, stephEmail, meganEmail],
   );
 
+  // Same "open missions of this quest" definition as the nested list and the
+  // Complete quest dialog (utils/questMissions.ts), so the counts always agree.
   const { openCount, overdueCount } = useMemo(() => {
-    let open = 0;
-    let overdue = 0;
-    for (const t of tasks) {
-      if (t.status !== 'open' || t.quest_id !== quest.quest_id) continue;
-      open += 1;
-      if (isOverdueDate(t.due_date)) overdue += 1;
-    }
-    return { openCount: open, overdueCount: overdue };
+    const open = openMissionsOfQuest(tasks, quest.quest_id);
+    return { openCount: open.length, overdueCount: open.filter(t => isOverdueDate(t.due_date)).length };
   }, [tasks, quest.quest_id]);
 
   const doneCount = useMemo(

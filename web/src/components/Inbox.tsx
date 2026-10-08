@@ -297,7 +297,7 @@ function MatrixView({
                       ))}
                     </div>
                   ) : (
-                    <div className="matrix__empty t-xs">Clear</div>
+                    <div className="matrix__empty t-xs">Empty</div>
                   )}
                 </div>
               );

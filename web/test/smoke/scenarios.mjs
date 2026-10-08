@@ -530,4 +530,103 @@ export const scenarios = [
       await shot('empty-loadout');
     },
   },
+
+  // ---- Quests: loaded missions stay visible; every count agrees ------------
+  // q1 "Ship the chassis" has two open missions — "Write spec for the Case grid"
+  // (loaded, slot 1) and "Overdue in a quest" — plus one cleared, so progress
+  // reads 1/3. Completing the unloaded one leaves a quest whose only open
+  // mission is loaded: the pane, the Quest dialog and the Complete-quest dialog
+  // must all still show / count that mission (utils/questMissions.ts).
+  {
+    name: 'desktop-quest-loaded-mission',
+    run: async ({ page, sleep, shot, count, expect, text, clickText }) => {
+      const q1 = '.quests-section[aria-label="Tracked quests"] .quest-block:nth-child(1)';
+      expect((await count(`${q1} .quest-block__row`)) === 2, 'quest block lists both open missions, the loaded one included');
+      expect((await count(`${q1} .quest-block__row.is-loaded .stat-chip--accent`)) === 1, 'the loaded mission carries a Loaded chip');
+      expect((await count(`${q1} .quest-block__row.is-loaded.is-deemphasized`)) === 1, 'the loaded mission is muted');
+      expect((await count(`${q1} .quest-block__row.is-loaded .item-card.is-draggable`)) === 0, 'a loaded mission is not a drag source (it is already placed)');
+      expect((await count(`${q1} .quest-block__row:not(.is-loaded) .item-card.is-draggable`)) === 1, 'the unloaded mission still drags');
+      let progress = await text(`${q1} .quest-entry__progress .num`);
+      expect(progress === '1/3', `progress counts every open mission (got "${progress}")`);
+      await shot('both');
+
+      // Complete the unloaded mission via the hover ✓ (the "Complete" verb).
+      const row = await page.$(`${q1} .quest-block__row:not(.is-loaded) .item-card`);
+      await row.hover();
+      await sleep(200);
+      const done = await row.$('.item-card__done[aria-label="Mark complete"]');
+      expect(Boolean(done), 'the hover check is labelled "Mark complete"');
+      await done.click();
+      await sleep(500);
+      await page.mouse.move(5, 5);
+      expect((await count(`${q1} .quest-block__row`)) === 1, 'the quest still lists its (loaded) open mission');
+      expect((await count(`${q1} .quest-block__empty`)) === 0, 'no "No open missions" while an open mission is loaded');
+      progress = await text(`${q1} .quest-entry__progress .num`);
+      expect(progress === '2/3', `progress agrees with the list (got "${progress}")`);
+      await shot('only-loaded');
+
+      // The Quest dialog shows and counts the same mission.
+      await page.click(`${q1} .quest-entry__title`);
+      await sleep(300);
+      expect((await count('.dialog')) === 1, 'quest dialog opens');
+      const dialogCount = await text('.dialog .dialog-section .section-header .num');
+      expect(dialogCount === '1', `dialog Missions count is 1 (got "${dialogCount}")`);
+      expect((await count('.dialog .quest-block__row.is-loaded .stat-chip--accent')) === 1, 'dialog lists the loaded mission with its Loaded chip');
+      expect((await count('.dialog .quest-block__empty')) === 0, 'dialog has no empty-state while a mission is loaded');
+      await shot('dialog');
+
+      // Complete quest → the confirm dialog agrees: 1 open mission.
+      await clickText('.dialog__foot .btn--danger', 'Complete quest');
+      await sleep(300);
+      expect((await count('.dialog')) === 1, 'confirm dialog replaces the quest dialog');
+      const title = await text('.dialog .dialog__title');
+      expect(/Complete quest/i.test(title || ''), `confirm dialog is titled "Complete quest" (got "${title}")`);
+      const copy = await text('.dialog .dialog-copy');
+      expect(/has 1 open mission\./.test(copy || '') && /What should happen to it\?/.test(copy || ''), `copy names the one open mission (got "${copy}")`);
+      const cascade = await text('.dialog__foot .btn--danger[data-mode="cascade_done"]');
+      const detach = await text('.dialog__foot .btn--primary[data-mode="detach_open"]');
+      expect(cascade === 'Complete missions too', `cascade button reads "Complete missions too" (got "${cascade}")`);
+      expect(detach === 'Keep missions — move to Cache', `detach button reads "Keep missions — move to Cache" (got "${detach}")`);
+      await shot('complete');
+      await clickText('.dialog__foot .btn--secondary', 'Cancel');
+      await sleep(200);
+      expect((await count('.dialog')) === 0, 'Cancel closes the confirm dialog without completing');
+    },
+  },
+
+  // ---- Vocabulary: Complete (verb) · Cleared (state) · Delete (erase) --------
+  {
+    name: 'desktop-vocabulary-complete',
+    run: async ({ page, sleep, shot, click, count, expect, text }) => {
+      await page.hover('.pane-inbox .item-card');
+      await sleep(200);
+      expect((await count('.pane-inbox .item-card:hover [aria-label="Mark complete"]')) === 1, 'mission hover check says "Mark complete"');
+      await page.hover('.case-item[data-span="2"]');
+      await sleep(200);
+      expect((await count('.case-item:hover .case-item__strip [aria-label="Mark complete"]')) === 1, 'case hover check says "Mark complete"');
+      await page.mouse.move(5, 5);
+      expect((await count('[aria-label="Mark cleared"], [title="Mark cleared"]')) === 0, 'no control still uses "Clear" as the finishing verb');
+      // "Cleared" survives only as the state: the Missions toggle and the done cards.
+      const toggle = await page.$$eval('.pane-inbox .hud-btn', els => els.map(e => e.textContent.trim()));
+      expect(toggle.includes('Cleared'), `Missions pane keeps its "Cleared" state toggle (got ${JSON.stringify(toggle)})`);
+      const doneLabel = await text('.accomplished__list .item-card__completed');
+      expect(/^Cleared /.test(doneLabel || ''), `done cards read "Cleared <date>" (got "${doneLabel}")`);
+      // "Delete" is the only erasing verb; it lives in the ⋯ menu.
+      await page.hover('.pane-inbox .item-card');
+      await sleep(150);
+      await page.click('.pane-inbox .item-card:hover .item-card__hover-actions [aria-label="More actions"]');
+      await sleep(200);
+      const items = await page.$$eval('.action-menu__item', els => els.map(e => e.textContent.trim()));
+      expect(items.some(t => /^Delete mission$/.test(t)), `⋯ menu offers "Delete mission" (got ${JSON.stringify(items)})`);
+      expect(!items.some(t => /\bclear\b/i.test(t)), `⋯ menu never says "Clear" (got ${JSON.stringify(items)})`);
+      await shot('menu');
+      await page.keyboard.press('Escape');
+      await sleep(150);
+      // Matrix: empty cells say "Empty", not "Clear".
+      await click('.seg__btn[data-value="matrix"]');
+      const empties = await page.$$eval('.matrix__empty', els => [...new Set(els.map(e => e.textContent.trim()))]);
+      expect(empties.length === 0 || (empties.length === 1 && empties[0] === 'Empty'), `matrix empty cells read "Empty" (got ${JSON.stringify(empties)})`);
+      await click('.seg__btn[data-value="list"]');
+    },
+  },
 ];

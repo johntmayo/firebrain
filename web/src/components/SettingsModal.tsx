@@ -18,7 +18,7 @@ const UI_SCALE_OPTIONS: SegmentOption<string>[] = UI_SCALE_PRESETS.map(s => ({
 }));
 
 const SOUND_OPTIONS: SegmentOption<'on' | 'off'>[] = [
-  { value: 'on', label: 'On', title: 'Play click sounds on drag, drop and clear' },
+  { value: 'on', label: 'On', title: 'Play click sounds on drag, drop and complete' },
   { value: 'off', label: 'Off', title: 'Mute all sounds' },
 ];
 

@@ -184,7 +184,7 @@ export function ItemCard({
               </div>
             )}
             {onDone && (
-              <button type="button" className="item-card__done hit" onClick={onDone} title="Mark cleared" aria-label="Mark cleared">
+              <button type="button" className="item-card__done hit" onClick={onDone} title="Mark complete" aria-label="Mark complete">
                 <Icon name="check" size={12} className="item-card__done-icon" />
               </button>
             )}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
 import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
+import { openMissionsOfQuest } from '../utils/questMissions';
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
 const STEPH_EMAIL = import.meta.env.VITE_STEPH_EMAIL || 'steph@example.com';
@@ -569,7 +570,7 @@ export function AppProvider({ children }: AppProviderProps) {
       ));
     } catch (err) {
       setTasks(previousTasks); // Rollback
-      showToast(err instanceof Error ? err.message : 'Failed to clear from Today', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to unload from today', 'error');
     }
   }, [viewingLoadoutUser, currentUser, tasks, showToast]);
 
@@ -706,7 +707,7 @@ export function AppProvider({ children }: AppProviderProps) {
     const quest = quests.find(q => q.quest_id === questId);
     if (!quest || quest.status === 'done') return;
 
-    const openMissionCount = tasks.filter(t => t.status === 'open' && t.quest_id === questId).length;
+    const openMissionCount = openMissionsOfQuest(tasks, questId).length;
 
     setPendingQuestCompletion({
       questId,

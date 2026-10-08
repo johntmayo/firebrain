@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { TaskCard } from './TaskCard';
 import type { CreateQuestInput, UpdateQuestInput } from '../types';
-import { PRIORITY_ORDER } from '../types';
 import { isOverdueDate } from '../utils/dueDate';
+import { isLoadedMission, openMissionsOfQuest, orderQuestMissions } from '../utils/questMissions';
 import { Dialog, StatChip } from './primitives';
 
 const QUEST_PRESET_COLORS = [
@@ -52,10 +52,10 @@ export function QuestModal() {
     }
   }, [selectedQuest, johnEmail, isQuestModalOpen]);
 
+  // All open missions, loaded ones included — same definition as the pane,
+  // the progress count and the Complete quest dialog (utils/questMissions.ts).
   const questMissions = selectedQuest
-    ? tasks
-        .filter(t => t.status === 'open' && t.quest_id === selectedQuest.quest_id && !t.today_slot)
-        .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+    ? orderQuestMissions(openMissionsOfQuest(tasks, selectedQuest.quest_id), { byPriority: true })
     : [];
   const overdueCount = questMissions.filter(t => isOverdueDate(t.due_date)).length;
 
@@ -130,7 +130,7 @@ export function QuestModal() {
       </button>
       {isEditMode && (
         <button type="button" className="btn btn--danger" onClick={handleCompleteQuest} disabled={saving}>
-          Clear quest
+          Complete quest
         </button>
       )}
       <button type="submit" className="btn btn--primary" disabled={saving || !title.trim()}>
@@ -254,7 +254,12 @@ export function QuestModal() {
           {questMissions.length > 0 ? (
             <div className="task-list">
               {questMissions.map(mission => (
-                <TaskCard key={mission.task_id} task={mission} tier="compact" hideQuest draggable={false} />
+                <div
+                  key={mission.task_id}
+                  className={`quest-block__row ${isLoadedMission(mission) ? 'is-deemphasized is-loaded' : ''}`.trim()}
+                >
+                  <TaskCard task={mission} tier="compact" hideQuest showLoaded draggable={false} />
+                </div>
               ))}
             </div>
           ) : (

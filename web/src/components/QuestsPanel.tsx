@@ -5,6 +5,7 @@ import { QuestCard } from './QuestCard';
 import { TaskCard } from './TaskCard';
 import { compareQuestSortOrder } from '../types';
 import type { Task, Quest } from '../types';
+import { groupOpenMissionsByQuest, isLoadedMission, orderQuestMissions } from '../utils/questMissions';
 import { PanelFrame, HudBar, EmptyState, Icon, titleFallback, useTooltip } from './primitives';
 
 const MOBILE_BREAKPOINT_PX = 900;
@@ -48,14 +49,14 @@ export function QuestsPanel() {
     return fallback;
   });
 
-  // Missions nested in a quest (open only, not currently loaded for today)
-  const missionsByQuestId = useMemo(() => (
-    tasks.reduce<Record<string, Task[]>>((groups, task) => {
-      if (task.status !== 'open' || !task.quest_id || task.today_slot) return groups;
-      (groups[task.quest_id] ||= []).push(task);
-      return groups;
-    }, {})
-  ), [tasks]);
+  // Every open mission nested in a quest — loaded ones included (shown muted
+  // with a Loaded chip) so the list, the progress count and the Complete
+  // quest dialog always agree. Shared helper: utils/questMissions.ts.
+  const missionsByQuestId = useMemo(() => {
+    const groups = groupOpenMissionsByQuest(tasks);
+    for (const id of Object.keys(groups)) groups[id] = orderQuestMissions(groups[id]);
+    return groups;
+  }, [tasks]);
 
   const isQuestExpanded = useCallback((quest: Quest, defaultExpanded: boolean) => {
     const collapsed = collapsedQuestIds[quest.quest_id];
@@ -224,14 +225,20 @@ function QuestWithMissions({ quest, missions, expanded, onToggle, dragDisabled =
         <div className="quest-block__missions">
           {missions.length > 0 ? (
             <div className="task-list">
-              {missions.map(task => (
-                <div
-                  key={task.task_id}
-                  className={`quest-block__row ${task.assignee === viewingLoadoutUser ? '' : 'is-deemphasized'}`}
-                >
-                  <TaskCard task={task} hideQuest />
-                </div>
-              ))}
+              {missions.map(task => {
+                // Loaded missions are already placed in a Loadout: muted, marked
+                // Loaded, and not a drag source (unload from the Loadout instead).
+                const loaded = isLoadedMission(task);
+                const muted = loaded || task.assignee !== viewingLoadoutUser;
+                return (
+                  <div
+                    key={task.task_id}
+                    className={`quest-block__row ${muted ? 'is-deemphasized' : ''} ${loaded ? 'is-loaded' : ''}`.trim()}
+                  >
+                    <TaskCard task={task} hideQuest showLoaded draggable={!loaded} />
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="quest-block__empty t-xs">No open missions — drop one here</div>
