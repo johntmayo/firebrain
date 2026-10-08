@@ -167,6 +167,15 @@ npm run build     # Production build
 npm run preview   # Preview production build
 ```
 
+## Roadmap & Design Docs
+
+- [`docs/PLAN.md`](docs/PLAN.md) — phased frontend improvement plan (bug fixes, chassis
+  foundation, handheld layout, QoL, ratings, progression, skins) plus the audit findings
+  that motivated it.
+- [`docs/CHASSIS_BRIEF.md`](docs/CHASSIS_BRIEF.md) — design brief for the skin-independent
+  "chassis": structural components, density rules, the Case loadout format, and the skin
+  contract.
+
 ## License
 
 MIT
