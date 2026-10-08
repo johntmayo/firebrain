@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DESKTOP_CASE, HANDHELD_CASE } from './casePacking';
-import { CASE_NARROW_PANE_PX, caseCellWidth, caseShapeFor, isTightCell, nextSlots } from './caseShape';
+import { CASE_NARROW_PANE_PX, CASE_TIGHT_CELL_PX, caseCellWidth, caseShapeFor, isTightCell, nextSlots } from './caseShape';
 
 describe('caseShapeFor', () => {
   it('is 6×2 on desktop regardless of pane width above the floor', () => {
@@ -34,6 +34,20 @@ describe('caseCellWidth / isTightCell', () => {
     expect(isTightCell(53)).toBe(true);
     expect(isTightCell(84)).toBe(false);
     expect(isTightCell(null)).toBe(false);
+  });
+
+  it('is not tight at the default desktop (1440) and phone cell widths after the density pass', () => {
+    expect(CASE_TIGHT_CELL_PX).toBe(80);
+    expect(isTightCell(CASE_TIGHT_CELL_PX - 1)).toBe(true);
+    expect(isTightCell(CASE_TIGHT_CELL_PX)).toBe(false);
+    // 576px Loadout pane → 540px case → 87px cells; 390px phone → 338px case → 82px cells.
+    expect(caseCellWidth(540, 6)).toBe(87);
+    expect(isTightCell(caseCellWidth(540, 6))).toBe(false);
+    expect(caseCellWidth(338, 4)).toBe(82);
+    expect(isTightCell(caseCellWidth(338, 4))).toBe(false);
+    // Laptop (340px pane → 304px case) falls back to 4×3 with 73px cells, which are tight.
+    expect(caseShapeFor(304, false)).toEqual(HANDHELD_CASE);
+    expect(isTightCell(caseCellWidth(304, 4))).toBe(true);
   });
 });
 

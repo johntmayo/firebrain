@@ -7,6 +7,7 @@ import { ENERGY_POINTS_LIMIT, type EnergyLevel, type Task } from '../types';
 import { describeOperator } from '../utils/operators';
 import { moveItem, packCase, type CaseItem, type OverflowItem, type PlacedItem } from '../utils/casePacking';
 import { caseCellWidth, caseShapeFor } from '../utils/caseShape';
+import { TODAY_PANE_WIDTH, TODAY_PANE_WIDTH_KEY, parseStoredPaneWidth, resizedPaneWidth } from '../utils/paneWidth';
 import {
   PanelFrame,
   HudBar,
@@ -37,8 +38,9 @@ const ENERGY_OPTIONS: SegmentOption<EnergyLevel>[] = [
   { value: 'heavy', label: 'Heavy', title: `Heavy day — ${ENERGY_POINTS_LIMIT.heavy} cells`, hint: `Heavy — ${ENERGY_POINTS_LIMIT.heavy} cells live` },
 ];
 
-// Icon-only like the Missions pane's View control: the 360px Loadout pane can't
-// hold a labelled Case · List next to the operator control without a third row.
+// Icon-only like the Missions pane's View control: a user-shrunk or laptop
+// (340px) Loadout pane can't hold a labelled Case · List next to the operator
+// control without a third header row.
 const FORMAT_OPTIONS: SegmentOption<LoadoutFormat>[] = [
   { value: 'case', glyph: <Icon name="grid" />, title: 'Case', hint: 'Case — missions occupy CR cells in a fixed grid' },
   { value: 'list', glyph: <Icon name="list" />, title: 'List', hint: 'List — the same loadout as a plain ordered list' },
@@ -53,6 +55,57 @@ function readStoredFormat(): LoadoutFormat {
   } catch {
     return 'case';
   }
+}
+
+/** `null` = no user choice yet; the pane keeps its CSS default width. */
+function readStoredPaneWidth(): number | null {
+  try {
+    return parseStoredPaneWidth(localStorage.getItem(TODAY_PANE_WIDTH_KEY), TODAY_PANE_WIDTH);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Drag-resize for the Loadout pane, mirroring the Quests pane's grip: a
+ * full-height strip on the right edge; width persists under
+ * `firebrain_today_panel_width`. Until the user drags, the width is left to
+ * CSS (`.pane-today`, clamp(480px, 40vw, 640px)) so it stays responsive.
+ */
+function usePaneResize(): [number | null, (e: React.MouseEvent<HTMLButtonElement>) => void] {
+  const [paneWidth, setPaneWidth] = useState<number | null>(readStoredPaneWidth);
+
+  useEffect(() => {
+    if (paneWidth === null) return;
+    try { localStorage.setItem(TODAY_PANE_WIDTH_KEY, String(paneWidth)); } catch { /* storage unavailable */ }
+  }, [paneWidth]);
+
+  const startResize = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    // The grip is a child of the .panel-frame; measure it so a CSS-default
+    // width becomes the drag's starting point.
+    const frame = e.currentTarget.parentElement;
+    const startWidth = paneWidth ?? (frame ? frame.getBoundingClientRect().width : TODAY_PANE_WIDTH.min);
+
+    const onMove = (moveEvent: MouseEvent) => {
+      setPaneWidth(resizedPaneWidth(startWidth, moveEvent.clientX - startX, TODAY_PANE_WIDTH));
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [paneWidth]);
+
+  return [paneWidth, startResize];
 }
 
 /** True under the handheld shell (same breakpoint App.tsx uses for mobile-mode). */
@@ -118,6 +171,7 @@ export function TodayPlanner() {
   const [accomplishedOpen, setAccomplishedOpen] = useState(true);
   const [format, setFormat] = useState<LoadoutFormat>(readStoredFormat);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [paneWidth, startResize] = usePaneResize();
 
   useEffect(() => {
     try { localStorage.setItem(FORMAT_STORAGE_KEY, format); } catch { /* storage unavailable */ }
@@ -252,7 +306,7 @@ export function TodayPlanner() {
             <br />
             Each costs its CR in cells; Energy sets how many cells are live.
             <br />
-            Clear them as you go — cleared missions drop into Accomplished Today.
+            Complete them as you go — cleared missions drop into Accomplished Today.
           </>
         )
         : `${viewer.name} hasn't loaded anything yet.`}
@@ -274,7 +328,22 @@ export function TodayPlanner() {
   const overBy = Math.max(0, layout.used - layout.capacity);
 
   return (
-    <PanelFrame className="pane pane-today" header={header} subheader={subheader}>
+    <PanelFrame
+      className="pane pane-today"
+      style={paneWidth !== null ? { width: `${paneWidth}px` } : undefined}
+      header={header}
+      subheader={subheader}
+      overlay={(
+        <button
+          type="button"
+          className="pane-resizer"
+          data-hit-exempt="resizer: a full-height 10px strip, mouse only"
+          onMouseDown={startResize}
+          aria-label="Resize loadout pane"
+          title="Drag to resize"
+        />
+      )}
+    >
       {format === 'case' ? (
         <div
           ref={caseRootRef}

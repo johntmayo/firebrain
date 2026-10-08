@@ -530,4 +530,153 @@ export const scenarios = [
       await shot('empty-loadout');
     },
   },
+
+  // ---- Density pass (Oct 2026): defaults loosened, Loadout is the primary pane ----
+  // Root 16px × --ui-scale; --t-* one step up; --h-cell 84; Loadout pane
+  // clamp(480px, 40vw, 640px) = 576px at 1440 → 87px cells, so CR1 cells carry
+  // title + P + CR pips. The pane is drag-resizable (firebrain_today_panel_width).
+  {
+    name: 'desktop-density',
+    run: async ({ page, shot, count, expect }) => {
+      const m = await page.evaluate(() => {
+        const rect = sel => document.querySelector(sel)?.getBoundingClientRect();
+        const root = getComputedStyle(document.documentElement);
+        const cells = [...document.querySelectorAll('.case-cell')].map(c => c.getBoundingClientRect());
+        const cr1 = document.querySelector('.case-item[data-span="1"]');
+        const cap = rect('.pane-today .cap-bar');
+        const energy = rect('.pane-today .loadout-hud .seg');
+        return {
+          rootFont: root.fontSize,
+          uiScale: root.getPropertyValue('--ui-scale').trim(),
+          hCell: parseFloat(root.getPropertyValue('--h-cell')),
+          hRow: parseFloat(root.getPropertyValue('--h-row')),
+          hChip: parseFloat(root.getPropertyValue('--h-chip')),
+          today: rect('.pane-today')?.width,
+          quests: rect('.pane-quests')?.width,
+          inbox: rect('.pane-inbox')?.width,
+          cellMinW: Math.min(...cells.map(c => c.width)),
+          cellMaxW: Math.max(...cells.map(c => c.width)),
+          cellMinH: Math.min(...cells.map(c => c.height)),
+          cellMaxH: Math.max(...cells.map(c => c.height)),
+          cr1Tight: cr1 ? cr1.classList.contains('case-item--tight') : null,
+          cr1Pips: cr1 ? cr1.querySelectorAll('.cr-pip.is-on').length : null,
+          cr1Priority: cr1 ? cr1.querySelectorAll('.stat-chip--p1, .stat-chip--p2, .stat-chip--p3').length : null,
+          capTop: cap ? Math.round(cap.top + cap.height / 2) : null,
+          energyTop: energy ? Math.round(energy.top + energy.height / 2) : null,
+          hudRows: (() => { const h = rect('.pane-today .loadout-hud'); return h ? h.height : null; })(),
+          headerRows: (() => { const h = rect('.pane-today .hud-bar'); return h ? h.height : null; })(),
+          rowCard: rect('.pane-inbox .item-card')?.height,
+          // Any chip whose box pokes outside its stat row (clipped by overflow: hidden)?
+          clipped: [...document.querySelectorAll('.case-item .item-card__stats')].flatMap(row => {
+            const r = row.getBoundingClientRect();
+            return [...row.children].filter(ch => {
+              const cs = getComputedStyle(ch);
+              if (cs.display === 'none') return false;
+              const b = ch.getBoundingClientRect();
+              return b.right > r.right + 0.5;
+            }).map(ch => `${ch.className.split(' ').slice(0, 2).join('.')} in "${row.closest('.case-item')?.querySelector('.item-card__title')?.textContent.trim().slice(0, 18)}"`);
+          }),
+        };
+      });
+      expect(m.rootFont === '16px', `root font-size is 16px at ui-scale ${m.uiScale} (got ${m.rootFont})`);
+      expect(m.hCell === 84 && m.hRow === 48 && m.hChip === 20, `heights re-tuned: --h-cell 84 / --h-row 48 / --h-chip 20 (got ${m.hCell}/${m.hRow}/${m.hChip})`);
+      expect(m.today > m.quests && m.today > m.inbox, `Loadout is the widest pane at 1440 (today ${Math.round(m.today)}, quests ${Math.round(m.quests)}, missions ${Math.round(m.inbox)})`);
+      expect(m.today >= 560 && m.today <= 592, `Loadout pane is clamp(480px, 40vw, 640px) ≈ 576 at 1440 (got ${Math.round(m.today)})`);
+      expect(m.cellMinW >= 80, `every case cell is ≥ 80px wide (min ${m.cellMinW.toFixed(1)}, max ${m.cellMaxW.toFixed(1)})`);
+      expect(Math.round(m.cellMinH) === 84 && Math.round(m.cellMaxH) === 84, `every case cell is --h-cell (84) tall (got ${m.cellMinH}–${m.cellMaxH})`);
+      expect(m.cr1Tight === false, 'the CR1 case item is not tight at the default width');
+      expect(m.cr1Pips === 1 && m.cr1Priority === 1, `CR1 cell shows its P chip and CR pips (pips on: ${m.cr1Pips}, P chips: ${m.cr1Priority})`);
+      expect(m.capTop !== null && m.energyTop !== null && Math.abs(m.capTop - m.energyTop) <= 3, `capacity bar and Energy control share one HUD row (centres ${m.capTop} vs ${m.energyTop})`);
+      expect(m.hudRows !== null && m.hudRows <= 56, `loadout HUD is a single row (height ${m.hudRows})`);
+      expect(m.headerRows !== null && m.headerRows <= 56, `Loadout header is a single row at 1440 (height ${m.headerRows})`);
+      expect(Math.round(m.rowCard) === 48, `row-tier ItemCard is --h-row 48 (got ${m.rowCard})`);
+      expect(m.clipped.length === 0, `no stat chip is clipped inside a case cell: ${m.clipped.join('; ')}`);
+      expect((await count('.pane-today .pane-resizer')) === 1, 'Loadout pane has a resize grip');
+      const file = await shot();
+      // 1:1 crop of the Loadout pane so cell detail is reviewable without downscaling.
+      const pane = await page.$eval('.pane-today', el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: Math.min(r.height, 420) }; });
+      await page.screenshot({ path: file.replace(/\.png$/, '-loadout.png'), clip: pane });
+    },
+  },
+  {
+    name: 'desktop-loadout-resize',
+    run: async ({ page, sleep, shot, expect }) => {
+      const before = await page.$eval('.pane-today', el => el.getBoundingClientRect().width);
+      const stored0 = await page.evaluate(() => localStorage.getItem('firebrain_today_panel_width'));
+      expect(stored0 === null, `no width stored until the user drags (got ${stored0})`);
+      const grip = await page.$('.pane-today .pane-resizer');
+      expect(Boolean(grip), 'resize grip exists');
+      const g = await grip.boundingBox();
+      await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(g.x + g.width / 2 + 60, g.y + g.height / 2, { steps: 6 });
+      await page.mouse.move(g.x + g.width / 2 + 120, g.y + g.height / 2, { steps: 6 });
+      await sleep(100);
+      await shot('dragging');
+      await page.mouse.up();
+      await sleep(200);
+      const after = await page.$eval('.pane-today', el => el.getBoundingClientRect().width);
+      expect(Math.abs(after - (before + 120)) <= 2, `pane grew by the drag distance (${Math.round(before)} → ${Math.round(after)})`);
+      const stored = await page.evaluate(() => localStorage.getItem('firebrain_today_panel_width'));
+      expect(stored !== null && Math.abs(Number(stored) - after) <= 1, `width persisted under firebrain_today_panel_width (got ${stored})`);
+      const cols = await page.$eval('.case-grid', el => el.dataset.cols);
+      expect(cols === '6', `case stays 6 wide when the pane grows (got ${cols})`);
+      await shot('wider');
+      // Shrink well below the minimum: the width clamps and the Case falls back.
+      const g2 = await (await page.$('.pane-today .pane-resizer')).boundingBox();
+      await page.mouse.move(g2.x + g2.width / 2, g2.y + g2.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(g2.x + g2.width / 2 - 600, g2.y + g2.height / 2, { steps: 12 });
+      await page.mouse.up();
+      await sleep(200);
+      const minW = await page.$eval('.pane-today', el => el.getBoundingClientRect().width);
+      expect(Math.round(minW) === 400, `pane width clamps at the 400px minimum (got ${Math.round(minW)})`);
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('.case-item .item-card__stats')].flatMap(row => {
+        const r = row.getBoundingClientRect();
+        return [...row.children].filter(ch => getComputedStyle(ch).display !== 'none' && ch.getBoundingClientRect().right > r.right + 0.5)
+          .map(ch => ch.className.split(' ').slice(0, 2).join('.'));
+      }));
+      expect(clipped.length === 0, `shrunk cells drop chips instead of clipping them: ${clipped.join('; ')}`);
+      await shot('narrowest');
+      // Reload: the stored width survives.
+      await page.evaluate(() => localStorage.setItem('firebrain_today_panel_width', '700'));
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.app', { timeout: 10000 });
+      await sleep(300);
+      const reloaded = await page.$eval('.pane-today', el => el.getBoundingClientRect().width);
+      expect(Math.round(reloaded) === 700, `stored width survives a reload (got ${Math.round(reloaded)})`);
+      await shot('reloaded');
+    },
+  },
+  {
+    name: 'laptop-case',
+    viewport: 'laptop',
+    run: async ({ page, shot, count, expect }) => {
+      const m = await page.evaluate(() => {
+        const rect = sel => document.querySelector(sel)?.getBoundingClientRect();
+        const cells = [...document.querySelectorAll('.case-cell')].map(c => c.getBoundingClientRect().width);
+        return {
+          today: rect('.pane-today')?.width,
+          quests: rect('.pane-quests')?.width,
+          inbox: rect('.pane-inbox')?.width,
+          cellMinW: Math.min(...cells),
+          cols: document.querySelector('.case-grid')?.dataset.cols,
+          resizerShown: [...document.querySelectorAll('.pane-resizer')].some(el => getComputedStyle(el).display !== 'none'),
+          clipped: [...document.querySelectorAll('.case-item .item-card__stats')].flatMap(row => {
+            const r = row.getBoundingClientRect();
+            return [...row.children].filter(ch => getComputedStyle(ch).display !== 'none' && ch.getBoundingClientRect().right > r.right + 0.5)
+              .map(ch => ch.className.split(' ').slice(0, 2).join('.'));
+          }),
+        };
+      });
+      expect(Math.round(m.today) === 340, `Loadout pane is 340px at ≤ 1100 (got ${Math.round(m.today)})`);
+      expect(m.cols === '4', `laptop Loadout falls back to the 4-wide case (got ${m.cols})`);
+      expect(m.cellMinW >= 70, `4×3 cells are legible (min ${m.cellMinW.toFixed(1)}px)`);
+      expect(m.inbox >= 280 && m.quests >= 280, `Quests / Missions aren't starved (quests ${Math.round(m.quests)}, missions ${Math.round(m.inbox)})`);
+      expect(!m.resizerShown, 'pane resizers are hidden at laptop width');
+      expect(m.clipped.length === 0, `no stat chip is clipped inside a case cell: ${m.clipped.join('; ')}`);
+      expect((await count('.case-item')) >= 3, 'case items render');
+      await shot();
+    },
+  },
 ];
