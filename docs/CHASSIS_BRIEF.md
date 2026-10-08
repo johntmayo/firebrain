@@ -76,8 +76,9 @@ Anatomy (fixed, left→right, fixed height per tier):
 └─┴──────────────────────────────────────────────┴────┘
  ^ priority bar                 ^ stat row       ^ action zone
 ```
-Tiers: **row** (cache, quest log, list loadout) ~44px; **cell** (Case) square-ish by CR
-span; **compact** (matrix) 36px, stat row collapses to glyphs only.
+Tiers: **row** (cache, quest log, list loadout) 48px; **cell** (Case) 84px tall, `CR` cells
+wide — a CR1 cell carries title + P chip + CR pips (due/quest live in the tooltip), narrower
+than 80px it drops to P only; **compact** (matrix) 40px, stat row collapses to glyphs only.
 Stat row order is fixed: priority · CR pips · due · operator · quest chip. Items hide when
 redundant (operator hidden under a single-user filter; quest chip hidden inside its quest).
 Hover/long-press: Tooltip with full title, notes excerpt, created date, exact due.
@@ -86,7 +87,8 @@ Skin: card fill/border, bar shape, glyph set for P and CR, chip styling, hover t
 
 ### 4.4 StatChip
 Role: a labeled value (P2, CR pips, "2d", "J", quest name, "3 / 10").
-Anatomy: optional glyph + mono value; fixed height 18px; min hit area via parent.
+Anatomy: optional glyph + mono value; fixed height 20px (22px inside a Case cell); min hit
+area via parent.
 Skin: shape (pill/square/hex), fill, glyphs.
 
 ### 4.5 Slot & Case
@@ -127,7 +129,12 @@ Standard; all fixed in behavior, skinnable in surface. Notices stack, dismissibl
 carry one action (Undo). EmptyStates always offer a next action.
 
 ## 5. Density rules (chassis-wide)
-- Root 15px × `--ui-scale` (0.85 / 1 / 1.15 / 1.3). Type tokens `--t-2xs … --t-xl` only.
+- Root 16px × `--ui-scale` (0.85 / 1 / 1.15 / 1.3). Type tokens `--t-2xs … --t-xl` only
+  (0.68 / 0.75 / 0.85 / 0.95 / 1.08 / 1.3 rem). *Oct 2026: the defaults were deliberately
+  loosened one step after daily use (root 15 → 16px, every token up one step); the 85 %
+  preset reproduces the original density.*
+- Fixed heights: HudBar 48, ItemCard row 48 / compact 40 / cell 84, QuestLogEntry 48,
+  StatChip 20, form controls and `.seg--md` 40 (`--h-control`; 44 on touch).
 - Text ≤ `--t-xs`: upright, weight ≥ 500, contrast ≥ 4.5:1.
 - Display typeface only for pane titles, dialog titles, and the logotype.
 - Mono + tabular numerals for all numbers.
@@ -146,6 +153,10 @@ unlocked, not the grid's shape. Locked cells are always visible (disabled treatm
 switching to a heavier day visibly opens up the case.
 - Desktop: 6 × 2 = 12 cells. Light → 7 live / 5 locked. Medium → 10 / 2. Heavy → 12 / 0.
 - Mobile: 4 × 3 = 12 cells. Same lock counts.
+- The Loadout is the primary pane: on desktop it defaults to `clamp(480px, 40vw, 640px)`
+  (576px → 87px cells at 1440) and is drag-resizable 400–900px (persisted as
+  `firebrain_today_panel_width`); Missions takes the remainder. Below 1100px the pane is
+  340px and the case falls back to 4 × 3.
 - Locked cells fill from the bottom-right so live cells are always a contiguous
   left-to-right, top-to-bottom run.
 

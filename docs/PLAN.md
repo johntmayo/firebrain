@@ -25,7 +25,9 @@ All work is in `web/`. Keep Sheet-isms (legacy slot codes, row assumptions) conf
 Density stance: small, dense type is intentional and stays. Legibility comes from contrast,
 alignment, iconography, fixed heights, mono numerals, hover detail, and a UI-scale setting —
 not from bigger fonts. Visual size and hit area are separate; targets stay ≥ 32px desktop /
-44px touch via invisible padding.
+44px touch via invisible padding. *(Oct 2026: the default step of that scale was loosened
+once after use — root 16px, tokens one step up; the 85 % preset is the original. The stance
+itself stands.)*
 
 ---
 
@@ -78,10 +80,18 @@ Verified in a headless pass: no page scroll at 1440/1024/390, zero italics, ever
 ≥ 32px (segments extend their hit area to the control edge via `::after`), 44px under
 `pointer: coarse`. Only the 10px pane resizer and the full-width Gizmodroar tab fall
 outside the rule, intentionally.
-- Root stays `15px`. Add `--ui-scale` (presets 0.85 / 1 / 1.15 / 1.3) applied as
-  `html { font-size: calc(15px * var(--ui-scale)) }`; expose in a settings menu; persist.
-- Type scale tokens: `--t-2xs: 0.6rem; --t-xs: 0.68rem; --t-sm: 0.78rem; --t-md: 0.88rem;
-  --t-lg: 1rem; --t-xl: 1.2rem`. Every `font-size` in the stylesheet maps to one of these.
+**Density pass (Oct 2026, round 3):** after daily use the owner found the defaults too
+tight, so they were deliberately loosened — the *system* is unchanged, the *defaults* moved
+one step: root `15px → 16px`, every `--t-*` token one step up (`0.68 / 0.75 / 0.85 / 0.95 /
+1.08 / 1.3 rem`), fixed heights `--h-row 44→48`, `--h-compact 36→40`, `--h-cell 64→84`,
+`--h-chip 18→20`, `--h-hud 44→48`, plus a new `--h-control: 40px` (44 touch) for form
+controls. The 85 % `--ui-scale` preset reproduces the old density. The Loadout became the
+primary (widest) pane — see 1.5. Smoke: `desktop-density`, `desktop-loadout-resize`,
+`laptop-case`.
+- ~~Root stays `15px`.~~ Root is `16px` × `--ui-scale` (presets 0.85 / 1 / 1.15 / 1.3)
+  applied as `html { font-size: calc(16px * var(--ui-scale)) }`; exposed in Settings; persisted.
+- Type scale tokens: `--t-2xs: 0.68rem; --t-xs: 0.75rem; --t-sm: 0.85rem; --t-md: 0.95rem;
+  --t-lg: 1.08rem; --t-xl: 1.3rem`. Every `font-size` in the stylesheet maps to one of these.
 - Small text (≤ `--t-xs`) must be ≥ 4.5:1 contrast, upright (no italics), weight ≥ 500.
 - All numerals (points, counts, dates, CR, P) in `--font-mono` with `font-variant-numeric:
   tabular-nums`.
@@ -164,7 +174,13 @@ chosen by the handheld breakpoint (≤ 900px) plus a < 320px pane-width floor ra
 container query (the phone pane is wider than the desktop pane); Case · List is icon-only to
 keep the HUD to two rows; another operator's case renders read-only with all 12 cells live
 because their energy level isn't known client-side; the Loadout pane widened to
-`clamp(360px, 30vw, 480px)` so cells are ≥ 64px on common desktops. Overflow items that fit
+`clamp(360px, 30vw, 480px)` so cells are ≥ 64px on common desktops — *superseded Oct 2026
+(round 3): the Loadout is now the primary pane at `clamp(480px, 40vw, 640px)` (576px → 87px
+cells at 1440) and drag-resizable like Quests (400–900px, `utils/paneWidth.ts`, persisted as
+`firebrain_today_panel_width`; until the user drags, nothing is stored and the CSS clamp stays
+responsive). `CASE_TIGHT_CELL_PX` rose 72 → 80 so CR1 cells carry title + P + CR pips; the
+cell is an inline-size container that hides the quest chip < 220px and everything but P/CR
+< 125px. At ≤ 1100px the pane is 340px and falls back to 4 × 3 (~73px cells).* Overflow items that fit
 the budget but not the free cells show a neutral "reorder to pack tighter" hint, which is
 the brief's intended fix (two Shift-earlier clicks pack the fixture loadout).
 
@@ -315,6 +331,7 @@ only.
 2. ~~Design Brief decisions → Phase 1.1–1.3 (shell, density, primitives).~~ ✅
 3. ~~Phase 1.5 (the Case) — the signature screen.~~ ✅ (plus icons, Settings, Sci-fi skin,
    Gadget drawer, teaching tooltips, test harness)
+3b. ~~Round 3 — loaded-missions bug, Complete/Cleared/Delete vocabulary, density pass.~~ ✅
 4. Phase 2 (handheld). **← next**
 5. Phase 1.4, 1.6, 1.7 polish; Phase 3 as capacity allows.
 6. Phase 4 design pass; Phase 6 skin hooks (vocabulary / glyphs / sounds) + Military;

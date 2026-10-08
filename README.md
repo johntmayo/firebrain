@@ -43,7 +43,7 @@ Quests group related missions and carry a colour that tags their nested missions
 - **Frontend**: React 18 + TypeScript 5 + Vite 5
 - **Drag & Drop**: @dnd-kit (core, sortable, utilities)
 - **State Management**: React Context (`AppContext`, `ThemeContext`)
-- **Styling**: CSS custom properties. `styles/tokens.css` holds the design tokens (type scale, colours, spacing, fixed heights, hit areas, motion, `--ground-texture`); `styles/index.css` holds the structural "chassis" and imports the feature sheets (`case.css`, `settings.css`, `gadgets.css`). **Skins** (`src/skins/<id>.css`) override tokens only, scoped under `html[data-skin="<id>"]`; the registry is `src/skins/index.ts`. Shipped skins: **Graphite** (default, neutral) and **Sci-fi**. A unit test enforces the skin contract (every rule scoped, no font-size/italic changes, motion ≤ 200 ms).
+- **Styling**: CSS custom properties. `styles/tokens.css` holds the design tokens (root 16 px × `--ui-scale`, type scale `--t-2xs … --t-xl`, colours, spacing, fixed heights `--h-row 48 / --h-compact 40 / --h-cell 84 / --h-chip 20 / --h-hud 48 / --h-control 40`, hit areas, motion, `--ground-texture`); `styles/index.css` holds the structural "chassis" and imports the feature sheets (`case.css`, `settings.css`, `gadgets.css`). **Skins** (`src/skins/<id>.css`) override tokens only, scoped under `html[data-skin="<id>"]`; the registry is `src/skins/index.ts`. Shipped skins: **Graphite** (default, neutral) and **Sci-fi**. A unit test enforces the skin contract (every rule scoped, no font-size/italic changes, motion ≤ 200 ms).
 - **Icons**: hand-drawn inline SVG set in `primitives/Icon.tsx` (`<Icon name="load" size={16} />`), no icon library.
 - **Audio**: Web Audio API for procedural sound effects (mutable in Settings)
 - **Testing**: Vitest unit tests + a headless-browser smoke harness with a mocked backend (see [Testing](#testing))
@@ -51,14 +51,14 @@ Quests group related missions and carry a colour that tags their nested missions
 
 ## Features
 
-- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld) where each mission occupies `CR` cells; Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and complete. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
+- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld and on laptops ≤ 1100 px) where each mission occupies `CR` cells; the Loadout is the primary pane — widest by default (`clamp(480px, 40vw, 640px)`, so CR1 cells show title + P + CR pips) and drag-resizable from its right edge (400–900 px, persisted as `firebrain_today_panel_width`); Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and complete. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
 - **Missions (Cache)** — create, edit, filter by operator, sort by priority or CR; **List**, **Grid** (grouped by priority) and **Matrix** (P × CR) views; an **Overdue** section at the top gathers every open, unloaded mission past its due date (including quest missions); **Cleared** toggle shows completed missions
 - **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions (loaded ones included, marked **Loaded**) with inline "+ Mission"; progress `done / total` and a late count per quest; **Complete quest** with a keep-or-complete choice for open missions
 - **Accomplished today** — missions cleared today for the operator being viewed, collapsible under the loadout
 - **Bulk import** — paste multiple missions with syntax: `-p1/-p2/-p3`, `~low/~medium/~high`, `@today/@tomorrow/@nextweek/@YYYY-MM-DD`, `#notes`
 - **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Complete; keyboard: Enter opens, Space completes; tooltip carries full title, notes, created and due dates
 - **Bulk import / quick add grammar** — `Title -p1 ~high @tomorrow #notes` (`-p1/-p2/-p3` priority, `~low/~medium/~high` CR, `@today/@tomorrow/@nextweek/@YYYY-MM-DD` due, `#` notes). Parser lives in `utils/parseMission.ts`.
-- **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 %, click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`).
+- **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 % (85 % reproduces the pre-Oct-2026 density), click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`; pane widths in `firebrain_quests_panel_width` / `firebrain_today_panel_width`, loadout format in `firebrain_loadout_format`).
 - **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space completes, Esc closes).
 - **Teaching tooltips** — every control explains itself on hover/focus (one sentence, game vocabulary); every icon-only control also has an `aria-label` for touch and screen readers.
 - **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 4 × 3
@@ -167,7 +167,7 @@ Firebrain v1/
 │   │   │   ├── index.css     # Structural chassis styles (imports the files below + skins)
 │   │   │   └── case.css / settings.css / gadgets.css
 │   │   ├── types/            # TypeScript type definitions
-│   │   ├── utils/            # casePacking, caseShape, questMissions, parseMission, stopwatch, dueDate, operators, sounds
+│   │   ├── utils/            # casePacking, caseShape, paneWidth, questMissions, parseMission, stopwatch, dueDate, operators, sounds
 │   │   ├── App.tsx           # Root component, drag & drop context, desktop/mobile shell
 │   │   └── main.tsx          # Entry point
 │   ├── test/smoke/           # Headless smoke harness: run.mjs, scenarios.mjs, mockApi.mjs
@@ -226,8 +226,8 @@ tooling below never reaches the Sheet.
 ```bash
 cd web
 npm run typecheck   # tsc --noEmit
-npm run test        # Vitest unit tests (pure logic: casePacking, caseShape, questMissions, parseMission, stopwatch, dueDate, skins contract…)
-npm run smoke       # Headless browser run against a MOCKED backend (screenshots in test/smoke/out/)
+npm run test        # Vitest unit tests (90: casePacking, caseShape, paneWidth, questMissions, parseMission, stopwatch, dueDate, skins contract…)
+npm run smoke       # Headless browser run against a MOCKED backend (30 scenarios; screenshots in test/smoke/out/)
 npm run check       # all of the above + build — run before handing work off
 ```
 
