@@ -1,0 +1,99 @@
+/* ==============================================================
+   BRIEFING — morning check-in (Dialog composition, brief §4.9)
+   Energy · leftovers · overdue · suggested load. Tokens only.
+   ============================================================== */
+
+.briefing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.briefing-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.briefing-section + .briefing-section {
+  padding-top: var(--space-md);
+  border-top: var(--border-w) solid var(--border);
+}
+
+.briefing-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: var(--hit-min);
+}
+
+.briefing-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin: 0;
+  color: var(--text-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.briefing-section__title .num {
+  color: var(--text-2);
+}
+
+.briefing-section__title--danger,
+.briefing-section__title--danger .num {
+  color: var(--danger);
+}
+
+.briefing-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.briefing-energy__live {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.briefing-copy {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.briefing-leftover__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  min-height: var(--h-row);
+  padding: var(--space-2xs) var(--space-xs);
+  background: var(--surface-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.briefing-leftover__main {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: var(--space-2xs) 0;
+}
+
+.briefing-leftover__actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) 0;
+}
+
+.briefing-overdue__action {
+  align-self: flex-start;
+}
