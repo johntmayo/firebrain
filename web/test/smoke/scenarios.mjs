@@ -946,4 +946,86 @@ export const scenarios = [
       await shot();
     },
   },
+  {
+    name: 'desktop-engage',
+    run: async ({ page, sleep, shot, click, count, expect, log }) => {
+      const marked = await page.evaluate(() => {
+        const slot = [...document.querySelectorAll('.case-slot')].find(el => (el.textContent || '').includes('Write spec'));
+        if (!slot) return false;
+        slot.setAttribute('data-smoke-engage', '1');
+        return true;
+      });
+      expect(marked, 'CR1 "Write spec" is in the case');
+      await page.hover('[data-smoke-engage="1"]');
+      await sleep(200);
+      // DOM click — a card tooltip can sit over the hover strip and eat a coordinate click.
+      const engaged = await page.evaluate(() => {
+        const btn = document.querySelector('[data-smoke-engage="1"] [data-engage]');
+        if (!btn || btn.disabled) return false;
+        btn.click();
+        return true;
+      });
+      expect(engaged, 'Engage control on the Write spec cell fired');
+      await page.waitForSelector('[data-engage-start]', { visible: true, timeout: 5000 });
+      await click('[data-engage-preset="5"]');
+      await click('[data-engage-start]');
+      expect((await count('[data-focus-row]')) === 1, 'Focus row appears after Engage');
+      expect((await count('.case-slot.is-active')) === 1, 'active case cell has .is-active');
+      await shot('engaged');
+
+      await page.evaluate(() => window.__fbEngage?.expire());
+      await sleep(300);
+      expect((await count('[data-focus-phase="chimed"]')) === 1, 'chime card after fast-forward');
+      await shot('chimed');
+
+      await click('[data-focus-action="complete"]');
+      await sleep(400);
+      expect(log.apiCalls.some(c => c.action === 'completeTask'), 'completeTask was called on the (mock) API');
+      const stillLoaded = await page.evaluate(() =>
+        [...document.querySelectorAll('.case-slot')].some(el => (el.textContent || '').includes('Write spec')));
+      expect(!stillLoaded, 'completing frees the case cell');
+      expect((await count('.case-slot.is-active')) === 0, 'active treatment clears with the cell');
+      expect((await count('[data-focus-phase="cooldown-offer"]')) === 1, 'Take 5? after Complete');
+      await shot('cooldown');
+
+      await click('[data-focus-action="start-cooldown"]');
+      expect((await count('[data-focus-phase="cooldown"]')) === 1, 'break is running');
+      await click('[data-focus-action="skip-cooldown"]');
+      expect((await count('[data-focus-row]')) === 0, 'Skip removes the Focus row');
+    },
+  },
+  {
+    name: 'phone-engage',
+    viewport: 'phone',
+    run: async ({ page, sleep, shot, click, clickText, count, expect }) => {
+      await clickText('.mobile-tab', 'Loadout');
+      await sleep(300);
+      const marked = await page.evaluate(() => {
+        const slot = [...document.querySelectorAll('.case-slot')].find(el => (el.textContent || '').includes('Write spec'))
+          || document.querySelector('.case-slot');
+        if (!slot) return false;
+        slot.setAttribute('data-smoke-engage', '1');
+        return true;
+      });
+      expect(marked, 'a case slot is available to engage');
+      const usedMenu = await page.evaluate(() => {
+        const trigger = document.querySelector('[data-smoke-engage="1"] .case-slot__menu .action-menu__trigger');
+        if (!trigger) return false;
+        const cs = getComputedStyle(trigger);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        trigger.click();
+        return true;
+      });
+      if (usedMenu) {
+        await sleep(200);
+        await clickText('.action-menu__item', 'Engage');
+      } else {
+        await click('[data-smoke-engage="1"] [data-engage]');
+      }
+      await click('[data-engage-preset="5"]');
+      await click('[data-engage-start]');
+      expect((await count('[data-focus-row]')) === 1, 'Focus row shows on phone after Engage');
+      await shot('focus-row');
+    },
+  },
 ];

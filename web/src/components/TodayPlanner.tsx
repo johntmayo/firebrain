@@ -26,6 +26,8 @@ import {
   type CaseRenderItem,
   type SegmentOption,
 } from './primitives';
+import { EngagePicker, FocusRow } from './FocusRow';
+import { isMissionPhase } from '../utils/engagement';
 
 type LoadoutFormat = 'case' | 'list';
 
@@ -167,12 +169,23 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
     clearToday,
     completeTask,
     reorderLoadoutTasks,
+    engagement,
+    engageMission,
   } = useApp();
 
   const [accomplishedOpen, setAccomplishedOpen] = useState(true);
   const [format, setFormat] = useState<LoadoutFormat>(readStoredFormat);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [engageTarget, setEngageTarget] = useState<Task | null>(null);
   const [paneWidth, startResize] = usePaneResize();
+
+  const activeMissionId = isMissionPhase(engagement.phase) ? engagement.missionId : null;
+
+  const requestEngage = useCallback((task: Task) => {
+    if (activeMissionId && activeMissionId !== task.task_id) return;
+    if (activeMissionId === task.task_id) return;
+    setEngageTarget(task);
+  }, [activeMissionId]);
 
   useEffect(() => {
     try { localStorage.setItem(FORMAT_STORAGE_KEY, format); } catch { /* storage unavailable */ }
@@ -230,7 +243,11 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
     onShiftEarlier: item => shift(item.index, -1),
     onShiftLater: item => shift(item.index, 1),
     onClear: item => { void completeTask(item.id); },
-  }), [clearToday, completeTask, shift]);
+    onEngage: item => {
+      const task = taskById.get(item.id);
+      if (task) requestEngage(task);
+    },
+  }), [clearToday, completeTask, shift, taskById, requestEngage]);
 
   const { isOver: isOverLoadout, setNodeRef: setLoadoutDropRef } = useDroppable({
     id: 'loadout-drop-zone',
@@ -278,29 +295,34 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
     </HudBar>
   );
 
-  const subheader = isViewingOwnLoadout && loadoutConfig ? (
-    <div className="loadout-hud">
-      <CapacityBar used={usedPoints} limit={energyLimit} energyLabel={loadoutConfig.energy_level} />
-      <HudGroup label="Energy">
-        <SegmentedControl
-          ariaLabel="Energy level"
-          options={ENERGY_OPTIONS}
-          value={loadoutConfig.energy_level}
-          onChange={level => { void setEnergyLevel(level).catch(() => {}); }}
-        />
-      </HudGroup>
-      {onOpenBriefing && (
-        <button type="button" className="hud-btn" onClick={onOpenBriefing} title="Morning check-in" aria-label="Open briefing">
-          <Icon name="calendar" size={14} />
-          Briefing
-        </button>
-      )}
-    </div>
-  ) : !isViewingOwnLoadout ? (
-    <div className="loadout-hud loadout-hud--readonly t-xs">
-      Viewing {viewer.name}'s loadout — read only
-    </div>
-  ) : null;
+  const subheader = (
+    <>
+      {isViewingOwnLoadout && loadoutConfig ? (
+        <div className="loadout-hud">
+          <CapacityBar used={usedPoints} limit={energyLimit} energyLabel={loadoutConfig.energy_level} />
+          <HudGroup label="Energy">
+            <SegmentedControl
+              ariaLabel="Energy level"
+              options={ENERGY_OPTIONS}
+              value={loadoutConfig.energy_level}
+              onChange={level => { void setEnergyLevel(level).catch(() => {}); }}
+            />
+          </HudGroup>
+          {onOpenBriefing && (
+            <button type="button" className="hud-btn" onClick={onOpenBriefing} title="Morning check-in" aria-label="Open briefing">
+              <Icon name="calendar" size={14} />
+              Briefing
+            </button>
+          )}
+        </div>
+      ) : !isViewingOwnLoadout ? (
+        <div className="loadout-hud loadout-hud--readonly t-xs">
+          Viewing {viewer.name}'s loadout — read only
+        </div>
+      ) : null}
+      {isViewingOwnLoadout && <FocusRow />}
+    </>
+  );
 
   const emptyState = (
     <EmptyState
@@ -368,6 +390,7 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
             cellWidth={cellWidth}
             editable={isViewingOwnLoadout}
             actions={caseActions}
+            activeItemId={activeMissionId}
             itemCount={loadoutTasks.length}
             renderItem={renderCaseItem}
             ariaLabel={`${viewer.name}'s case`}
@@ -381,6 +404,7 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
                   renderItem={renderCaseItem}
                   editable={isViewingOwnLoadout}
                   actions={caseActions}
+                  activeItemId={activeMissionId}
                   itemCount={loadoutTasks.length}
                   cellWidth={cellWidth}
                 />
@@ -401,7 +425,15 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
         >
           {loadoutTasks.length > 0 ? (
             loadoutTasks.map((task, index) => (
-              <LoadoutRow key={task.task_id} task={task} index={index} canEdit={isViewingOwnLoadout} />
+              <LoadoutRow
+                key={task.task_id}
+                task={task}
+                index={index}
+                canEdit={isViewingOwnLoadout}
+                isActive={activeMissionId === task.task_id}
+                engageLocked={Boolean(activeMissionId && activeMissionId !== task.task_id)}
+                onEngage={requestEngage}
+              />
             ))
           ) : emptyState}
         </div>
@@ -443,20 +475,70 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
           used={usedPoints}
         />
       )}
+      <EngagePicker
+        key={engageTarget?.task_id ?? 'closed'}
+        open={Boolean(engageTarget)}
+        missionTitle={engageTarget?.title ?? ''}
+        lastPresetMinutes={engagement.lastPresetMinutes}
+        blockedReason={
+          engageTarget && activeMissionId && activeMissionId !== engageTarget.task_id
+            ? 'Stand down first'
+            : null
+        }
+        onClose={() => setEngageTarget(null)}
+        onStart={minutes => {
+          if (!engageTarget) return;
+          engageMission(engageTarget, minutes);
+          setEngageTarget(null);
+        }}
+      />
     </PanelFrame>
   );
 }
 
-function LoadoutRow({ task, index, canEdit }: { task: Task; index: number; canEdit: boolean }) {
+function LoadoutRow({
+  task,
+  index,
+  canEdit,
+  isActive,
+  engageLocked,
+  onEngage,
+}: {
+  task: Task;
+  index: number;
+  canEdit: boolean;
+  isActive: boolean;
+  engageLocked: boolean;
+  onEngage: (task: Task) => void;
+}) {
   const { isOver, setNodeRef } = useDroppable({
     id: `loadout-task-${task.task_id}`,
     disabled: !canEdit,
   });
 
+  const engageTitle = engageLocked ? 'Stand down first' : isActive ? 'Already engaged' : 'Engage';
+
   return (
-    <div ref={setNodeRef} className={`loadout-row ${isOver && canEdit ? 'is-drop-target' : ''}`}>
+    <div
+      ref={setNodeRef}
+      className={`loadout-row ${isOver && canEdit ? 'is-drop-target' : ''} ${isActive ? 'is-active' : ''}`.trim()}
+    >
       <span className="loadout-row__index num">{index + 1}</span>
       <TaskCard task={task} inSlot hideOperator draggable={canEdit} />
+      {canEdit && (
+        <button
+          type="button"
+          className="hud-btn loadout-row__engage"
+          data-engage
+          disabled={engageLocked || isActive}
+          title={engageTitle}
+          aria-label={engageTitle}
+          onClick={() => onEngage(task)}
+        >
+          <Icon name="clock" size={14} />
+          Engage
+        </button>
+      )}
     </div>
   );
 }

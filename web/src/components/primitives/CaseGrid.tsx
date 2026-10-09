@@ -16,6 +16,8 @@ export interface CaseGridActions {
   onShiftLater?: (item: OrderedItem) => void;
   /** Mark the mission complete (UI verb "Complete"; the resulting state is "Cleared"). */
   onClear?: (item: OrderedItem) => void;
+  /** Start the engagement clock on this mission (disabled when another is active). */
+  onEngage?: (item: OrderedItem) => void;
 }
 
 /** Renders the mission inside its slot. `tight` = a 1-wide cell too narrow for the full stat row. */
@@ -32,6 +34,8 @@ export interface CaseGridProps {
   itemCount?: number;
   /** Measured cell width (px); decides the tight treatment for CR1 cells. */
   cellWidth?: number | null;
+  /** Mission currently on the engagement clock — gets `.is-active`. */
+  activeItemId?: string | null;
   className?: string;
   ariaLabel?: string;
 }
@@ -63,6 +67,7 @@ export function CaseGrid({
   actions,
   itemCount,
   cellWidth = null,
+  activeItemId = null,
   className = '',
   ariaLabel = 'Case',
 }: CaseGridProps) {
@@ -96,6 +101,8 @@ export function CaseGrid({
             droppable={{ id: `${CASE_CELL_DROP_PREFIX}${startN}`, data: { type: 'case-cell', n: startN, insertIndex: item.index } }}
             editable={editable}
             actions={actions}
+            active={activeItemId === item.id}
+            engageLocked={Boolean(activeItemId && activeItemId !== item.id)}
             isFirst={item.index === 0}
             isLast={item.index >= total - 1}
             tight={isTight}
@@ -156,23 +163,36 @@ interface CaseSlotProps {
   droppable: { id: string; data?: Record<string, unknown> };
   editable: boolean;
   actions?: CaseGridActions;
+  active?: boolean;
+  engageLocked?: boolean;
   isFirst: boolean;
   isLast: boolean;
   tight: boolean;
   children: React.ReactNode;
 }
 
-function CaseSlot({ item, span, className, style, dataAttrs, droppable, editable, actions, isFirst, isLast, tight, children }: CaseSlotProps) {
+function CaseSlot({ item, span, className, style, dataAttrs, droppable, editable, actions, active = false, engageLocked = false, isFirst, isLast, tight, children }: CaseSlotProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: droppable.id,
     disabled: !editable,
     data: droppable.data,
   });
 
-  const hasActions = editable && actions && (actions.onUnload || actions.onShiftEarlier || actions.onShiftLater || actions.onClear);
+  const hasActions = editable && actions && (actions.onUnload || actions.onShiftEarlier || actions.onShiftLater || actions.onClear || actions.onEngage);
+  const engageDisabled = active || engageLocked;
+  const engageTitle = engageLocked ? 'Stand down first' : active ? 'Already engaged' : 'Engage';
 
   const menuItems: ActionMenuItem[] = [];
   if (hasActions) {
+    if (actions?.onEngage) {
+      menuItems.push({
+        id: 'engage',
+        label: engageLocked ? 'Stand down first' : 'Engage',
+        glyph: <Icon name="clock" />,
+        disabled: engageDisabled,
+        onSelect: () => actions.onEngage?.(item),
+      });
+    }
     if (actions?.onShiftEarlier) {
       menuItems.push({ id: 'earlier', label: 'Shift earlier', glyph: <Icon name="chevron-left" />, disabled: isFirst, onSelect: () => actions.onShiftEarlier?.(item) });
     }
@@ -197,6 +217,7 @@ function CaseSlot({ item, span, className, style, dataAttrs, droppable, editable
         tight ? 'case-slot--tight' : '',
         className,
         isOver && editable ? 'is-over' : '',
+        active ? 'is-active' : '',
       ].filter(Boolean).join(' ')}
       data-item-id={item.id}
       data-span={span}
@@ -207,6 +228,19 @@ function CaseSlot({ item, span, className, style, dataAttrs, droppable, editable
       {children}
       {hasActions && (
         <div className="case-slot__actions" onClick={stop} onPointerDown={stop} onKeyDown={stop}>
+          {actions?.onEngage && (
+            <button
+              type="button"
+              className="case-slot__engage hit"
+              onClick={() => actions.onEngage?.(item)}
+              disabled={engageDisabled}
+              title={engageTitle}
+              aria-label={engageTitle}
+              data-engage
+            >
+              <Icon name="clock" size={14} />
+            </button>
+          )}
           <div className="case-slot__strip" role="toolbar" aria-label="Mission actions">
             {actions?.onShiftEarlier && (
               <button type="button" className="case-slot__btn hit" onClick={() => actions.onShiftEarlier?.(item)} disabled={isFirst} title="Shift earlier" aria-label="Shift earlier">
@@ -296,6 +330,7 @@ export interface CaseTrayItemProps {
   itemCount: number;
   /** Measured cell width (px); decides the tight treatment for CR1 slots. */
   cellWidth?: number | null;
+  activeItemId?: string | null;
 }
 
 /**
@@ -306,7 +341,7 @@ export interface CaseTrayItemProps {
  * Dropping on it inserts before it (same `loadout-task-` id the List format
  * uses).
  */
-export function CaseTrayItem({ item, renderItem, editable = false, actions, itemCount, cellWidth = null }: CaseTrayItemProps) {
+export function CaseTrayItem({ item, renderItem, editable = false, actions, itemCount, cellWidth = null, activeItemId = null }: CaseTrayItemProps) {
   const tight = isTightCell(cellWidth) && item.cr === 1;
 
   return (
@@ -318,6 +353,8 @@ export function CaseTrayItem({ item, renderItem, editable = false, actions, item
       droppable={{ id: `${LOADOUT_TASK_DROP_PREFIX}${item.id}`, data: { type: 'loadout-task', taskId: item.id } }}
       editable={editable}
       actions={actions}
+      active={activeItemId === item.id}
+      engageLocked={Boolean(activeItemId && activeItemId !== item.id)}
       isFirst={item.index === 0}
       isLast={item.index >= itemCount - 1}
       tight={tight}

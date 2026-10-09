@@ -264,6 +264,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.stopwatch--bound .stopwatch__display.is-running {
+  color: var(--active);
+}
+
+.stopwatch__bound-label {
+  color: var(--text-2);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: var(--hit-min);
+  min-height: var(--hit-min);
+}
+
 /* ---- Quick add ------------------------------------------------- */
 .quick-add {
   display: flex;

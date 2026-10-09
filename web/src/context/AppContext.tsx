@@ -3,6 +3,41 @@ import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, Update
 import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder, ENERGY_POINTS_LIMIT, pointsLimitFor } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 import { openMissionsOfQuest } from '../utils/questMissions';
+import { areSoundsEnabled, sounds } from '../utils/sounds';
+import {
+  ENGAGEMENT_STORAGE_KEY,
+  canEngage,
+  complete as completeEngagement,
+  deserialize as deserializeEngagement,
+  engage as engageClock,
+  engageDuration,
+  expire as expireEngagement,
+  isMissionPhase,
+  pause as pauseClock,
+  plus5,
+  reconcile as reconcileEngagement,
+  serialize as serializeEngagement,
+  skipCooldown as skipCooldownClock,
+  standDown as standDownClock,
+  start as startClock,
+  startCooldown as startCooldownClock,
+  tick as tickEngagement,
+  type EngagementState,
+  type EngagementTick,
+} from '../utils/engagement';
+
+export type { EngagementState, EngagementTick };
+
+declare global {
+  interface Window {
+    /** Smoke / tests only — not rendered. */
+    __fbEngage?: {
+      expire: () => void;
+      nextDurationMs: (ms: number) => void;
+      getPhase: () => EngagementState['phase'];
+    };
+  }
+}
 
 const JOHN_EMAIL = import.meta.env.VITE_JOHN_EMAIL || 'john@example.com';
 const STEPH_EMAIL = import.meta.env.VITE_STEPH_EMAIL || 'steph@example.com';
@@ -43,6 +78,19 @@ interface AppContextType {
   isBulkImportOpen: boolean;
   viewingLoadoutUser: string; // Which user's loadout we're viewing
   loadoutConfig: LoadoutConfig | null; // Current user's energy level and points (only for own loadout)
+
+  // Engagement (one active mission + clock, per device)
+  engagement: EngagementState;
+  engagementTick: EngagementTick;
+  engageMission: (mission: Pick<Task, 'task_id' | 'title'>, minutes: number) => boolean;
+  standDown: () => void;
+  pauseEngagement: () => void;
+  resumeEngagement: () => void;
+  plusFive: () => void;
+  acknowledgeChime: () => void;
+  completeActive: () => Promise<void>;
+  startCooldown: () => void;
+  skipCooldown: () => void;
 
   // Actions
   setAssigneeFilter: (filter: AssigneeFilter) => void;
@@ -200,6 +248,108 @@ export function AppProvider({ children }: AppProviderProps) {
     return loggedInUser;
   }); // Start viewing own loadout
   const [loadoutConfig, setLoadoutConfig] = useState<LoadoutConfig | null>(null);
+
+  const [engagement, setEngagement] = useState<EngagementState>(() => {
+    try {
+      return deserializeEngagement(localStorage.getItem(ENGAGEMENT_STORAGE_KEY));
+    } catch {
+      return deserializeEngagement(null);
+    }
+  });
+  const [engagementNow, setEngagementNow] = useState(() => Date.now());
+  const engagementRef = useRef(engagement);
+  engagementRef.current = engagement;
+  const nextEngageMsRef = useRef<number | null>(null);
+
+  const persistEngagement = useCallback((next: EngagementState) => {
+    try {
+      localStorage.setItem(ENGAGEMENT_STORAGE_KEY, serializeEngagement(next));
+    } catch {
+      /* storage unavailable — the clock still works for this session */
+    }
+  }, []);
+
+  const commitEngagement = useCallback((next: EngagementState) => {
+    setEngagement(next);
+    persistEngagement(next);
+    setEngagementNow(Date.now());
+  }, [persistEngagement]);
+
+  const engagementTick = useMemo(() => tickEngagement(engagement, engagementNow), [engagement, engagementNow]);
+
+  useEffect(() => {
+    if (!engagementTick.running) return;
+    const id = setInterval(() => setEngagementNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [engagementTick.running]);
+
+  useEffect(() => {
+    if (!engagementTick.chimed && !engagementTick.cooldownDone) return;
+    commitEngagement(engagementTick.state);
+    if (areSoundsEnabled()) sounds.timerDone();
+  }, [engagementTick.chimed, engagementTick.cooldownDone, engagementTick.state, commitEngagement]);
+
+  const engageMission = useCallback((mission: Pick<Task, 'task_id' | 'title'>, minutes: number): boolean => {
+    const prev = engagementRef.current;
+    if (!canEngage(prev, mission.task_id) && isMissionPhase(prev.phase) && prev.missionId !== mission.task_id) {
+      return false;
+    }
+    const override = nextEngageMsRef.current;
+    nextEngageMsRef.current = null;
+    const spec = { id: mission.task_id, title: mission.title };
+    const next = override != null
+      ? engageDuration(prev, spec, override, Date.now(), minutes)
+      : engageClock(prev, spec, minutes, Date.now());
+    if (next === prev) return false;
+    commitEngagement(next);
+    return true;
+  }, [commitEngagement]);
+
+  const standDown = useCallback(() => {
+    commitEngagement(standDownClock(engagementRef.current));
+  }, [commitEngagement]);
+
+  const pauseEngagement = useCallback(() => {
+    commitEngagement(pauseClock(engagementRef.current, Date.now()));
+  }, [commitEngagement]);
+
+  const resumeEngagement = useCallback(() => {
+    commitEngagement(startClock(engagementRef.current, Date.now()));
+  }, [commitEngagement]);
+
+  const plusFive = useCallback(() => {
+    commitEngagement(plus5(engagementRef.current, Date.now()));
+  }, [commitEngagement]);
+
+  const acknowledgeChime = useCallback(() => {
+    const snap = tickEngagement(engagementRef.current, Date.now());
+    if (snap.chimed) commitEngagement(snap.state);
+  }, [commitEngagement]);
+
+  const startCooldown = useCallback(() => {
+    commitEngagement(startCooldownClock(engagementRef.current, Date.now()));
+  }, [commitEngagement]);
+
+  const skipCooldown = useCallback(() => {
+    commitEngagement(skipCooldownClock(engagementRef.current));
+  }, [commitEngagement]);
+
+  useEffect(() => {
+    window.__fbEngage = {
+      expire() {
+        commitEngagement(expireEngagement(engagementRef.current, Date.now()));
+      },
+      nextDurationMs(ms: number) {
+        nextEngageMsRef.current = Number.isFinite(ms) && ms > 0 ? ms : null;
+      },
+      getPhase() {
+        return engagementRef.current.phase;
+      },
+    };
+    return () => {
+      delete window.__fbEngage;
+    };
+  }, [commitEngagement]);
   
   // Notices (toasts): each has its own timer, rapid successive notices stack
   // instead of replacing each other, and any notice can be dismissed early.
@@ -437,6 +587,11 @@ export function AppProvider({ children }: AppProviderProps) {
   const completeTask = useCallback(async (taskId: string) => {
     const previousTasks = tasks;
     const completedTask = tasks.find(t => t.task_id === taskId);
+    const previousEngagement = engagementRef.current;
+    const wasActive = isMissionPhase(previousEngagement.phase) && previousEngagement.missionId === taskId;
+    if (wasActive) {
+      commitEngagement(completeEngagement(previousEngagement));
+    }
     
     // Optimistic update - remove from list
     setTasks(prev => prev.filter(t => t.task_id !== taskId));
@@ -459,9 +614,16 @@ export function AppProvider({ children }: AppProviderProps) {
       showToast('Mission cleared', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
+      if (wasActive) commitEngagement(previousEngagement);
       showToast(err instanceof Error ? err.message : 'Failed to complete mission', 'error');
     }
-  }, [tasks, showToast]);
+  }, [tasks, showToast, commitEngagement]);
+
+  const completeActive = useCallback(async () => {
+    const id = engagementRef.current.missionId;
+    if (!id || !isMissionPhase(engagementRef.current.phase)) return;
+    await completeTask(id);
+  }, [completeTask]);
 
   const cancelTask = useCallback(async (taskId: string) => {
     const previousTasks = tasks;
@@ -900,6 +1062,17 @@ export function AppProvider({ children }: AppProviderProps) {
     }, {})
   ), [quests]);
 
+  // If the engaged mission vanished, was unloaded, or is no longer open, leave
+  // the clock silently. Cooldown / offer have no mission to validate.
+  useEffect(() => {
+    if (loading) return;
+    const valid = tasks
+      .filter(t => t.status === 'open' && t.today_slot)
+      .map(t => t.task_id);
+    const next = reconcileEngagement(engagementRef.current, valid);
+    if (next !== engagementRef.current) commitEngagement(next);
+  }, [tasks, loading, commitEngagement]);
+
   const effectiveLoadoutConfig = useMemo(() => (
     loadoutConfig
       ? {
@@ -980,6 +1153,17 @@ export function AppProvider({ children }: AppProviderProps) {
     viewingLoadoutUser,
     setViewingLoadoutUser,
     loadoutConfig: effectiveLoadoutConfig,
+    engagement,
+    engagementTick,
+    engageMission,
+    standDown,
+    pauseEngagement,
+    resumeEngagement,
+    plusFive,
+    acknowledgeChime,
+    completeActive,
+    startCooldown,
+    skipCooldown,
   };
   
   return (
