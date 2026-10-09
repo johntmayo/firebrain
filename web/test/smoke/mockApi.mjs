@@ -52,6 +52,9 @@ export function createMockApi() {
     task('Cleared straight from cache', { status: 'done', completed_at: iso(today), challenge: 'medium' }),
     task('Cleared yesterday', { status: 'done', completed_at: iso(daysFromNow(-1)), today_user: JOHN }),
   ];
+  // Briefing leftover: still loaded, but today_set_at is yesterday (slot 5).
+  const leftover = tasks.find(t => t.title === 'Harassment prevention training');
+  if (leftover) leftover.today_set_at = iso(daysFromNow(-1));
 
   const config = { [JOHN]: 'medium', [STEF]: 'light', [MEGAN]: 'heavy' };
   const LIMIT = { light: 7, medium: 10, heavy: 12 };

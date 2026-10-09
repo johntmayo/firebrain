@@ -31,7 +31,9 @@ import { BulkImportModal } from './components/BulkImportModal';
 import { PasswordScreen } from './components/PasswordScreen';
 import { GadgetDrawer } from './components/GadgetDrawer';
 import { SettingsModal } from './components/SettingsModal';
+import { BriefingModal } from './components/BriefingModal';
 import { clearSessionToken, isAuthenticated } from './api/client';
+import { isBriefingDue, readBriefingSeen, todayKey, writeBriefingSeen } from './utils/briefing';
 import { sounds } from './utils/sounds';
 import { describeOperator } from './utils/operators';
 import { getPriorityLevel } from './types';
@@ -93,6 +95,7 @@ function AppContent() {
     stephEmail,
     meganEmail,
     viewingLoadoutUser,
+    setAssigneeFilter,
     loadTask,
     reorderLoadoutTasks,
     clearToday,
@@ -102,6 +105,7 @@ function AppContent() {
     reorderQuests,
   } = useApp();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [briefingOpen, setBriefingOpen] = React.useState(false);
 
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
   const [activeQuest, setActiveQuest] = React.useState<Quest | null>(null);
@@ -127,6 +131,34 @@ function AppContent() {
   React.useEffect(() => {
     localStorage.setItem(DESKTOP_PANE_ORDER_KEY, JSON.stringify(desktopPaneOrder));
   }, [desktopPaneOrder]);
+
+  const openBriefing = React.useCallback(() => setBriefingOpen(true), []);
+  const closeBriefing = React.useCallback(() => {
+    // Esc / Skip / Start / backdrop all mark today so the sheet does not reopen.
+    writeBriefingSeen(todayKey());
+    setBriefingOpen(false);
+  }, []);
+
+  React.useEffect(() => {
+    const tryOpen = () => {
+      if (viewingLoadoutUser !== currentUser) return;
+      if (isBriefingDue(readBriefingSeen(), todayKey())) setBriefingOpen(true);
+    };
+    tryOpen();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tryOpen();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [viewingLoadoutUser, currentUser]);
+
+  const handleFilterOverdue = React.useCallback(() => {
+    if (currentUser === johnEmail) setAssigneeFilter('john');
+    else if (currentUser === stephEmail) setAssigneeFilter('steph');
+    else if (currentUser === meganEmail) setAssigneeFilter('megan');
+    closeBriefing();
+    if (isMobileViewport) setActiveMobilePane('inbox');
+  }, [closeBriefing, currentUser, isMobileViewport, johnEmail, meganEmail, setAssigneeFilter, stephEmail]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -427,7 +459,7 @@ function AppContent() {
                 <Inbox />
               </section>
               <section className={`mobile-pane ${activeMobilePane === 'today' ? 'is-active' : ''}`}>
-                <TodayPlanner />
+                <TodayPlanner onOpenBriefing={openBriefing} />
               </section>
             </main>
 
@@ -453,7 +485,7 @@ function AppContent() {
               {desktopPaneOrder.map(pane => (
                 <SortableDesktopPane key={pane} pane={pane}>
                   {pane === 'today' ? (
-                    <TodayPlanner />
+                    <TodayPlanner onOpenBriefing={openBriefing} />
                   ) : pane === 'quests' ? (
                     <QuestsPanel />
                   ) : (
@@ -476,6 +508,11 @@ function AppContent() {
           onClose={() => setSettingsOpen(false)}
           operator={operator}
           onLogout={handleLogout}
+        />
+        <BriefingModal
+          open={briefingOpen}
+          onClose={closeBriefing}
+          onFilterOverdue={handleFilterOverdue}
         />
         <Toast />
       </div>

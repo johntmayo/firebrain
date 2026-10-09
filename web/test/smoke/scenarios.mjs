@@ -883,4 +883,67 @@ export const scenarios = [
       await shot();
     },
   },
+
+  // ---- Briefing (once-a-day morning check-in) --------------------------------
+  // The harness seeds firebrain_briefing_seen so other scenarios stay unblocked.
+  // Clear that key and reload to simulate a first visit today (empty store).
+  {
+    name: 'desktop-briefing',
+    run: async ({ page, api, log, sleep, shot, click, count, expect }) => {
+      await page.evaluate(() => localStorage.removeItem('firebrain_briefing_seen'));
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.briefing-dialog', { timeout: 10000 });
+      await sleep(400);
+      expect((await count('.briefing-dialog')) === 1, 'briefing opens on load when unseen today');
+      expect((await count('.briefing-leftover')) === 1, 'one leftover from yesterday');
+      const leftoverTitle = await page.$eval('.briefing-leftover .pick-row__title', el => el.textContent.trim());
+      expect(leftoverTitle === 'Harassment prevention training', `leftover is Harassment prevention training (got "${leftoverTitle}")`);
+      expect((await count('.briefing-suggest .pick-row')) >= 2, 'suggested load lists at least two missions');
+      await shot('open');
+
+      await click('.briefing-leftover__return');
+      await sleep(300);
+      expect(log.apiCalls.some(c => c.action === 'clearToday'), 'Back to Cache calls clearToday');
+      const leftoverId = api.state.tasks.find(t => t.title === 'Harassment prevention training')?.task_id;
+      expect(log.apiCalls.some(c => c.action === 'clearToday' && c.body.task_id === leftoverId), 'clearToday targets the leftover');
+      expect((await count('.briefing-leftover')) === 0, 'returned leftover leaves the leftovers list');
+
+      const boxes = await page.$$('.briefing-suggest .pick-row__input');
+      expect(boxes.length >= 2, 'two suggestions to check');
+      await boxes[0].click();
+      await boxes[1].click();
+      await sleep(150);
+      const assignsBefore = log.apiCalls.filter(c => c.action === 'assignToday').length;
+      await click('.briefing-dialog .btn--primary');
+      await sleep(500);
+      const assigns = log.apiCalls.filter(c => c.action === 'assignToday');
+      expect(assigns.length === assignsBefore + 2, `Start the day assigns 2 missions (got ${assigns.length - assignsBefore})`);
+      expect((await count('.briefing-dialog')) === 0, 'Start the day closes the briefing');
+      expect((await count('.pane-today .case-item')) === 6, 'Case is 4 kept + 2 newly loaded');
+      await shot('started');
+
+      const seen = await page.evaluate(() => localStorage.getItem('firebrain_briefing_seen'));
+      const today = await page.evaluate(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      });
+      expect(seen === today, `closing writes firebrain_briefing_seen = today (got "${seen}")`);
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.app', { timeout: 10000 });
+      await sleep(400);
+      expect((await count('.briefing-dialog')) === 0, 'briefing does not reopen after being seen today');
+    },
+  },
+  {
+    name: 'phone-briefing',
+    viewport: 'phone',
+    run: async ({ page, sleep, shot, count, expect }) => {
+      await page.evaluate(() => localStorage.removeItem('firebrain_briefing_seen'));
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForSelector('.briefing-dialog', { timeout: 10000 });
+      await sleep(400);
+      expect((await count('.briefing-dialog')) === 1, 'briefing opens as a sheet on phone');
+      await shot();
+    },
+  },
 ];

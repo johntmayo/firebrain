@@ -119,6 +119,14 @@ async function openPage(browser, viewport, api, log) {
     localStorage.clear();
     localStorage.setItem('firebrain_session_token', 'mock-token');
     localStorage.setItem('firebrain_user_email', email);
+    // Seed seen-today so existing scenarios are not blocked by the once-a-day
+    // Briefing. desktop-briefing / phone-briefing clear this key and reload.
+    // A truly empty store (no firebrain_briefing_seen) opens the briefing on load.
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    localStorage.setItem('firebrain_briefing_seen', `${y}-${m}-${day}`);
   }, process.env.VITE_JOHN_EMAIL);
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle0' });
   await page.waitForSelector('.app', { timeout: 10000 });
