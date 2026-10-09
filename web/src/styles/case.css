@@ -115,6 +115,19 @@
   outline-offset: -1px;
 }
 
+.case-slot.is-active {
+  z-index: 2;
+  outline: 2px solid var(--active-border);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 1px var(--active-soft), 0 0 10px var(--active-soft);
+  animation: case-active-pulse var(--dur-normal) var(--ease-out) infinite alternate;
+}
+
+@keyframes case-active-pulse {
+  from { box-shadow: 0 0 0 1px var(--active-border); }
+  to { box-shadow: 0 0 0 2px var(--active-border), 0 0 10px var(--active-soft); }
+}
+
 .case-slot .item-card {
   width: 100%;
   height: 100%;

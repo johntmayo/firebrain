@@ -1,0 +1,207 @@
+/* ==============================================================
+   FOCUS ROW + ENGAGE PICKER (Loadout clock)
+   Tokens only; no hardcoded colours.
+   ============================================================== */
+
+.focus-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  min-height: var(--h-hud);
+  padding: var(--space-2xs) var(--space-sm);
+  border-top: var(--border-w) solid var(--border);
+  background: var(--active-soft);
+}
+
+.focus-row__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  color: var(--active);
+}
+
+.focus-row__title {
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.focus-row__dot {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.focus-row__clock {
+  flex-shrink: 0;
+  font-size: var(--t-md);
+  font-weight: 600;
+  color: var(--active);
+  letter-spacing: 0.02em;
+}
+
+.focus-row__actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.focus-row__actions .hud-btn {
+  min-width: var(--hit-min);
+}
+
+@media (max-width: 900px) {
+  .focus-row__actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+}
+
+.focus-row__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: var(--h-hud);
+}
+
+.focus-row__copy {
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.focus-row__copy-sub {
+  display: block;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+/* ---- List-row Engage (Loadout list format) ---------------------- */
+.loadout-row {
+  grid-template-columns: 18px 1fr auto;
+}
+
+.loadout-row.is-active {
+  outline: 1px solid var(--active-border);
+  background: var(--active-soft);
+}
+
+.loadout-row__engage {
+  flex-shrink: 0;
+}
+
+@media (pointer: fine) {
+  .loadout-row__engage {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .loadout-row:hover .loadout-row__engage,
+  .loadout-row:focus-within .loadout-row__engage {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Hover Engage sits beside the existing 4-button strip so chassis
+   smokes that count `.case-slot__strip .case-slot__btn` stay at 4. */
+.case-slot__engage {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 2px;
+  border-radius: calc(var(--radius-control) - 1px);
+  background: var(--surface-3);
+  border: var(--border-w) solid var(--border-strong);
+  color: var(--active);
+  line-height: 1;
+  box-shadow: var(--shadow-lift);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.case-slot:hover .case-slot__engage,
+.case-slot:focus-within .case-slot__engage {
+  display: inline-flex;
+}
+
+.case-slot__engage:hover:not(:disabled) {
+  background: var(--surface-pressed);
+  color: var(--text);
+}
+
+.case-slot__engage:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@media (pointer: coarse) {
+  .case-slot__engage { display: none !important; }
+}
+
+/* ---- Clock picker ---------------------------------------------- */
+.engage-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.engage-picker__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.engage-picker__preset {
+  min-width: var(--hit-min);
+  min-height: var(--hit-min);
+}
+
+.engage-picker__preset.is-selected {
+  background: var(--active-soft);
+  border-color: var(--active-border);
+  color: var(--active);
+}
+
+.engage-picker__custom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.engage-picker__input {
+  width: 5.5rem;
+  height: var(--hit-min);
+  padding: 0 var(--space-xs);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-sm);
+}
+
+.engage-picker__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.engage-picker__unit {
+  color: var(--text-2);
+}
+
+.engage-picker__hint {
+  color: var(--text-3);
+}
