@@ -43,7 +43,7 @@ export function createMockApi() {
     task('Overdue in cache', { priority: 'urgent', challenge: '', due: ymd(daysFromNow(-1)) }),
     task('Buy compost', { priority: 'low', challenge: 'low', quest: 'q3' }),
     task('Review pull requests', { priority: 'medium', challenge: 'low', due: ymd(daysFromNow(5)) }),
-    task('Plan Q4 roadmap offsite agenda and send invites to everyone involved', { priority: 'high', challenge: 'high', due: ymd(daysFromNow(12)) }),
+    task('Plan Q4 roadmap offsite agenda and send invites to everyone involved', { priority: 'high', challenge: 'high', due: ymd(daysFromNow(12)), notes: 'Agenda still in draft.\n- [ ] Book the offsite room\n- [ ] Draft the Q4 agenda\n- [ ] Send invites to everyone involved\nConfirm the guest list with Stef.' }),
     task('Renew passport', { priority: 'low', challenge: 'medium' }),
     task('Stef thing', { priority: 'medium', challenge: 'low', assignee: STEF, due: ymd(daysFromNow(1)) }),
     task('Megan thing', { priority: 'low', challenge: 'medium', assignee: MEGAN }),

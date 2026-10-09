@@ -2381,3 +2381,90 @@
   background: var(--text-3);
   background-clip: padding-box;
 }
+
+/* ==============================================================
+   OBJECTIVES (checklist in mission notes)
+   Append-only block — do not restyle the chassis above.
+   ============================================================== */
+.objectives__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+}
+
+.objectives__head .form-label {
+  margin: 0;
+}
+
+.objectives__count {
+  color: var(--text-3);
+  font-size: var(--t-xs);
+}
+
+.objectives__add {
+  margin-left: auto;
+  height: 44px;
+  padding: 0 var(--space-xs);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.objectives__add:hover {
+  background: var(--accent-soft);
+}
+
+.objectives__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.objectives__row {
+  min-height: 44px;
+  border-top: var(--border-w) solid var(--border);
+}
+
+.objectives__row:first-child {
+  border-top: none;
+}
+
+.objectives__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: 0 var(--space-xs);
+  cursor: pointer;
+}
+
+.objectives__check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.objectives__check.hit::after {
+  width: 44px;
+  height: 44px;
+}
+
+.objectives__text {
+  font-size: var(--t-sm);
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.objectives__text.is-done {
+  color: var(--text-3);
+  text-decoration: line-through;
+}

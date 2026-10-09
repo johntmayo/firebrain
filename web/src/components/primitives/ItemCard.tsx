@@ -4,6 +4,7 @@ import type { OperatorInfo } from '../../utils/operators';
 import type { DueDateStatus } from '../../utils/dueDate';
 import { CrPips, DueChip, LoadedChip, OperatorChip, PriorityChip, QuestChip } from './StatChip';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
+import { notesExcerpt } from '../../utils/objectives';
 import { useTooltip } from './Tooltip';
 import { Icon } from './Icon';
 
@@ -61,7 +62,8 @@ function stop(e: React.SyntheticEvent) {
  *
  * Fixed height per tier. Stat order is fixed: priority · CR · due · operator ·
  * quest. Hover reveals load/unload · edit · more next to the done check. The tooltip carries the full
- * title, notes excerpt, created date and exact due.
+ * title, notes excerpt (checklist syntax stripped; `n/m objectives` when
+ * any exist), created date and exact due.
  */
 export function ItemCard({
   title,
@@ -91,10 +93,11 @@ export function ItemCard({
   style,
 }: ItemCardProps) {
   const created = createdAt ? new Date(createdAt) : null;
+  const excerpt = notes ? notesExcerpt(notes) : '';
   const tooltipContent = (
     <div className="tooltip__body">
       <strong>{title}</strong>
-      {notes && <div className="tooltip__notes">{notes.length > 160 ? `${notes.slice(0, 160)}…` : notes}</div>}
+      {excerpt && <div className="tooltip__notes">{excerpt}</div>}
       <div className="tooltip__meta num">
         {due.exact && <span>Due {due.exact}</span>}
         {created && !Number.isNaN(created.getTime()) && (

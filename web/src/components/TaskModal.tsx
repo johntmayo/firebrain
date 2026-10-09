@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../api/client';
 import { useApp } from '../context/AppContext';
 import { normalizePriority } from '../types';
 import type { Priority, Challenge, CreateTaskInput, UpdateTaskInput } from '../types';
+import { appendObjective, countObjectives, parseObjectives, toggleObjective } from '../utils/objectives';
 import { Dialog, SegmentedControl, type SegmentOption } from './primitives';
 
 const PRIORITY_OPTIONS: SegmentOption<Priority>[] = [
@@ -110,6 +112,31 @@ export function TaskModal() {
     }
   };
 
+  const isEditingSelected = !isCreating && selectedTask;
+  const isReadOnly = Boolean(isEditingSelected && selectedTask.status === 'done');
+  const parsedObjectives = parseObjectives(notes);
+  const objectiveCount = countObjectives(notes);
+
+  const persistNotes = (next: string) => {
+    setNotes(next);
+    if (isCreating || !selectedTask || isReadOnly) return;
+    // Context updateTask always closeModal(); persist through the API so the
+    // dialog stays open. Local notes update first (optimistic), then the call.
+    void api.updateTask({ task_id: selectedTask.task_id, notes: next }).catch(() => {
+      setNotes(notes);
+    });
+  };
+
+  const handleToggleObjective = (index: number) => {
+    if (isReadOnly) return;
+    persistNotes(toggleObjective(notes, index));
+  };
+
+  const handleAddObjective = () => {
+    if (isReadOnly) return;
+    setNotes(appendObjective(notes));
+  };
+
   const handleDeleteMission = async () => {
     if (!selectedTask || isCreating || saving) return;
     if (!window.confirm('Delete this mission? You can not undo this.')) return;
@@ -124,9 +151,6 @@ export function TaskModal() {
       setSaving(false);
     }
   };
-
-  const isEditingSelected = !isCreating && selectedTask;
-  const isReadOnly = Boolean(isEditingSelected && selectedTask.status === 'done');
 
   const footer = (
     <>
@@ -179,6 +203,42 @@ export function TaskModal() {
             onChange={e => setNotes(e.target.value)}
             placeholder="Any extra details…"
           />
+        </div>
+
+        <div className="form-group objectives">
+          <div className="objectives__head">
+            <span className="form-label" id="objectives-label">Objectives</span>
+            {objectiveCount.total > 0 && (
+              <span className="objectives__count num" aria-live="polite">
+                {objectiveCount.checked}/{objectiveCount.total}
+              </span>
+            )}
+            {!isReadOnly && (
+              <button type="button" className="objectives__add hit" onClick={handleAddObjective}>
+                + Objective
+              </button>
+            )}
+          </div>
+          {parsedObjectives.objectives.length > 0 && (
+            <ul className="objectives__list" aria-labelledby="objectives-label">
+              {parsedObjectives.objectives.map((obj, i) => (
+                <li key={`${i}:${obj.raw}`} className="objectives__row">
+                  <label className="objectives__item">
+                    <input
+                      type="checkbox"
+                      className="objectives__check hit"
+                      checked={obj.checked}
+                      disabled={isReadOnly}
+                      onChange={() => handleToggleObjective(i)}
+                    />
+                    <span className={`objectives__text${obj.checked ? ' is-done' : ''}`}>
+                      {obj.text || 'New objective'}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="form-grid">

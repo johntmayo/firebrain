@@ -847,4 +847,40 @@ export const scenarios = [
       await shot();
     },
   },
+  {
+    name: 'desktop-objectives',
+    run: async ({ page, sleep, shot, count, expect, log }) => {
+      const opened = await page.evaluate(() => {
+        const el = [...document.querySelectorAll('.pane-inbox .item-card')]
+          .find(e => (e.textContent || '').startsWith('Plan Q4 roadmap') || (e.textContent || '').includes('Plan Q4 roadmap'));
+        if (!el) return false;
+        el.scrollIntoView({ block: 'center' });
+        el.click();
+        return true;
+      });
+      expect(opened, 'opened the Plan Q4 roadmap mission from the cache');
+      await sleep(400);
+      expect((await count('.dialog')) === 1, 'mission dialog is open');
+      expect((await count('.objectives__check')) === 3, 'checklist renders 3 boxes');
+      const unchecked = await page.$$eval('.objectives__check', els => els.filter(e => !e.checked).length);
+      expect(unchecked === 3, `all 3 objectives start unchecked (got ${unchecked} unchecked)`);
+      await page.click('.objectives__check');
+      await sleep(500);
+      const call = log.apiCalls.find(c => c.action === 'updateTask');
+      expect(Boolean(call), 'tick calls updateTask');
+      const notes = call && call.body && call.body.notes;
+      expect(typeof notes === 'string', 'updateTask sent notes');
+      const checkedMarks = (notes && notes.match(/- \[[xX]\]/g)) || [];
+      const openMarks = (notes && notes.match(/- \[ \]/g)) || [];
+      expect(checkedMarks.length === 1, `rewritten notes have one checked box (got ${checkedMarks.length})`);
+      expect(openMarks.length === 2, `rewritten notes keep two unchecked boxes (got ${openMarks.length})`);
+      expect(notes && notes.startsWith('Agenda still in draft.\n'), 'leading notes text is unchanged');
+      expect(notes && notes.endsWith('\nConfirm the guest list with Stef.'), 'trailing notes text is unchanged');
+      const checkedNow = await page.$$eval('.objectives__check', els => els.map(e => e.checked));
+      expect(checkedNow[0] === true && checkedNow.slice(1).every(v => v === false), `ticked box renders checked (got ${checkedNow})`);
+      await page.$eval('.objectives', el => el.scrollIntoView({ block: 'center' }));
+      await sleep(150);
+      await shot();
+    },
+  },
 ];
