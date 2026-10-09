@@ -105,7 +105,7 @@ interface AppContextType {
   setViewingLoadoutUser: (email: string) => void;
   refreshTasks: () => Promise<void>;
   createTask: (input: CreateTaskInput) => Promise<Task>;
-  updateTask: (input: UpdateTaskInput) => Promise<void>;
+  updateTask: (input: UpdateTaskInput, opts?: { close?: boolean; toast?: boolean }) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
   bulkCreateTasks: (inputs: CreateTaskInput[]) => Promise<BulkImportResponse>;
@@ -560,15 +560,17 @@ export function AppProvider({ children }: AppProviderProps) {
     }
   }, [showToast]);
   
-  const updateTask = useCallback(async (input: UpdateTaskInput) => {
+  const updateTask = useCallback(async (input: UpdateTaskInput, opts?: { close?: boolean; toast?: boolean }) => {
     const previousTasks = tasks;
-    
+    const shouldClose = opts?.close !== false;
+    const shouldToast = opts?.toast !== false;
+
     // Optimistic update
-    setTasks(prev => prev.map(t => 
+    setTasks(prev => prev.map(t =>
       t.task_id === input.task_id ? { ...t, ...input } : t
     ));
-    closeModal();
-    
+    if (shouldClose) closeModal();
+
     try {
       const updatedTask = await api.updateTask(input);
       // Merge backend response with current task state so partial responses
@@ -576,7 +578,7 @@ export function AppProvider({ children }: AppProviderProps) {
       setTasks(prev => prev.map(t =>
         t.task_id === updatedTask.task_id ? { ...t, ...updatedTask } : t
       ));
-      showToast('Mission updated', 'success');
+      if (shouldToast) showToast('Mission updated', 'success');
     } catch (err) {
       setTasks(previousTasks); // Rollback
       showToast(err instanceof Error ? err.message : 'Failed to update mission', 'error');

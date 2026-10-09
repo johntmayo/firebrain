@@ -238,6 +238,23 @@ density philosophy, different arrangement, bigger hit areas.
 are segmented controls) and the 2.6 sensor settings (TouchSensor 250ms / 10px). Default tab,
 56px tab bar, manifest, swipe gestures and the rest are not started.*
 
+**Mobile review (Oct 2026) — proposed, pending owner decisions. Do not build in this
+round.** Phone is *resumed, not launched*. Recommended hybrid: Today tab as home with the
+Case as hero and a visible ✓ per item on touch; capture via a **FAB → title-first capture
+sheet** (P/CR segments, due presets Today/Tmrw/Next wk/Pick…, quest chips, "Load into
+today", "More…" for notes/operator; 2–3 taps title-only, 5–6 full, vs 9 today); Missions
+tab forced to List with ✓ + Undo, in-app Delete confirm, "Move to quest…" in ⋯; quest
+Move up/down; one-row handheld HudBar with a filter sheet (Case top ≤ 170px, from 280);
+refetch on `visibilitychange` + every 5 min; manifest; sheets follow `visualViewport`;
+swipes deferred to Phase 3 behind Undo. ≈ 7 days, not 2. Engage's Focus row is the top of
+the phone Today tab; Briefing is the phone's "assemble the day". Owner decisions
+(defaults): default tab **Today**; capture lands in **Cache** (Load pre-checked only from
+Today); Energy **visible L·M·H**; phone format **Case**; swipes **Phase 3**; Undo via
+`updateTask({status:'open'})` **accepted** (client must re-`assignToday` and key
+Accomplished on `status`, since `Code.gs updateTask` ignores `completed_at`/`today_slot`).
+API gaps: no bulk complete/load, no reopen, teammate energy unknown (`getLoadoutConfig`
+is caller-only), refresh is polling.
+
 ### 2.1 Shell
 - Tabs: **Today · Missions · Quests**; default Today. Tab bar 56px, icons + labels,
   `position: fixed`, `padding-bottom: env(safe-area-inset-bottom)`.
@@ -291,6 +308,20 @@ hidden on handheld.*
 - **Batch reorder**: only send `assignToday` for missions whose slot changed.
 - **Mission → quest** and **Convert to quest** from the ⋯ menu.
 - `prefers-reduced-motion` respected; paper-grain texture disabled on mobile.
+
+**Round 4 (Oct 2026) — landed:**
+- **Engage** — per-device clock (`utils/engagement.ts`), FocusRow under the capacity bar,
+  Case `.is-active` via `--active*` tokens, Stopwatch binding, chime = checkpoint,
+  Complete → "Take 5?" cooldown. Time is not logged (Sheet cannot hold it).
+- **Objectives** — `utils/objectives.ts` parses `- [ ]` lines in notes; 44px checklist in
+  the mission dialog; tooltip excerpt is honest `n/m`. Focus row shows the first unchecked
+  + count.
+- **Briefing** — once-a-day Dialog composition (`utils/briefing.ts` + `BriefingModal`).
+  Phone: this is "assemble the day". HUD button via `onOpenBriefing` on TodayPlanner.
+- **Split mission** — *approved, not scheduled*: on a stuck CR3, "Split into…" creates
+  2–3 CR1 missions in the same quest via `createTask` and deletes the original via
+  `cancelTask`. No schema change.
+- **Considered, parked:** Squad format, Reserve cell, Aging chip.
 
 ---
 
@@ -346,8 +377,9 @@ only.
 3. ~~Phase 1.5 (the Case) — the signature screen.~~ ✅ (plus icons, Settings, Sci-fi skin,
    Gadget drawer, teaching tooltips, test harness)
 3b. ~~Round 3 — loaded-missions bug, Complete/Cleared/Delete vocabulary, density pass.~~ ✅
-4. Phase 2 (handheld). **← next**
-5. Phase 1.4, 1.6, 1.7 polish; Phase 3 as capacity allows.
+3c. ~~Round 4 — bigger Case (frontend-owned 10/14/18), Engage, Objectives, Briefing.~~ ✅
+4. Phase 2 (handheld) — **proposed (pending owner decisions); do not build yet.**
+5. Phase 1.4, 1.6, 1.7 polish; remaining Phase 3 (Undo, sync, Split mission).
 6. Phase 4 design pass; Phase 6 skin hooks (vocabulary / glyphs / sounds) + Military;
    Phase 5 last.
 

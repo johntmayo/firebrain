@@ -28,6 +28,7 @@ import {
 } from './primitives';
 import { EngagePicker, FocusRow } from './FocusRow';
 import { isMissionPhase } from '../utils/engagement';
+import { countObjectives, parseObjectives } from '../utils/objectives';
 
 type LoadoutFormat = 'case' | 'list';
 
@@ -180,6 +181,15 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
   const [paneWidth, startResize] = usePaneResize();
 
   const activeMissionId = isMissionPhase(engagement.phase) ? engagement.missionId : null;
+  const focusObjectives = useMemo(() => {
+    if (!activeMissionId) return null;
+    const mission = loadoutTasks.find(t => t.task_id === activeMissionId);
+    if (!mission) return null;
+    const count = countObjectives(mission.notes);
+    if (count.total === 0) return null;
+    const firstOpen = parseObjectives(mission.notes).objectives.find(o => !o.checked);
+    return { label: firstOpen?.text || 'All objectives cleared', done: count.checked, total: count.total };
+  }, [activeMissionId, loadoutTasks]);
 
   const requestEngage = useCallback((task: Task) => {
     if (activeMissionId && activeMissionId !== task.task_id) return;
@@ -320,7 +330,7 @@ export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void }
           Viewing {viewer.name}'s loadout — read only
         </div>
       ) : null}
-      {isViewingOwnLoadout && <FocusRow />}
+      {isViewingOwnLoadout && <FocusRow objectives={focusObjectives} />}
     </>
   );
 

@@ -13,12 +13,9 @@ export interface FocusRowObjectives {
 
 /**
  * FocusRow — the active-mission clock under the Loadout capacity bar.
- *
- * `objectives` is reserved for the Objectives track (lead wires it after
- * merge). This track must not import utils/objectives.ts.
+ * Optional `objectives` is derived from notes (honest n/m); unused when idle.
  */
 export function FocusRow({ objectives }: { objectives?: FocusRowObjectives | null } = {}) {
-  void objectives;
   const {
     engagement,
     engagementTick,
@@ -114,6 +111,15 @@ export function FocusRow({ objectives }: { objectives?: FocusRowObjectives | nul
       <span className="focus-row__title clamp-1">{engagement.title}</span>
       <span className="focus-row__dot" aria-hidden="true">·</span>
       <span className="focus-row__clock num" aria-label="Time remaining">{clock}</span>
+      {objectives && objectives.total > 0 && (
+        <>
+          <span className="focus-row__dot" aria-hidden="true">·</span>
+          <span className="focus-row__obj t-xs clamp-1" title={objectives.label}>
+            {objectives.label}
+            <span className="num"> {objectives.done}/{objectives.total}</span>
+          </span>
+        </>
+      )}
       <div className="focus-row__actions">
         <button type="button" className="hud-btn hud-btn--primary" data-focus-action="complete" onClick={() => { void completeActive(); }}>
           Complete

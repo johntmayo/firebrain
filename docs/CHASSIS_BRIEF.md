@@ -43,6 +43,13 @@ canonical names in code and in the default UI. Skins may remap display strings o
 | Cleared (state)  | Mission/quest finished (labels, toggles)  | Complete    | Complete    | Cleared      |
 | Delete (verb)    | Erase a mission — never "Clear"           | Delete      | Delete      | Delete       |
 | Load / Unload    | Put into / take out of the Loadout        | Load        | Issue       | Pack         |
+| Engage (verb)    | Put a loaded mission on the clock         | Engage      | Engage      | Engage       |
+| Active mission   | The one mission on the clock              | Active      | Active      | Active       |
+| Clock            | Countdown; checkpoint, not a deadline     | Clock       | Clock       | Clock        |
+| Stand down       | Leave the clock without completing        | Stand down  | Stand down  | Stand down   |
+| Cooldown         | Optional 5-min break after Complete       | Cooldown    | Cooldown    | Cooldown     |
+| Objectives       | Checklist lines in a mission's notes      | Objectives  | Objectives  | Objectives   |
+| Briefing         | Once-a-day morning check-in               | Briefing    | Briefing    | Briefing     |
 
 (Skin columns are starting suggestions, not decisions.)
 
@@ -128,6 +135,16 @@ Skin: frame, backdrop, motion.
 ### 4.10 Notice (toast), Tooltip, EmptyState, OperatorBadge, ActionMenu
 Standard; all fixed in behavior, skinnable in surface. Notices stack, dismissible, may
 carry one action (Undo). EmptyStates always offer a next action.
+
+### 4.11 FocusRow (chassis addition, Oct 2026)
+Role: the live mission clock in the Loadout HUD, directly under the capacity / energy row.
+Anatomy: `▶ <title> · mm:ss · [Complete] [+5] [Stand down]`; optional first-unchecked
+objective + `n/m`; chimed card (Complete · +5 min · Stand down); "Take 5?" offer;
+`☕ Break · mm:ss · [Skip]`. Mono tabular clock. Motion ≤ 200 ms.
+Skin: `--active`, `--active-soft`, `--active-border` only — no red, no hardcoded colour.
+
+**Briefing** is a Dialog composition (§4.9), not a new primitive: header / scroll body /
+sticky footer; sheet < 600px. Energy, leftovers, overdue, suggested load — all real data.
 
 ## 5. Density rules (chassis-wide)
 - Root 16px × `--ui-scale` (0.85 / 1 / 1.15 / 1.3). Type tokens `--t-2xs … --t-xl` only
@@ -303,3 +320,11 @@ sheets. Density is unchanged; hit areas grow to 44px by padding. Nothing require
 3. The Case (desktop, then 4-column mobile).
 4. QuestLogEntry; Dialog/Sheet.
 5. Sci-fi skin (the contract's acceptance test).
+
+## 12. Backlog
+**Approved, not scheduled — Split mission.** On a stuck CR3, "Split into…" creates 2–3
+CR1 missions in the same quest via `createTask` and deletes the original via `cancelTask`.
+No schema change.
+
+**Considered, parked:** Squad format (a second Case layout), Reserve cell (hold one
+mission outside the live grid), Aging chip (how long a leftover has sat loaded).

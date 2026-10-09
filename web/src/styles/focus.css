@@ -43,6 +43,13 @@
   letter-spacing: 0.02em;
 }
 
+.focus-row__obj {
+  min-width: 0;
+  max-width: 16rem;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
 .focus-row__actions {
   display: inline-flex;
   align-items: center;

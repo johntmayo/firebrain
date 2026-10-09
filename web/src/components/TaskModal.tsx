@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../api/client';
 import { useApp } from '../context/AppContext';
 import { normalizePriority } from '../types';
 import type { Priority, Challenge, CreateTaskInput, UpdateTaskInput } from '../types';
 import { appendObjective, countObjectives, parseObjectives, toggleObjective } from '../utils/objectives';
+import { isMissionPhase } from '../utils/engagement';
 import { Dialog, SegmentedControl, type SegmentOption } from './primitives';
+import { EngagePicker } from './FocusRow';
 
 const PRIORITY_OPTIONS: SegmentOption<Priority>[] = [
   { value: 'high', label: 'P1', title: 'P1 — highest', hint: 'P1 — do first' },
@@ -36,7 +37,11 @@ export function TaskModal() {
     stephEmail,
     meganEmail,
     quests,
+    currentUser,
+    engagement,
+    engageMission,
   } = useApp();
+  const [engageOpen, setEngageOpen] = useState(false);
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
@@ -120,9 +125,7 @@ export function TaskModal() {
   const persistNotes = (next: string) => {
     setNotes(next);
     if (isCreating || !selectedTask || isReadOnly) return;
-    // Context updateTask always closeModal(); persist through the API so the
-    // dialog stays open. Local notes update first (optimistic), then the call.
-    void api.updateTask({ task_id: selectedTask.task_id, notes: next }).catch(() => {
+    void updateTask({ task_id: selectedTask.task_id, notes: next }, { close: false, toast: false }).catch(() => {
       setNotes(notes);
     });
   };
@@ -152,11 +155,23 @@ export function TaskModal() {
     }
   };
 
+  const isLoadedOwn = Boolean(
+    isEditingSelected
+    && selectedTask.today_slot
+    && (selectedTask.today_user === currentUser || selectedTask.assignee === currentUser)
+  );
+  const activeOther = isMissionPhase(engagement.phase) && engagement.missionId !== selectedTask?.task_id;
+
   const footer = (
     <>
       <button type="button" className="btn btn--secondary" onClick={closeModal} disabled={saving}>
         Close
       </button>
+      {isLoadedOwn && !isReadOnly && (
+        <button type="button" className="btn btn--secondary" onClick={() => setEngageOpen(true)} disabled={saving}>
+          Engage
+        </button>
+      )}
       {isEditingSelected && !isReadOnly && (
         <button type="button" className="btn btn--danger" onClick={handleDeleteMission} disabled={saving}>
           Delete
@@ -171,6 +186,7 @@ export function TaskModal() {
   );
 
   return (
+    <>
     <Dialog
       open={isModalOpen}
       title={isCreating ? 'New mission' : 'Mission'}
@@ -297,5 +313,20 @@ export function TaskModal() {
         )}
       </fieldset>
     </Dialog>
+    <EngagePicker
+      key={selectedTask?.task_id ?? 'closed'}
+      open={engageOpen && isLoadedOwn}
+      missionTitle={selectedTask?.title ?? ''}
+      lastPresetMinutes={engagement.lastPresetMinutes}
+      blockedReason={activeOther ? 'Stand down first' : null}
+      onClose={() => setEngageOpen(false)}
+      onStart={minutes => {
+        if (!selectedTask) return;
+        engageMission(selectedTask, minutes);
+        setEngageOpen(false);
+        closeModal();
+      }}
+    />
+    </>
   );
 }

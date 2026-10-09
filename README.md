@@ -28,6 +28,13 @@ Fire Brain organizes work into **missions** (atomic tasks) and **quests** (long-
 | **Cleared** (state) | Finished — the "Cleared" toggle, "Cleared Oct 8" on done cards, "Accomplished Today" |
 | **Delete** (verb) | Erase a mission (never "Clear"; quests can't be deleted from the UI) |
 | **Load / Unload** | Put a mission into / take it out of a Loadout (`assignToday` / `clearToday` in the API) |
+| **Engage** (verb) | Put a loaded mission on the clock. Exactly one active mission; Engaging another requires Stand down first |
+| **Active mission** | The mission currently on the clock |
+| **Clock** | A countdown (5 / 15 / 25 / 45 / custom minutes). Not derived from CR. Not logged |
+| **Stand down** | Leave the clock without completing |
+| **Cooldown** | Optional 5-minute break after Complete ("Take 5?") |
+| **Objectives** | Checklist lines in a mission's `notes` (`- [ ]` / `- [x]`) |
+| **Briefing** | Once-a-day morning check-in (Energy, leftovers, overdue, suggested load) |
 
 ### The Loadout
 
@@ -56,10 +63,13 @@ Quests group related missions and carry a colour that tags their nested missions
 - **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions (loaded ones included, marked **Loaded**) with inline "+ Mission"; progress `done / total` and a late count per quest; **Complete quest** with a keep-or-complete choice for open missions
 - **Accomplished today** — missions cleared today for the operator being viewed, collapsible under the loadout
 - **Bulk import** — paste multiple missions with syntax: `-p1/-p2/-p3`, `~low/~medium/~high`, `@today/@tomorrow/@nextweek/@YYYY-MM-DD`, `#notes`
-- **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Complete; keyboard: Enter opens, Space completes; tooltip carries full title, notes, created and due dates
+- **Engage** — put exactly one loaded mission on a countdown clock (5 / 15 / 25 / 45 / custom minutes; last choice remembered). Entry: Case hover / ⋯, List row, loaded mission dialog. The active cell gets a live `--active` treatment. A **Focus row** under the capacity bar shows `▶ title · mm:ss · Complete · +5 · Stand down` and the first unchecked objective + `n/m` when notes carry a checklist. The Stopwatch gadget binds to the same clock; the collapsed drawer tab still echoes the time. **Chime = checkpoint, not deadline** — Complete / +5 min / Stand down; no red, no overrun. Complete (from the Focus row or any other path) frees the cell and offers **Take 5?** (5-minute break on the same gadget; Skip or let it chime). Per-device `localStorage` (`firebrain_engagement`); survives reload; stands down silently if the mission is no longer open/loaded. Time is not logged and is not derived from CR (the Sheet cannot hold it).
+- **Objectives** — `- [ ]` / `- [x]` lines in `notes` (also `* [ ]`, `[X]`) render as a 44px checklist in the mission dialog; ticking persists `notes` without closing. **+ Objective** appends a blank line. ItemCard tooltip strips checklist syntax and shows `n/m objectives` instead.
+- **Briefing** — once-a-day morning check-in (own loadout) from `localStorage firebrain_briefing_seen = YYYY-MM-DD`, on load and `visibilitychange`, and always from the Loadout HUD **Briefing** button. Never blocks (Esc / Skip). Sections, all real data: Energy check-in (cells live), leftovers (Keep / Back to Cache), overdue count → Missions, suggested load (overdue/due-today then P1, up to remaining capacity) → Start the day. Phone: this is "assemble the day". The smoke harness seeds `firebrain_briefing_seen` so other scenarios stay unblocked; briefing scenarios clear it.
+- **Mission card** — one `ItemCard` primitive in three tiers (row / cell / compact); hover reveals Load/Unload · Edit · More · Complete; keyboard: Enter opens, Space completes; tooltip carries full title, notes excerpt (checklist syntax stripped), created and due dates
 - **Bulk import / quick add grammar** — `Title -p1 ~high @tomorrow #notes` (`-p1/-p2/-p3` priority, `~low/~medium/~high` CR, `@today/@tomorrow/@nextweek/@YYYY-MM-DD` due, `#` notes). Parser lives in `utils/parseMission.ts`.
-- **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 % (85 % reproduces the pre-Oct-2026 density), click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`; pane widths in `firebrain_quests_panel_width` / `firebrain_today_panel_width`, loadout format in `firebrain_loadout_format`).
-- **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space completes, Esc closes).
+- **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 % (85 % reproduces the pre-Oct-2026 density), click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`; pane widths in `firebrain_quests_panel_width` / `firebrain_today_panel_width`, loadout format in `firebrain_loadout_format`; Engage clock in `firebrain_engagement`; Briefing seen-date in `firebrain_briefing_seen`).
+- **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload; binds to the Engage clock while a mission is active or on break), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space completes, Esc closes).
 - **Teaching tooltips** — every control explains itself on hover/focus (one sentence, game vocabulary); every icon-only control also has an `aria-label` for touch and screen readers.
 - **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 3 × 6
 
@@ -75,7 +85,7 @@ Quests group related missions and carry a colour that tags their nested missions
 | `updated_at` | string | ISO timestamp |
 | `updated_by` | string | Email |
 | `title` | string | Mission title |
-| `notes` | string | Optional notes |
+| `notes` | string | Optional notes; may include **objectives** as `- [ ]` / `- [x]` lines (not a separate column; counts are derived) |
 | `priority` | `low` \| `medium` \| `high` \| `urgent` | Urgency level (shown as P3 / P2 / P1 / P1) |
 | `challenge` | `low` \| `medium` \| `high` \| `''` | CR / energy cost (1 / 2 / 3 points; `''` counts as medium) |
 | `assignee` | string | Email |
@@ -226,8 +236,8 @@ tooling below never reaches the Sheet.
 ```bash
 cd web
 npm run typecheck   # tsc --noEmit
-npm run test        # Vitest unit tests (87: casePacking, caseShape, paneWidth, questMissions, parseMission, stopwatch, dueDate, skins contract…)
-npm run smoke       # Headless browser run against a MOCKED backend (30 scenarios; screenshots in test/smoke/out/)
+npm run test        # Vitest unit tests (142: casePacking, caseShape, engagement, objectives, briefing, paneWidth, questMissions, parseMission, stopwatch, dueDate, skins contract…)
+npm run smoke       # Headless browser run against a MOCKED backend (35 scenarios; screenshots in test/smoke/out/)
 npm run check       # all of the above + build — run before handing work off
 ```
 
