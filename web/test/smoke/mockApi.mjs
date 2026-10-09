@@ -30,7 +30,9 @@ export function createMockApi() {
     { quest_id: 'q3', title: 'Garden overhaul', notes: '', is_tracked: false, tracked_at: '', assignee: JOHN, leader_email: JOHN, status: 'open', completed_at: '', color: '#d4a84b', sort_order: '', created_at: iso(today), created_by: JOHN, updated_at: iso(today), updated_by: JOHN },
   ];
 
-  // Loadout: CR 1 + 2 + 2 + 2 + 3 = 10 points (exactly Medium).
+  // Loadout: CR 1 + 2 + 2 + 2 + 3 = 10 points (under Medium 14, exact Light 10).
+  // Mock still returns the backend's 7/10/12 so the frontend's client-side
+  // remap (ENERGY_POINTS_LIMIT) is what the UI actually uses.
   const tasks = [
     task('Write spec for the Case grid', { priority: 'low', challenge: 'low', slot: '1', quest: 'q1', due: ymd(daysFromNow(3)) }),
     task('Call dentist about the thing with the very long description that will clamp', { priority: 'medium', challenge: 'medium', slot: '2', due: ymd(daysFromNow(2)), notes: 'Bring insurance card' }),

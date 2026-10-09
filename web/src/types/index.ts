@@ -26,7 +26,7 @@ export function normalizePriority(priority: Priority): Priority {
 export type Status = 'open' | 'done' | 'archived' | 'canceled';
 export type TodaySlot = string;
 
-/** Loadout energy level: light=7, medium=10, heavy=12 points */
+/** Loadout energy level. Live-cell counts are owned by the frontend (see ENERGY_POINTS_LIMIT). */
 export type EnergyLevel = 'light' | 'medium' | 'heavy';
 
 /** Challenge points per mission (used for daily bandwidth feedback) */
@@ -36,11 +36,24 @@ export const CHALLENGE_POINTS: Record<Challenge, number> = {
   high: 3,
 };
 
+/**
+ * Live cells per energy level. The Case is a fixed 18-cell grid (6×3 desktop,
+ * 3×6 handheld); energy unlocks this many from the top-left.
+ *
+ * Deliberate deviation: the backend still returns 7 / 10 / 12 from
+ * `getLoadoutConfig` / `setEnergyLevel`. `api/client.ts` overwrites
+ * `points_limit` from this map so the frontend owns capacity. Overload is
+ * allowed and visible, so a stale backend number cannot break the Case.
+ */
 export const ENERGY_POINTS_LIMIT: Record<EnergyLevel, number> = {
-  light: 7,
-  medium: 10,
-  heavy: 12,
+  light: 10,
+  medium: 14,
+  heavy: 18,
 };
+
+export function pointsLimitFor(level: EnergyLevel | undefined | null): number {
+  return (level && ENERGY_POINTS_LIMIT[level]) || ENERGY_POINTS_LIMIT.medium;
+}
 
 export interface LoadoutConfig {
   energy_level: EnergyLevel;

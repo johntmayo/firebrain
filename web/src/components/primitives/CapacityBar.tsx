@@ -14,8 +14,9 @@ interface CapacityBarProps {
 
 /**
  * CapacityBar — the single source of truth for the loadout budget (brief §4.6).
- * Mono label (`7 / 10`, `+3` when over) and one segment per live cell; over-
- * capacity segments are appended in the danger tone. The ? explains CR → cells.
+ * Mono label (`10 / 14`, `+3` when over) and one segment per live cell; over-
+ * capacity segments are appended in the overflow tone (surplus energy, not
+ * danger). The ? explains CR → cells.
  */
 export function CapacityBar({ used, limit, energyLabel, className = '' }: CapacityBarProps) {
   const safeLimit = Math.max(0, limit);
@@ -25,7 +26,7 @@ export function CapacityBar({ used, limit, energyLabel, className = '' }: Capaci
   const tooltip = (
     <div className="tooltip__body">
       <strong>{used} of {safeLimit} cells used{over > 0 ? `, ${over} over` : ''}.</strong>
-      <div>Each mission costs its CR in cells. Energy sets how many cells are live: Light 7 · Medium 10 · Heavy 12.</div>
+      <div>Each mission costs its CR in cells. Energy sets how many cells are live: Light 10 · Medium 14 · Heavy 18.</div>
       {energyLabel && <div className="tooltip__meta">Today is {energyLabel}.</div>}
     </div>
   );

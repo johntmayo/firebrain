@@ -1,8 +1,8 @@
 /**
  * The Case — pure layout math for the loadout grid (CHASSIS_BRIEF §6).
  *
- * The grid is fixed (6×2 desktop, 4×3 handheld = 12 cells). The energy level
- * decides how many cells are *live* (7 / 10 / 12); the rest are locked and sit
+ * The grid is fixed (6×3 desktop, 3×6 handheld = 18 cells). The energy level
+ * decides how many cells are *live* (10 / 14 / 18); the rest are locked and sit
  * at the end of reading order (bottom-right). Items flow left→right, top→bottom
  * in `today_slot` order; each item is one row tall and `cr` cells wide.
  *
@@ -10,9 +10,11 @@
  * row it wraps to the next row and leaves a gap, like a real inventory. The
  * CapacityBar counts CR points (cells *used*), not cells occupied visually, so a
  * gap never costs budget — but an item that cannot be placed anywhere in the
- * live grid is shown in the overflow tray. Each tray item is flagged
- * `overBudget` when its cumulative CR exceeds capacity (danger treatment);
- * an item that is within budget but merely squeezed out by gaps is not.
+ * live grid is shown in the overflow tray. The tray shares the case's columns
+ * and every tray item still spans exactly `cr` cells — overflowing never costs
+ * more room than the mission's CR. Each tray item is flagged `overBudget` when
+ * its cumulative CR exceeds capacity (the overflow treatment: energy, not
+ * danger); an item that is within budget but merely squeezed out by gaps is not.
  */
 
 export type CaseCr = 1 | 2 | 3;
@@ -27,17 +29,20 @@ export interface CaseGridShape {
   rows: number;
 }
 
-export interface PlacedItem extends CaseItem {
-  row: number;
-  col: number;
-  /** Cells spanned (== cr). */
-  span: number;
+/** Any item the layout knows the loadout position of (placed or overflow). */
+export interface OrderedItem extends CaseItem {
   /** Position in the ordered loadout (0-based). */
   index: number;
 }
 
-export interface OverflowItem extends CaseItem {
-  index: number;
+export interface PlacedItem extends OrderedItem {
+  row: number;
+  col: number;
+  /** Cells spanned (== cr). */
+  span: number;
+}
+
+export interface OverflowItem extends OrderedItem {
   /** True when this item pushes cumulative CR past capacity. */
   overBudget: boolean;
 }
@@ -55,7 +60,7 @@ export interface CaseCell {
 }
 
 export interface CaseLayout extends CaseGridShape {
-  /** Live cells (7 / 10 / 12). */
+  /** Live cells (10 / 14 / 18). */
   capacity: number;
   /** Sum of CR over *all* items (placed + overflow). */
   used: number;
@@ -67,8 +72,8 @@ export interface CaseLayout extends CaseGridShape {
   freeCells: CaseCell[];
 }
 
-export const DESKTOP_CASE: CaseGridShape = { cols: 6, rows: 2 };
-export const HANDHELD_CASE: CaseGridShape = { cols: 4, rows: 3 };
+export const DESKTOP_CASE: CaseGridShape = { cols: 6, rows: 3 };
+export const HANDHELD_CASE: CaseGridShape = { cols: 3, rows: 6 };
 
 export function isLiveCell(n: number, capacity: number): boolean {
   return n < capacity;

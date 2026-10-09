@@ -11,7 +11,7 @@ export const scenarios = [
       expect((await count('.overdue-section .item-card')) === 2, 'overdue section lists quest + cache overdue missions');
       expect((await count('.accomplished__list .item-card')) === 2, 'accomplished today shows 2 cleared missions');
       const cap = await text('.cap-bar__label');
-      expect(cap && /10\s*\/\s*10/.test(cap), `capacity label reads 10 / 10 (got "${cap}")`);
+      expect(cap && /10\s*\/\s*14/.test(cap), `capacity label reads 10 / 14 (got "${cap}")`);
     },
   },
   {
@@ -297,29 +297,29 @@ export const scenarios = [
   },
 
   // ---- The Case (CHASSIS_BRIEF §6) -----------------------------------------
-  // John's loadout is CR 1+2+2+2+3 = 10. At Medium (10 live of 6×2) the packing
-  // contract (casePacking.ts, no auto-reflow) places 4 items and squeezes the
-  // CR3 into the tray: row 2 has only four live cells and 2 are already taken.
+  // John's loadout is CR 1+2+2+2+3 = 10. At Medium (14 live of 6×3) the packing
+  // contract places all five: row 0 = CR1·CR2·CR2·gap, row 1 = CR2·CR3·gap,
+  // row 2 = 2 live + 4 locked. The tray is empty. Light (10 live) is what
+  // squeezes the CR3 — see desktop-case-overflow.
   {
     name: 'desktop-case',
     run: async ({ page, sleep, shot, count, expect, text }) => {
-      expect((await count('.pane-today .case-grid[data-cols="6"][data-rows="2"]')) === 1, 'desktop case is a 6×2 grid');
-      expect((await count('.case-cell')) === 12, '12 cells are always rendered');
-      expect((await count('.case-cell--locked')) === 2, '2 cells locked at Medium');
-      expect((await count('.case-cell--free')) === 3, '3 free cells (the row-1 gap and two in row 2)');
-      expect((await count('.case-item')) === 4, '4 missions placed in the case');
-      expect((await count('.case-tray .case-tray__item.is-squeezed')) === 1, 'the CR3 is squeezed out (within budget) into the tray');
-      expect((await count('.case-tray__item.is-over-budget')) === 0, 'nothing is over budget at Medium');
+      expect((await count('.pane-today .case-grid[data-cols="6"][data-rows="3"]')) === 1, 'desktop case is a 6×3 grid');
+      expect((await count('.case-cell')) === 18, '18 cells are always rendered');
+      expect((await count('.case-cell--locked')) === 4, '4 cells locked at Medium');
+      expect((await count('.case-cell--free')) === 4, '4 free cells (row-0 gap, row-1 gap, two live on row 2)');
+      expect((await count('.case-item')) === 5, 'all 5 missions placed in the case at Medium');
+      expect((await count('.case-tray')) === 0, 'nothing overflows at Medium 14');
       const spans = await page.$$eval('.case-item', els => els.map(e => e.dataset.span).join(''));
-      expect(spans === '1222', `items span their CR (got ${spans})`);
+      expect(spans === '12223', `items span their CR (got ${spans})`);
       const cap = await text('.cap-bar__label');
-      expect(cap && /10\s*\/\s*10/.test(cap), `capacity reads 10 / 10 (got "${cap}")`);
-      expect((await count('.cap-bar__seg')) === 10, 'one capacity segment per live cell');
+      expect(cap && /10\s*\/\s*14/.test(cap), `capacity reads 10 / 14 (got "${cap}")`);
+      expect((await count('.cap-bar__seg')) === 14, 'one capacity segment per live cell');
       await shot();
       // Hover toolbar: ← → ✕ ✓ appear on the item and are ≥ 32px targets.
       await page.hover('.case-item[data-span="2"]');
       await sleep(200);
-      expect((await count('.case-item:hover .case-item__strip .case-item__btn')) === 4, 'hover shows shift/unload/clear actions');
+      expect((await count('.case-item:hover .case-slot__strip .case-slot__btn')) === 4, 'hover shows shift/unload/clear actions');
       await shot('hover');
       await page.mouse.move(5, 5);
     },
@@ -329,16 +329,79 @@ export const scenarios = [
     run: async ({ page, sleep, shot, click, count, expect, text }) => {
       await click('.seg__btn[data-value="light"]');
       await sleep(300);
-      expect((await count('.case-cell--locked')) === 5, '5 cells locked at Light');
-      expect((await count('.case-item')) === 3, '3 missions fit in 7 live cells');
-      expect((await count('.case-tray')) === 1, 'overflow tray renders when overloaded');
-      expect((await count('.case-tray__item.is-over-budget')) === 1, 'the CR3 is over budget (danger)');
-      expect((await count('.case-tray__item.is-squeezed')) === 1, 'the squeezed CR2 stays neutral');
+      expect((await count('.case-cell--locked')) === 8, '8 cells locked at Light');
+      expect((await count('.case-item')) === 4, '4 missions fit in 10 live cells');
+      expect((await count('.case-tray')) === 1, 'overflow tray renders when an item cannot place');
+      expect((await count('.case-tray__item.is-squeezed')) === 1, 'the CR3 is squeezed out (within budget) at exact Light 10');
+      expect((await count('.case-tray__item.is-over-budget')) === 0, 'nothing is over budget at exactly 10 / 10');
+      const cap0 = await text('.cap-bar__label');
+      expect(cap0 && /10\s*\/\s*10/.test(cap0) && !/\+/.test(cap0), `capacity reads 10 / 10 (got "${cap0}")`);
+      // The tray shares the case's columns: an overflow mission is exactly its CR wide.
+      const tray = await page.evaluate(() => {
+        const grid = document.querySelector('.case-tray__grid');
+        const item = document.querySelector('.case-tray__item');
+        const cell = document.querySelector('.case-cell[data-cell="0"]');
+        const gridR = grid?.getBoundingClientRect();
+        const caseR = document.querySelector('.case-grid')?.getBoundingClientRect();
+        return {
+          cols: grid?.dataset.cols,
+          span: item?.dataset.span,
+          itemW: item?.getBoundingClientRect().width,
+          itemH: item?.getBoundingClientRect().height,
+          cellW: cell?.getBoundingClientRect().width,
+          gap: parseFloat(getComputedStyle(grid).columnGap),
+          alignedLeft: gridR && caseR ? Math.abs(gridR.left - caseR.left) : null,
+          alignedRight: gridR && caseR ? Math.abs(gridR.right - caseR.right) : null,
+          cellTier: Boolean(item?.querySelector('.item-card--cell')),
+        };
+      });
+      expect(tray.cols === '6', `tray grid has the case's 6 columns (got ${tray.cols})`);
+      expect(tray.span === '3', `the tray item spans its CR3 (got ${tray.span})`);
+      const expectW = tray.cellW * 3 + tray.gap * 2;
+      expect(Math.abs(tray.itemW - expectW) <= 1.5, `CR3 tray item is 3 cells wide (${tray.itemW?.toFixed(1)} vs ${expectW.toFixed(1)})`);
+      expect(Math.round(tray.itemH) === 84, `tray item is --h-cell tall (got ${tray.itemH})`);
+      expect(tray.alignedLeft <= 0.5 && tray.alignedRight <= 0.5, `tray columns line up with the case (Δleft ${tray.alignedLeft}, Δright ${tray.alignedRight})`);
+      expect(tray.cellTier, 'tray item renders the cell-tier card like the case does');
+      await page.hover('.case-tray__item');
+      await sleep(200);
+      expect((await count('.case-tray__item:hover .case-slot__strip .case-slot__btn')) === 4, 'tray item hover shows the same shift/unload/clear actions');
+      await shot('tray-hover');
+      await page.mouse.move(5, 5);
+      // Push over budget: load the overdue CR1 so used becomes 11.
+      await page.hover('.pane-inbox .overdue-section .item-card');
+      await sleep(200);
+      await page.click('.pane-inbox .overdue-section .item-card [aria-label="Load into today"]');
+      await sleep(500);
+      expect((await count('.case-tray__item.is-over-budget')) === 1, 'the extra CR1 is over budget (overflow tone)');
+      expect((await count('.case-tray__item.is-squeezed')) === 1, 'the squeezed CR3 stays neutral');
+      const spans = await page.$$eval('.case-tray__item', els => els.map(e => e.dataset.span).join(''));
+      expect(spans === '31', `tray items span their CR, in loadout order (got ${spans})`);
       const over = await text('.case-tray__over');
-      expect(over === '+3', `tray header shows +3 (got "${over}")`);
+      expect(over === '+1', `tray header shows +1 (got "${over}")`);
       const cap = await text('.cap-bar__label');
-      expect(cap && /10\s*\/\s*7/.test(cap) && /\+3/.test(cap), `capacity reads 10 / 7 +3 (got "${cap}")`);
-      expect((await count('.cap-bar__seg.is-over')) === 3, '3 danger segments appended');
+      expect(cap && /11\s*\/\s*10/.test(cap) && /\+1/.test(cap), `capacity reads 11 / 10 +1 (got "${cap}")`);
+      expect((await count('.cap-bar__seg.is-over')) === 1, '1 overflow segment appended');
+      // Overflow is energy, not alarm: nothing in the overload path uses --danger.
+      const tones = await page.evaluate(() => {
+        const root = getComputedStyle(document.documentElement);
+        const norm = s => s.replace(/\s+/g, '').toLowerCase();
+        const hexToRgb = h => { const n = parseInt(h.slice(1), 16); return `rgb(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255})`; };
+        const danger = norm(hexToRgb(root.getPropertyValue('--danger').trim()));
+        const overflow = norm(hexToRgb(root.getPropertyValue('--overflow').trim()));
+        const color = sel => norm(getComputedStyle(document.querySelector(sel)).color);
+        const bg = sel => norm(getComputedStyle(document.querySelector(sel)).backgroundColor);
+        return {
+          danger, overflow,
+          segBg: bg('.cap-bar__seg.is-over'),
+          capLabel: color('.cap-bar.is-over .cap-bar__label'),
+          trayHead: color('.case-tray.is-over-budget .case-tray__head'),
+          trayOver: color('.case-tray__over'),
+        };
+      });
+      expect(tones.danger !== tones.overflow, 'the overflow token is its own colour, not an alias of danger');
+      expect(tones.segBg === tones.overflow, `over-capacity segments use --overflow (got ${tones.segBg}, overflow ${tones.overflow})`);
+      expect(tones.capLabel === tones.overflow && tones.trayHead === tones.overflow && tones.trayOver === tones.overflow, `capacity label and tray header read in --overflow (${tones.capLabel} / ${tones.trayHead} / ${tones.trayOver})`);
+      expect(![tones.segBg, tones.capLabel, tones.trayHead, tones.trayOver].includes(tones.danger), 'no overload surface uses --danger');
       await shot();
     },
   },
@@ -348,18 +411,24 @@ export const scenarios = [
       await click('.seg__btn[data-value="heavy"]');
       await sleep(300);
       expect((await count('.case-cell--locked')) === 0, 'no locked cells at Heavy');
-      expect((await count('.case-item')) === 5, 'all 5 missions fit in 12 live cells');
+      expect((await count('.case-item')) === 5, 'all 5 missions fit in 18 live cells');
       expect((await count('.case-tray')) === 0, 'tray is not rendered when nothing overflows');
       await shot();
     },
   },
   {
     name: 'desktop-case-actions',
-    run: async ({ page, sleep, shot, count, expect, log }) => {
+    run: async ({ page, sleep, shot, click, count, expect, log }) => {
+      // Medium places all five; Light (10 live) squeezes the CR3 into the tray.
       // Click equivalents of drag: shift the squeezed CR3 earlier until everything packs.
-      // a b c d E → (↑ from the tray) a b c E d: E lands in row 2, d is squeezed out instead.
+      // a b c d E → (↑ from the tray) a b c E d: E lands in row 1, d is squeezed out instead.
+      await click('.seg__btn[data-value="light"]');
+      await sleep(300);
       const before = await count('.case-item');
-      await page.click('.case-tray__shift');
+      expect(before === 4, 'Light starts with the CR3 in the tray');
+      await page.hover('.case-tray__item');
+      await sleep(200);
+      await page.click('.case-tray__item .case-slot__btn[aria-label="Shift earlier"]');
       await sleep(400);
       expect((await count('.case-item')) === before, 'one shift swaps which mission is squeezed out');
       expect((await count('.case-item[data-index="3"][data-span="3"]')) === 1, 'the CR3 is now placed at index 3');
@@ -367,7 +436,7 @@ export const scenarios = [
       // ← on the placed CR3: a b E c d → row 1 = a E E E b b, row 2 = c c d d. All five fit.
       await page.hover('.case-item[data-index="3"]');
       await sleep(200);
-      await page.click('.case-item[data-index="3"] .case-item__btn[aria-label="Shift earlier"]');
+      await page.click('.case-item[data-index="3"] .case-slot__btn[aria-label="Shift earlier"]');
       await sleep(400);
       const after = await count('.case-item');
       expect(after === before + 1, `second shift packs all missions into the case (${before} → ${after})`);
@@ -377,7 +446,7 @@ export const scenarios = [
       // ✕ on hover unloads.
       await page.hover('.case-item[data-index="0"]');
       await sleep(200);
-      await page.click('.case-item[data-index="0"] .case-item__btn[aria-label="Unload from today"]');
+      await page.click('.case-item[data-index="0"] .case-slot__btn[aria-label="Unload from today"]');
       await sleep(400);
       expect(log.apiCalls.some(c => c.action === 'clearToday'), 'unload calls clearToday');
       expect((await count('.case-item')) === after - 1, 'unloaded mission leaves the case');
@@ -405,8 +474,8 @@ export const scenarios = [
       await page.mouse.up();
       await sleep(600);
       expect((await count('.case-item[data-cell="5"][data-span="1"][data-index="3"]')) === 1, 'dropped mission occupies cell 5 at index 3');
-      expect((await count('.case-item')) === 5, 'five missions placed (CR3 pushed to the tray, now over budget)');
-      expect((await count('.case-tray__item.is-over-budget')) === 1, 'the CR3 is flagged over budget');
+      expect((await count('.case-item')) === 6, 'six missions placed (the CR1 filled the gap; CR3 still fits at Medium 14)');
+      expect((await count('.case-tray')) === 0, 'nothing overflows after the drop at Medium');
       const assigns = log.apiCalls.filter(c => c.action === 'assignToday');
       expect(assigns.length === 6, `insert renumbers every slot via assignToday (got ${assigns.length})`);
       const slots = assigns.map(a => `${a.body.task_id}:${a.body.today_slot}`).join(' ');
@@ -461,10 +530,10 @@ export const scenarios = [
     viewport: 'phone',
     run: async ({ shot, clickText, count, expect }) => {
       await clickText('.mobile-tab', 'Loadout');
-      expect((await count('.case-grid[data-cols="4"][data-rows="3"]')) === 1, 'handheld case is 4×3');
-      expect((await count('.case-cell')) === 12, '12 cells on the phone too');
-      expect((await count('.case-cell--locked')) === 2, '2 locked at Medium');
-      expect((await count('.case-item__menu')) >= 1, 'touch gets a ⋯ menu per item (click path for every drag action)');
+      expect((await count('.case-grid[data-cols="3"][data-rows="6"]')) === 1, 'handheld case is 3×6');
+      expect((await count('.case-cell')) === 18, '18 cells on the phone too');
+      expect((await count('.case-cell--locked')) === 4, '4 locked at Medium');
+      expect((await count('.case-slot__menu')) >= 1, 'touch gets a ⋯ menu per item (click path for every drag action)');
       await shot();
     },
   },
@@ -603,7 +672,7 @@ export const scenarios = [
       expect((await count('.pane-inbox .item-card:hover [aria-label="Mark complete"]')) === 1, 'mission hover check says "Mark complete"');
       await page.hover('.case-item[data-span="2"]');
       await sleep(200);
-      expect((await count('.case-item:hover .case-item__strip [aria-label="Mark complete"]')) === 1, 'case hover check says "Mark complete"');
+      expect((await count('.case-item:hover .case-slot__strip [aria-label="Mark complete"]')) === 1, 'case hover check says "Mark complete"');
       await page.mouse.move(5, 5);
       expect((await count('[aria-label="Mark cleared"], [title="Mark cleared"]')) === 0, 'no control still uses "Clear" as the finishing verb');
       // "Cleared" survives only as the state: the Missions toggle and the done cards.
@@ -657,7 +726,7 @@ export const scenarios = [
           cellMaxW: Math.max(...cells.map(c => c.width)),
           cellMinH: Math.min(...cells.map(c => c.height)),
           cellMaxH: Math.max(...cells.map(c => c.height)),
-          cr1Tight: cr1 ? cr1.classList.contains('case-item--tight') : null,
+          cr1Tight: cr1 ? cr1.classList.contains('case-slot--tight') : null,
           cr1Pips: cr1 ? cr1.querySelectorAll('.cr-pip.is-on').length : null,
           cr1Priority: cr1 ? cr1.querySelectorAll('.stat-chip--p1, .stat-chip--p2, .stat-chip--p3').length : null,
           capTop: cap ? Math.round(cap.top + cap.height / 2) : null,
@@ -769,8 +838,8 @@ export const scenarios = [
         };
       });
       expect(Math.round(m.today) === 340, `Loadout pane is 340px at ≤ 1100 (got ${Math.round(m.today)})`);
-      expect(m.cols === '4', `laptop Loadout falls back to the 4-wide case (got ${m.cols})`);
-      expect(m.cellMinW >= 70, `4×3 cells are legible (min ${m.cellMinW.toFixed(1)}px)`);
+      expect(m.cols === '3', `laptop Loadout falls back to the 3-wide case (got ${m.cols})`);
+      expect(m.cellMinW >= 90, `3×6 cells are legible (min ${m.cellMinW.toFixed(1)}px)`);
       expect(m.inbox >= 280 && m.quests >= 280, `Quests / Missions aren't starved (quests ${Math.round(m.quests)}, missions ${Math.round(m.inbox)})`);
       expect(!m.resizerShown, 'pane resizers are hidden at laptop width');
       expect(m.clipped.length === 0, `no stat chip is clipped inside a case cell: ${m.clipped.join('; ')}`);

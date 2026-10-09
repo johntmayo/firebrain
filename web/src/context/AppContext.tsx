@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { Task, AssigneeFilter, ViewMode, TodaySlot, CreateTaskInput, UpdateTaskInput, Challenge, Quest, CreateQuestInput, UpdateQuestInput, SortBy, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
-import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder } from '../types';
+import { PRIORITY_ORDER, CHALLENGE_ORDER, CHALLENGE_POINTS, compareQuestSortOrder, ENERGY_POINTS_LIMIT, pointsLimitFor } from '../types';
 import { api, setCurrentUserEmail, isAuthenticated, type BulkImportResponse } from '../api/client';
 import { openMissionsOfQuest } from '../utils/questMissions';
 
@@ -329,7 +329,7 @@ export function AppProvider({ children }: AppProviderProps) {
       setLoadoutConfig({
         energy_level: 'medium',
         points_used: 0,
-        points_limit: 10,
+        points_limit: ENERGY_POINTS_LIMIT.medium,
       });
     }
   }, []);
@@ -902,7 +902,11 @@ export function AppProvider({ children }: AppProviderProps) {
 
   const effectiveLoadoutConfig = useMemo(() => (
     loadoutConfig
-      ? { ...loadoutConfig, points_used: calculateLoadoutPoints(tasks, currentUser) }
+      ? {
+          ...loadoutConfig,
+          points_used: calculateLoadoutPoints(tasks, currentUser),
+          points_limit: pointsLimitFor(loadoutConfig.energy_level),
+        }
       : loadoutConfig
   ), [currentUser, loadoutConfig, tasks]);
   

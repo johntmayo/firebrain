@@ -74,6 +74,10 @@ html[data-skin="scifi"] {
   --success-soft: rgba(62, 240, 163, 0.14);
   --warning: #ffb547;
   --warning-soft: rgba(255, 181, 71, 0.14);
+  /* Overflow: the accent is already cyan here, so surplus reads as charged
+     lime instead — still energy, never alarm. */
+  --overflow: #b4ff5a;
+  --overflow-soft: rgba(180, 255, 90, 0.14);
 
   /* ---- Operators (cooler, more saturated tones) ----------------------- */
   --op-john: #9d8cff;

@@ -5,7 +5,7 @@ import { TaskCard } from './TaskCard';
 import { LoadFromMissionsModal } from './LoadFromMissionsModal';
 import { ENERGY_POINTS_LIMIT, type EnergyLevel, type Task } from '../types';
 import { describeOperator } from '../utils/operators';
-import { moveItem, packCase, type CaseItem, type OverflowItem, type PlacedItem } from '../utils/casePacking';
+import { moveItem, packCase, type CaseItem } from '../utils/casePacking';
 import { caseCellWidth, caseShapeFor } from '../utils/caseShape';
 import { TODAY_PANE_WIDTH, TODAY_PANE_WIDTH_KEY, parseStoredPaneWidth, resizedPaneWidth } from '../utils/paneWidth';
 import {
@@ -16,13 +16,14 @@ import {
   CapacityBar,
   CaseGrid,
   CaseTray,
+  CaseTrayItem,
   EmptyState,
   Icon,
-  Tooltip,
   challengeToCr,
   titleFallback,
   useTooltip,
   type CaseGridActions,
+  type CaseRenderItem,
   type SegmentOption,
 } from './primitives';
 
@@ -241,7 +242,8 @@ export function TodayPlanner() {
     measureRef(el);
   }, [setLoadoutDropRef, measureRef]);
 
-  const renderCaseItem = useCallback((item: PlacedItem, info: { tight: boolean }) => {
+  // Shared by the case and its overflow tray: both render missions at cell tier.
+  const renderCaseItem = useCallback<CaseRenderItem>((item, info) => {
     const task = taskById.get(item.id);
     if (!task) return null;
     return (
@@ -304,7 +306,7 @@ export function TodayPlanner() {
           <>
             Load missions from the cache (drag, or press Load).
             <br />
-            Each costs its CR in cells; Energy sets how many cells are live.
+            Each costs its CR in cells; Energy sets how many cells are live (Light 10 · Medium 14 · Heavy 18).
             <br />
             Complete them as you go — cleared missions drop into Accomplished Today.
           </>
@@ -365,13 +367,18 @@ export function TodayPlanner() {
             ariaLabel={`${viewer.name}'s case`}
           />
           {layout.overflow.length > 0 && (
-            <CaseTray over={overBy}>
-              {layout.overflow.map(o => {
-                const task = taskById.get(o.id);
-                return task ? (
-                  <TrayRow key={o.id} task={task} item={o} canEdit={isViewingOwnLoadout} onShiftEarlier={() => shift(o.index, -1)} />
-                ) : null;
-              })}
+            <CaseTray over={overBy} cols={layout.cols} squeezed={layout.overflow.filter(o => !o.overBudget).length}>
+              {layout.overflow.map(o => (
+                <CaseTrayItem
+                  key={o.id}
+                  item={o}
+                  renderItem={renderCaseItem}
+                  editable={isViewingOwnLoadout}
+                  actions={caseActions}
+                  itemCount={loadoutTasks.length}
+                  cellWidth={cellWidth}
+                />
+              ))}
             </CaseTray>
           )}
           {loadoutTasks.length === 0 && emptyState}
@@ -444,57 +451,6 @@ function LoadoutRow({ task, index, canEdit }: { task: Task; index: number; canEd
     <div ref={setNodeRef} className={`loadout-row ${isOver && canEdit ? 'is-drop-target' : ''}`}>
       <span className="loadout-row__index num">{index + 1}</span>
       <TaskCard task={task} inSlot hideOperator draggable={canEdit} />
-    </div>
-  );
-}
-
-const SQUEEZED_HINT = 'Fits your energy but not the free cells — reorder to pack tighter';
-
-/**
- * A mission in the overflow tray. Over-budget rows get the danger treatment;
- * a row that is within budget but squeezed out by gaps stays neutral and
- * explains itself. Dropping on the row inserts before it (same `loadout-task-`
- * id the list format uses).
- */
-function TrayRow({ task, item, canEdit, onShiftEarlier }: { task: Task; item: OverflowItem; canEdit: boolean; onShiftEarlier: () => void }) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: `loadout-task-${task.task_id}`,
-    disabled: !canEdit,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={[
-        'case-tray__item',
-        item.overBudget ? 'is-over-budget' : 'is-squeezed',
-        isOver && canEdit ? 'is-drop-target' : '',
-      ].filter(Boolean).join(' ')}
-      data-item-id={task.task_id}
-      data-index={item.index}
-    >
-      <TaskCard task={task} inSlot hideOperator draggable={canEdit} />
-      {canEdit && (
-        <div className="case-tray__tools">
-          {!item.overBudget && (
-            <Tooltip content={<div className="tooltip__body">{SQUEEZED_HINT}</div>}>
-              <button type="button" className="icon-btn hit case-tray__hint" aria-label={SQUEEZED_HINT}>
-                <Icon name="info" size={14} />
-              </button>
-            </Tooltip>
-          )}
-          <button
-            type="button"
-            className="icon-btn hit case-tray__shift"
-            onClick={onShiftEarlier}
-            disabled={item.index === 0}
-            title="Shift earlier"
-            aria-label="Shift earlier"
-          >
-            <Icon name="chevron-up" size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

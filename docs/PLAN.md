@@ -8,7 +8,7 @@ Fire Brain is a planner whose game concepts are the planning method, not decorat
 - **Quest** = a goal you can pin to your HUD (tracked) or leave in the log (untracked).
 - **Mission** = an atomic task, optionally nested in a quest, with a priority and a
   challenge rating (CR 1–3 = energy cost).
-- **Loadout** = today's kit, limited by an energy budget (Light 7 / Medium 10 / Heavy 12).
+- **Loadout** = today's kit, limited by an energy budget (Light 10 / Medium 14 / Heavy 18). The frontend owns those numbers (`ENERGY_POINTS_LIMIT`); the backend still returns 7 / 10 / 12 and `client.ts` overwrites `points_limit` from the energy level. Deliberate deviation — see 1.5.
 
 Product ambition: a to-do app that feels like a video game inventory / loadout screen,
 with swappable skins (sci-fi, fantasy, military, …) for gamers who use productivity software.
@@ -64,7 +64,7 @@ stylesheet was replaced by the Graphite chassis, so no dead tokens/classes remai
 
 ## Phase 1 — Chassis foundation (2–3 days)
 *The Design Brief decisions are resolved (see `CHASSIS_BRIEF.md` §10): Graphite dark
-default, game vocabulary as-is, P and CR both shown at rest, fixed 6×2 / 4×3 case with
+default, game vocabulary as-is, P and CR both shown at rest, fixed 6×3 / 3×6 case with
 energy unlocking cells, overflow tray only when overloaded, Sci-fi as the first new skin.*
 
 ### 1.1 Pin the shell, scroll the panes
@@ -165,14 +165,14 @@ ships with a unit test (if pure) and a smoke scenario (if visible).
 
 ### 1.5 Loadout → the Case (see Design Brief §6)
 **Status: ✅ done.** `utils/casePacking.ts` is the layout contract (pure, 13 unit tests:
-fixed 6×2 / 4×3, locked cells from the bottom-right, CR-wide items, wrap-with-gap, never
+fixed 6×3 / 3×6, locked cells from the bottom-right, CR-wide items, wrap-with-gap, never
 over locked cells, overflow flagged `overBudget` vs. merely squeezed out, drop-cell → insert
 index). `primitives/CaseGrid.tsx` + `CaseTray` render it; `TodayPlanner` owns Case · List,
 the picker (`LoadFromMissionsModal`) and the empty state; `App.tsx` maps `case-cell-<n>`
 drops through `insertIndexForCell` to one `reorderLoadoutTasks` call. Decisions: shape is
 chosen by the handheld breakpoint (≤ 900px) plus a < 320px pane-width floor rather than a
 container query (the phone pane is wider than the desktop pane); Case · List is icon-only to
-keep the HUD to two rows; another operator's case renders read-only with all 12 cells live
+keep the HUD to two rows; another operator's case renders read-only with all 18 cells live
 because their energy level isn't known client-side; the Loadout pane widened to
 `clamp(360px, 30vw, 480px)` so cells are ≥ 64px on common desktops — *superseded Oct 2026
 (round 3): the Loadout is now the primary pane at `clamp(480px, 40vw, 640px)` (576px → 87px
@@ -180,21 +180,35 @@ cells at 1440) and drag-resizable like Quests (400–900px, `utils/paneWidth.ts`
 `firebrain_today_panel_width`; until the user drags, nothing is stored and the CSS clamp stays
 responsive). `CASE_TIGHT_CELL_PX` rose 72 → 80 so CR1 cells carry title + P + CR pips; the
 cell is an inline-size container that hides the quest chip < 220px and everything but P/CR
-< 125px. At ≤ 1100px the pane is 340px and falls back to 4 × 3 (~73px cells).* Overflow items that fit
+< 125px. At ≤ 1100px the pane is 340px and falls back to 3 × 6 (~99px cells).* Overflow items that fit
 the budget but not the free cells show a neutral "reorder to pack tighter" hint, which is
-the brief's intended fix (two Shift-earlier clicks pack the fixture loadout).
+the brief's intended fix (two Shift-earlier clicks pack the fixture loadout at Light).
+
+**Round 4 (Oct 2026) — bigger Case, frontend-owned capacity.** The grid grew to 18 cells
+(desktop 6 × 3, handheld 3 × 6 so a CR3 spans a phone row) and energy is now Light 10 /
+Medium 14 / Heavy 18. Those numbers live in `ENERGY_POINTS_LIMIT`; `client.ts` normalises
+`getLoadoutConfig` / `setEnergyLevel` so `points_limit` is derived from `energy_level` and
+the backend's 7 / 10 / 12 is discarded. `points_used` is recomputed from loaded missions'
+CR in `AppContext`. Deliberate API deviation — the Sheet is off limits; overload stays
+visible so nothing breaks. CapacityBar segments shrank (6 × 8px) so 18 still fit one HUD
+row. The fixture loadout (CR 1+2+2+2+3 = 10) now fits Medium and Heavy; Light squeezes the
+CR3 (used exactly 10).
 
 - Loadout *formats* are presentation modes over the same data (`today_slot` order + CR):
-  - **Case** (default): a fixed 6×2 cell grid (4×3 on mobile); energy level sets how many
-    cells are unlocked (7 / 10 / 12), locked cells stay visible; each mission occupies CR
+  - **Case** (default): a fixed 6×3 cell grid (3×6 on mobile); energy level sets how many
+    cells are unlocked (10 / 14 / 18), locked cells stay visible; each mission occupies CR
     cells.
   - **List**: the current simple ordered list, for people who want it plain.
   - Future: **Template** formats (e.g. 1-3-5 as a pre-shaped case).
-- Single capacity indicator (`CapacityBar`: `7 / 10`, red segment when over). Remove the
+- Single capacity indicator (`CapacityBar`: `10 / 14`, overflow-tone segment when over). Remove the
   dot meter and the footer bar. Energy selector becomes a 3-way `SegmentedControl` with a
   `?` tooltip explaining CR → cells.
 - Overloaded missions render in an **overflow tray** below the case (visibly outside it);
-  the tray only appears when overloaded.
+  the tray only appears when overloaded. *Oct 2026:* the tray is a grid on the case's own
+  columns (`CaseTrayItem` = the same `.case-slot` frame as a placed item), so an overflow
+  mission is exactly its CR wide and gets the full hover/⋯ toolbar; the over-capacity tone
+  is `--overflow` (turquoise; lime in Sci-fi) everywhere — tray, CapacityBar, picker total,
+  List border — never `--danger`.
 - Empty state: "Nothing loaded" + **Load from Missions** (picker sheet with checkboxes →
   `assignToday` each) + **New mission**. This is the tap-first alternative to drag.
 - Rows/cells get ✕ unload and ↑/↓ on hover; D&D remains for reorder on desktop.

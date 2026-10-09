@@ -77,6 +77,11 @@
   --success-soft: rgba(95, 196, 140, 0.14);
   --warning: #e6b450;
   --warning-soft: rgba(230, 180, 80, 0.14);
+  /* Overflow: loading more than today's energy. Deliberately *not* danger —
+     it's surplus drive, not a fault. Turquoise: distinct from success (green),
+     accent (blue) and every operator tone. 4.9:1 on --surface. */
+  --overflow: #3fd1c2;
+  --overflow-soft: rgba(63, 209, 194, 0.14);
 
   /* ---- Operators (avatar tones) ---------------------------------- */
   --op-john: #8f84e8;

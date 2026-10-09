@@ -99,8 +99,9 @@ Skin: cell artwork, locked-cell treatment, tray styling, item-in-slot framing.
 
 ### 4.6 CapacityBar
 Role: single source of truth for budget.
-Anatomy: label (`7 / 10`, mono) + segmented bar with one segment per cell; over-capacity
-segments appended in the danger color. Tooltip explains CR → cells and energy levels.
+Anatomy: label (`10 / 14`, mono) + segmented bar with one segment per live cell; over-capacity
+segments appended in the overflow color (never danger). Tooltip explains CR → cells and
+energy levels.
 Skin: segment shape, colors, glow.
 
 ### 4.7 QuestLogEntry
@@ -151,12 +152,14 @@ tall and `CR` cells wide; the grid has `capacity` live cells.
 Grid dimensions: the case is a **fixed grid**; energy level changes how many cells are
 unlocked, not the grid's shape. Locked cells are always visible (disabled treatment), so
 switching to a heavier day visibly opens up the case.
-- Desktop: 6 × 2 = 12 cells. Light → 7 live / 5 locked. Medium → 10 / 2. Heavy → 12 / 0.
-- Mobile: 4 × 3 = 12 cells. Same lock counts.
+- Desktop: 6 × 3 = 18 cells. Light → 10 live / 8 locked. Medium → 14 / 4. Heavy → 18 / 0.
+- Mobile: 3 × 6 = 18 cells. Same lock counts (a CR3 spans a phone row).
 - The Loadout is the primary pane: on desktop it defaults to `clamp(480px, 40vw, 640px)`
   (576px → 87px cells at 1440) and is drag-resizable 400–900px (persisted as
   `firebrain_today_panel_width`); Missions takes the remainder. Below 1100px the pane is
-  340px and the case falls back to 4 × 3.
+  340px and the case falls back to 3 × 6 (~99px cells).
+- Capacity is owned by the frontend (`ENERGY_POINTS_LIMIT` 10 / 14 / 18). The backend
+  still returns 7 / 10 / 12; `client.ts` overwrites `points_limit` from `energy_level`.
 - Locked cells fill from the bottom-right so live cells are always a contiguous
   left-to-right, top-to-bottom run.
 
@@ -165,31 +168,53 @@ the next row and leaves a gap, exactly like a real inventory. Reordering (drag o
 lets the operator pack it tighter. The CapacityBar counts cells used, not cells occupied
 visually, so a gap never costs you.
 
-Overflow: items beyond capacity render in a tray under the case, visibly outside it, in the
-danger treatment. The tray is **only rendered when overloaded**. Overload is allowed
-(current behavior) but never hidden.
+Overflow: items beyond capacity render in a tray under the case, visibly outside it (behind
+a hairline). The tray **shares the case's columns**: a tray item is exactly `CR` cells wide
+and one cell tall, same as in the case — overflowing never costs a mission more room than
+its CR. Over-budget items, the tray header's `+N` and the CapacityBar's appended segments
+use the **overflow tone** (`--overflow`, turquoise): surplus drive, not a fault — never
+`--danger`. Items that fit the budget but are squeezed out by gaps stay neutral (dashed);
+the tray header's `?` explains the reorder fix. The tray is **only rendered when
+overloaded**. Overload is allowed (current behavior) but never hidden.
 
-Desktop mock, Medium (10 live of 12), 7 used, with a gap; `▒` = locked:
+Desktop mock, Medium (14 live of 18), 7 used, with a gap; `▒` = locked:
 ```
- CASE · Medium                                 7 / 10  ▰▰▰▰▰▰▰▱▱▱
-┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
-│▌Write   │▌Call dentist      │▌Fix login bug     │░░░░░░░░░│   ← CR1 · CR2 · CR2 · free
-│ spec    │ P2 ●●○  Thu       │ P1 ●●○  Today     │  empty  │
-│ P3 ●○○  │                   │                   │         │
-├─────────┼─────────┬─────────┼─────────┬─────────┼─────────┤
-│▌Zone 153 redo data (CR2)    │░░░░░░░░░│▒▒▒▒▒▒▒▒▒│▒▒▒▒▒▒▒▒▒│   ← free · locked · locked
-│ P2 ●●○  Tomorrow            │  empty  │  locked │  locked │
-└─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+ CASE · Medium                                 7 / 14
+┌─────┬───────────┬───────────┬─────┐
+│Write│ Call dent │ Fix login │free │   row 0: CR1 · CR2 · CR2 · free
+├─────┴───────────┼─────┬─────┼─────┤
+│ Zone 153 (CR2)  │free │free │free │   row 1
+├─────┬─────┬─────┼─────┼─────┼─────┤
+│free │free │▒▒▒▒ │▒▒▒▒ │▒▒▒▒ │▒▒▒▒ │   row 2: 2 live · 4 locked
+└─────┴─────┴─────┴─────┴─────┴─────┘
 ```
-Same case switched to Heavy (all 12 live), then overloaded by a CR3:
+Same case switched to Heavy (all 18 live), then overloaded by a CR3 after the grid fills:
 ```
- CASE · Heavy                               12 / 12 +3  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰
-┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
-│  …all 12 cells occupied…                                  │
-├─────────┴─────────┴─────────┴─────────┴─────────┴─────────┤
-│ OVERFLOW                                               +3 │
-│ ▌Harassment prevention training (CR3)  P2 ●●●             │
-└───────────────────────────────────────────────────────────┘
+ CASE · Heavy                               18 / 18 +3
+┌───────────────────────────────────────────┐
+│  …all 18 cells occupied…                  │
+├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┤
+│ OVERFLOW                               +3 │   overflow tone, not danger
+├─────────────────────────┬                 │
+│ Harassment prevention   │                 │   CR3 = three cells, same columns
+└─────────────────────────┴─────────────────┘
+```
+Handheld mock, Medium (14 live of 18); a CR3 spans a phone row:
+```
+ CASE · Medium          10 / 14
+┌─────┬───────────┐
+│Write│ Call dent │   CR1 · CR2
+├─────┴─────┬─────┤
+│ Fix login │free │   CR2 · free
+├───────────┼─────┤
+│ Zone 153  │free │   CR2 · free
+├───────────┴─────┤
+│ Harassment (CR3)│   CR3 spans the row
+├─────┬─────┬─────┤
+│free │free │▒▒▒▒ │   2 live · 1 locked
+├─────┼─────┼─────┤
+│▒▒▒▒ │▒▒▒▒ │▒▒▒▒ │
+└─────┴─────┴─────┘
 ```
 Interactions: drop onto any free cell to insert at that position; drop onto an occupied
 cell to insert before it; ✕ on hover to unload; ↑/↓ to shift; click a card to open it;
@@ -203,7 +228,8 @@ CR1 pre-shaped slots) are additional entries in this toggle.
 A skin is two files and may touch nothing else.
 
 `skins/<id>.css` — may override:
-- Color tokens (ground, surface, text, border, accent, priority-1/2/3, danger, success).
+- Color tokens (ground, surface, text, border, accent, priority-1/2/3, danger, success,
+  overflow — the over-capacity tone; keep it energetic and distinct from danger and accent).
 - Typography tokens (`--font-display`, `--font-body`, `--font-mono`), letter-spacing, and
   text-transform for titles.
 - Shape tokens (radii, border widths, frame artwork via `border-image` or `::before`
@@ -254,7 +280,7 @@ Sci-fi styling and every later skin would have to fight it; a neutral baseline i
 makes the §7 acceptance test (a skin built with zero component edits) meaningful.
 
 ## 9. Handheld layout
-Same components, rearranged: Today tab is the HUD (CapacityBar + Case at 4 columns);
+Same components, rearranged: Today tab is the HUD (CapacityBar + Case at 3 columns);
 Missions and Quests are lists of row-tier ItemCards / QuestLogEntries; dialogs become
 sheets. Density is unchanged; hit areas grow to 44px by padding. Nothing requires drag.
 
@@ -265,7 +291,7 @@ sheets. Density is unchanged; hit areas grow to 44px by padding. Nothing require
    are not used anywhere in the default UI.
 3. **Stat block at rest: show both P and CR.** The ItemCard stat row always carries the
    priority glyph and the CR pips; neither is hover-only.
-4. **Grid: fixed 6 × 2 desktop / 4 × 3 mobile; energy unlocks cells; locked cells visible.**
+4. **Grid: fixed 6 × 3 desktop / 3 × 6 mobile; energy unlocks cells; locked cells visible.**
    See §6.
 5. **Overflow tray: rendered only when overloaded.**
 6. **First skin: Sci-fi.** Field Notes is retired, not ported.

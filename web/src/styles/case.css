@@ -89,8 +89,12 @@
   opacity: 0.85;
 }
 
-/* ---- Item in the case ------------------------------------------- */
-.case-item {
+/* ---- Slot: a mission at cell tier --------------------------------
+   `.case-slot` is shared by placed items (`.case-item`, overlaid on the
+   grid) and overflow items (`.case-tray__item`, in the tray's grid). Both
+   are exactly `cr` columns wide and --h-cell tall; the tray never costs a
+   mission more room than its CR. */
+.case-slot {
   position: relative;
   z-index: 1;
   min-width: 0;
@@ -101,35 +105,35 @@
   container-type: inline-size;
 }
 
-.case-item:hover,
-.case-item:focus-within {
+.case-slot:hover,
+.case-slot:focus-within {
   z-index: 3;
 }
 
-.case-item.is-over {
+.case-slot.is-over {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
 
-.case-item .item-card {
+.case-slot .item-card {
   width: 100%;
   height: 100%;
 }
 
 /* The ItemCard's own action zone would eat the cell's width; the Case
-   supplies its own floating toolbar instead (see .case-item__actions). */
-.case-item .item-card__actions {
+   supplies its own floating toolbar instead (see .case-slot__actions). */
+.case-slot .item-card__actions {
   display: none;
 }
 
 /* (case.css is imported before index.css's rules, so these out-specify the
    .item-card--cell tier rules rather than relying on source order.) */
-.case-item .item-card--cell .item-card__main {
+.case-slot .item-card--cell .item-card__main {
   padding: 6px 6px 5px;
   gap: 3px;
 }
 
-.case-item .item-card--cell .item-card__title {
+.case-slot .item-card--cell .item-card__title {
   font-size: var(--t-sm);
   font-weight: 500;
   line-height: 1.2;
@@ -137,32 +141,32 @@
 
 /* Cell chips are a step larger than the row tier: the Case is the primary
    surface and its 84px cells have the room (--case-chip-h is local). */
-.case-item .item-card--cell {
+.case-slot .item-card--cell {
   --case-chip-h: 22px;
 }
 
-.case-item .item-card--cell .item-card__stats {
+.case-slot .item-card--cell .item-card__stats {
   height: var(--case-chip-h);
   gap: 4px;
 }
 
 /* P (≈26px) + gap + CR pips (≈35px) must fit the 70px stat row of an 87px
    CR1 cell — see CASE_TIGHT_CELL_PX. */
-.case-item .item-card--cell .stat-chip {
+.case-slot .item-card--cell .stat-chip {
   height: var(--case-chip-h);
   padding: 0 5px;
   font-size: var(--t-xs);
 }
 
-.case-item .item-card--cell .stat-chip--cr {
+.case-slot .item-card--cell .stat-chip--cr {
   padding: 0 4px;
 }
 
-.case-item .item-card--cell .cr-pips {
+.case-slot .item-card--cell .cr-pips {
   gap: 2px;
 }
 
-.case-item .item-card--cell .cr-pip {
+.case-slot .item-card--cell .cr-pip {
   width: 7px;
   height: 7px;
 }
@@ -170,7 +174,7 @@
 /* CR1 cell (one cell wide, ≥ CASE_TIGHT_CELL_PX): title + P + CR pips. Due
    and quest chips would only be clipped at this width, so they are left to
    the tooltip. */
-.case-item--cr1 .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
+.case-slot--cr1 .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
   display: none;
 }
 
@@ -178,7 +182,7 @@
    ~220px (a CR2 at the default pane width) there is no room for it to say
    anything, so it stays in the tooltip. Due chips are never clipped. */
 @container (max-width: 219px) {
-  .case-item .item-card__stats > .stat-chip--quest {
+  .case-slot .item-card__stats > .stat-chip--quest {
     display: none;
   }
 }
@@ -186,22 +190,22 @@
 /* A CR2 in a user-shrunk pane (≈60px cells) can't hold P + CR + due either;
    fall back to the CR1 treatment rather than clip the due chip. */
 @container (max-width: 125px) {
-  .case-item .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
+  .case-slot .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3):not(.stat-chip--cr) {
     display: none;
   }
 }
 
-.case-item .stat-chip--quest {
+.case-slot .stat-chip--quest {
   min-width: 56px;
 }
 
 /* Tight CR1 cell (< CASE_TIGHT_CELL_PX): priority chip only — the CR is the
    cell itself. Kept for narrow / user-shrunk panes. */
-.case-item--tight .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3) {
+.case-slot--tight .item-card__stats > :not(.stat-chip--p1):not(.stat-chip--p2):not(.stat-chip--p3) {
   display: none;
 }
 
-.case-item--tight .item-card--cell .item-card__main {
+.case-slot--tight .item-card--cell .item-card__main {
   padding-left: 4px;
   padding-right: 3px;
 }
@@ -209,7 +213,7 @@
 /* Hover toolbar: ← → ✕ ✓ (fine pointer) / ⋯ menu (coarse). Floating, so a
    lift shadow is allowed. Anchored bottom-right over the stat row so the
    title stays readable while you decide. */
-.case-item__actions {
+.case-slot__actions {
   position: absolute;
   right: 2px;
   bottom: 2px;
@@ -218,7 +222,7 @@
   align-items: center;
 }
 
-.case-item__strip {
+.case-slot__strip {
   display: none;
   align-items: center;
   gap: 1px;
@@ -229,12 +233,12 @@
   box-shadow: var(--shadow-lift);
 }
 
-.case-item:hover .case-item__strip,
-.case-item:focus-within .case-item__strip {
+.case-slot:hover .case-slot__strip,
+.case-slot:focus-within .case-slot__strip {
   display: inline-flex;
 }
 
-.case-item__btn {
+.case-slot__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -246,40 +250,40 @@
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
-.case-item__btn:hover:not(:disabled) {
+.case-slot__btn:hover:not(:disabled) {
   background: var(--surface-pressed);
   color: var(--text);
 }
 
-.case-item__btn:disabled {
+.case-slot__btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-.case-item__btn--clear:hover:not(:disabled) {
+.case-slot__btn--clear:hover:not(:disabled) {
   color: var(--success);
   background: var(--success-soft);
 }
 
-.case-item__check {
+.case-slot__check {
   stroke-width: 3;
 }
 
-.case-item__menu {
+.case-slot__menu {
   display: none;
 }
 
 @media (pointer: coarse) {
-  .case-item__strip { display: none !important; }
-  .case-item__menu { display: inline-flex; }
-  .case-item__menu .case-item__btn {
+  .case-slot__strip { display: none !important; }
+  .case-slot__menu { display: inline-flex; }
+  .case-slot__menu .case-slot__btn {
     background: var(--surface-3);
     border: var(--border-w) solid var(--border-strong);
   }
   /* Leave room for the ⋯ trigger so it never sits on the chips. */
-  .case-item .item-card__stats { padding-right: 24px; }
+  .case-slot .item-card__stats { padding-right: 24px; }
   /* A one-wide cell can't hold P + CR beside the ⋯ trigger; keep P. */
-  .case-item--cr1 .item-card__stats > .stat-chip--cr { display: none; }
+  .case-slot--cr1 .item-card__stats > .stat-chip--cr { display: none; }
 }
 
 /* Read-only (another operator's case): no drop affordance, no toolbar */
@@ -287,25 +291,27 @@
   opacity: 0.35;
 }
 
-/* ---- Overflow tray (rendered only when overloaded) --------------- */
+/* ---- Overflow tray (rendered only when overloaded) ---------------
+   Sits under the grid behind a hairline, with no side padding so its grid
+   shares the case's columns: a CR2 in the tray is as wide as a CR2 in the
+   case. Overflow is surplus drive, not a fault — it reads in --overflow
+   (turquoise), never --danger. */
 .case-tray {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
-  padding: var(--space-2xs);
-  background: var(--surface);
-  border: var(--border-w) solid var(--border-strong);
-  border-radius: var(--radius-card);
+  padding-top: var(--space-2xs);
+  border-top: var(--border-w) dashed var(--border-strong);
 }
 
 .case-tray.is-over-budget {
-  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  border-top-color: color-mix(in srgb, var(--overflow) 55%, transparent);
 }
 
 .case-tray__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-2xs);
   min-height: 20px;
   padding: 0 var(--space-2xs);
   color: var(--text-3);
@@ -315,56 +321,50 @@
 }
 
 .case-tray.is-over-budget .case-tray__head {
-  color: var(--danger);
-}
-
-.case-tray__over {
-  font-size: var(--t-xs);
-  font-weight: 700;
-  color: var(--danger);
-}
-
-.case-tray__items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-}
-
-.case-tray__item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2xs);
-  align-items: center;
-  border-radius: var(--radius-card);
-}
-
-.case-tray__item.is-over-budget .item-card {
-  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-  background: color-mix(in srgb, var(--danger) 9%, var(--surface-2));
-}
-
-.case-tray__item.is-over-budget .item-card:hover {
-  background: color-mix(in srgb, var(--danger) 14%, var(--surface-2));
-}
-
-.case-tray__item.is-drop-target {
-  background: var(--accent-soft);
-  outline: 1px solid var(--accent-line);
-}
-
-.case-tray__tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  color: var(--overflow);
 }
 
 .case-tray__hint {
+  width: 20px;
+  height: 20px;
   color: var(--text-3);
 }
 
-.case-tray__shift:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.case-tray__hint:hover {
+  color: var(--text);
+}
+
+.case-tray__over {
+  margin-left: auto;
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--overflow);
+}
+
+/* Same columns and gap as .case-grid; CSS auto-placement wraps an item that
+   doesn't fit the row's remainder and leaves the gap, like packCase does. */
+.case-tray__grid {
+  display: grid;
+  grid-auto-rows: var(--h-cell);
+  gap: var(--case-gap);
+  min-width: 0;
+}
+
+/* Over budget: the slot carries the overflow tone. The ItemCard's own border
+   stays 1px hard (chassis rule); only the colour changes. */
+.case-tray__item.is-over-budget .item-card {
+  border-color: color-mix(in srgb, var(--overflow) 55%, transparent);
+  background: color-mix(in srgb, var(--overflow) 9%, var(--surface-2));
+}
+
+.case-tray__item.is-over-budget .item-card:hover {
+  background: color-mix(in srgb, var(--overflow) 14%, var(--surface-2));
+}
+
+/* Squeezed out (within budget, blocked by gaps): neutral; the tray header's
+   ? explains the fix. */
+.case-tray__item.is-squeezed .item-card {
+  border-style: dashed;
 }
 
 /* ---- CapacityBar info ------------------------------------------- */
@@ -507,7 +507,7 @@
 }
 
 .pick-total.is-over {
-  color: var(--danger);
+  color: var(--overflow);
 }
 
 .pick-total__sep {

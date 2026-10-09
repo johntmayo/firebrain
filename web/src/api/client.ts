@@ -1,4 +1,16 @@
-import type { Task, CreateTaskInput, UpdateTaskInput, AssignTodayInput, Quest, CreateQuestInput, UpdateQuestInput, LoadoutConfig, EnergyLevel, QuestCompletionMode } from '../types';
+import {
+  pointsLimitFor,
+  type Task,
+  type CreateTaskInput,
+  type UpdateTaskInput,
+  type AssignTodayInput,
+  type Quest,
+  type CreateQuestInput,
+  type UpdateQuestInput,
+  type LoadoutConfig,
+  type EnergyLevel,
+  type QuestCompletionMode,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const SESSION_TOKEN_KEY = 'firebrain_session_token';
@@ -128,6 +140,24 @@ async function apiCall<T>(action: string, body?: object): Promise<T> {
   return data;
 }
 
+/**
+ * Capacity is owned by the frontend (ENERGY_POINTS_LIMIT). The backend still
+ * returns 7 / 10 / 12; we keep energy_level and points_used, then derive
+ * points_limit from the level so a stale Sheet number cannot shrink the Case.
+ */
+function normalizeLoadoutConfig(data: {
+  energy_level?: EnergyLevel;
+  points_used?: number;
+  points_limit?: number;
+}): LoadoutConfig {
+  const energy_level = data.energy_level ?? 'medium';
+  return {
+    energy_level,
+    points_used: data.points_used ?? 0,
+    points_limit: pointsLimitFor(energy_level),
+  };
+}
+
 export const api = {
   async login(email: string, password: string): Promise<{ token: string; userEmail: string; expiresAt: number }> {
     const url = new URL(API_BASE_URL);
@@ -245,21 +275,13 @@ export const api = {
         clearSessionToken();
       throw new Error(data.error);
     }
-    return {
-      energy_level: data.energy_level!,
-      points_used: data.points_used ?? 0,
-      points_limit: data.points_limit ?? 10,
-    };
+    return normalizeLoadoutConfig(data);
   },
 
   async setEnergyLevel(energy_level: EnergyLevel): Promise<LoadoutConfig> {
     const data = await apiCall<ApiResponse<LoadoutConfig>>('setEnergyLevel', { energy_level });
     if (data.error) throw new Error(data.error);
-    return {
-      energy_level: data.energy_level!,
-      points_used: data.points_used ?? 0,
-      points_limit: data.points_limit ?? 10,
-    };
+    return normalizeLoadoutConfig(data);
   },
 
   async bulkCreateTasks(tasks: CreateTaskInput[]): Promise<BulkImportResponse> {

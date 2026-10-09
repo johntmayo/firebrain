@@ -3,18 +3,18 @@ import { DESKTOP_CASE, HANDHELD_CASE } from './casePacking';
 import { CASE_NARROW_PANE_PX, CASE_TIGHT_CELL_PX, caseCellWidth, caseShapeFor, isTightCell, nextSlots } from './caseShape';
 
 describe('caseShapeFor', () => {
-  it('is 6×2 on desktop regardless of pane width above the floor', () => {
+  it('is 6×3 on desktop regardless of pane width above the floor', () => {
     expect(caseShapeFor(null, false)).toEqual(DESKTOP_CASE);
     expect(caseShapeFor(334, false)).toEqual(DESKTOP_CASE);
     expect(caseShapeFor(900, false)).toEqual(DESKTOP_CASE);
   });
 
-  it('is 4×3 on a handheld even though the phone pane is wider than the desktop pane', () => {
+  it('is 3×6 on a handheld even though the phone pane is wider than the desktop pane', () => {
     expect(caseShapeFor(374, true)).toEqual(HANDHELD_CASE);
     expect(caseShapeFor(null, true)).toEqual(HANDHELD_CASE);
   });
 
-  it('falls back to 4×3 when a desktop pane is too narrow for six cells', () => {
+  it('falls back to 3×6 when a desktop pane is too narrow for six cells', () => {
     expect(caseShapeFor(CASE_NARROW_PANE_PX - 1, false)).toEqual(HANDHELD_CASE);
     expect(caseShapeFor(CASE_NARROW_PANE_PX, false)).toEqual(DESKTOP_CASE);
     // An unmeasured (0) container is not "narrow"; wait for the real width.
@@ -40,14 +40,15 @@ describe('caseCellWidth / isTightCell', () => {
     expect(CASE_TIGHT_CELL_PX).toBe(80);
     expect(isTightCell(CASE_TIGHT_CELL_PX - 1)).toBe(true);
     expect(isTightCell(CASE_TIGHT_CELL_PX)).toBe(false);
-    // 576px Loadout pane → 540px case → 87px cells; 390px phone → 338px case → 82px cells.
+    // 576px Loadout pane → 540px case → 87px cells; 390px phone → 338px case → 110px cells (3-wide).
     expect(caseCellWidth(540, 6)).toBe(87);
     expect(isTightCell(caseCellWidth(540, 6))).toBe(false);
-    expect(caseCellWidth(338, 4)).toBe(82);
-    expect(isTightCell(caseCellWidth(338, 4))).toBe(false);
-    // Laptop (340px pane → 304px case) falls back to 4×3 with 73px cells, which are tight.
+    expect(caseCellWidth(338, 3)).toBe(110);
+    expect(isTightCell(caseCellWidth(338, 3))).toBe(false);
+    // Laptop (340px pane → 304px case) falls back to 3×6 with 99px cells — still not tight.
     expect(caseShapeFor(304, false)).toEqual(HANDHELD_CASE);
-    expect(isTightCell(caseCellWidth(304, 4))).toBe(true);
+    expect(caseCellWidth(304, 3)).toBe(99);
+    expect(isTightCell(caseCellWidth(304, 3))).toBe(false);
   });
 });
 

@@ -127,7 +127,7 @@
 
 @media (max-width: 1100px) {
   /* Laptop (1024): a 340px Loadout has a 304px case, which is under
-     CASE_NARROW_PANE_PX, so the Case falls back to 4 × 3 with ~73px cells
+     CASE_NARROW_PANE_PX, so the Case falls back to 3 × 6 with ~99px cells
      instead of six illegible ones. Quests and Missions split the rest
      (~306px each at 1024). Stored pane widths don't apply here. */
   .pane-today { width: 340px !important; min-width: 0 !important; }
@@ -657,19 +657,23 @@
   color: var(--text);
 }
 
+/* Over capacity is surplus, not failure: the overflow tone (turquoise), never danger. */
 .cap-bar.is-over .cap-bar__label,
 .cap-bar__over {
-  color: var(--danger);
+  color: var(--overflow);
 }
 
 .cap-bar__track {
   display: inline-flex;
-  gap: 2px;
+  flex-wrap: wrap;
+  gap: 1px;
+  max-width: 126px; /* 18 × 6px + 17 gaps — Heavy's 18 segments stay on one HUD row */
 }
 
 .cap-bar__seg {
-  width: 10px;
-  height: 9px;
+  width: 6px;
+  height: 8px;
+  flex: 0 0 auto;
   border-radius: 1px;
   background: var(--surface-3);
   border: var(--border-w) solid var(--border-strong);
@@ -681,8 +685,8 @@
 }
 
 .cap-bar__seg.is-over {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: var(--overflow);
+  border-color: var(--overflow);
 }
 
 /* ==============================================================
@@ -1169,7 +1173,7 @@
 }
 
 .loadout-list.is-overloaded {
-  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  border-color: color-mix(in srgb, var(--overflow) 55%, transparent);
 }
 
 .loadout-list > .empty-state {

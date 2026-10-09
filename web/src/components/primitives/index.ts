@@ -4,7 +4,18 @@ export { StatChip, PriorityChip, CrPips, DueChip, OperatorChip, QuestChip, Loade
 export { SegmentedControl, type SegmentOption } from './SegmentedControl';
 export { CapacityBar } from './CapacityBar';
 export { Slot, type SlotState } from './Slot';
-export { CaseGrid, CaseTray, CASE_CELL_DROP_PREFIX, type CaseGridProps, type CaseGridActions, type CaseTrayProps } from './CaseGrid';
+export {
+  CaseGrid,
+  CaseTray,
+  CaseTrayItem,
+  CASE_CELL_DROP_PREFIX,
+  LOADOUT_TASK_DROP_PREFIX,
+  type CaseGridProps,
+  type CaseGridActions,
+  type CaseRenderItem,
+  type CaseTrayProps,
+  type CaseTrayItemProps,
+} from './CaseGrid';
 export { ItemCard, type ItemCardProps, type ItemCardTier } from './ItemCard';
 export { QuestLogEntry, type QuestProgress } from './QuestLogEntry';
 export { Dialog } from './Dialog';

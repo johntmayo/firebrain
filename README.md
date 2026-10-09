@@ -22,7 +22,7 @@ Fire Brain organizes work into **missions** (atomic tasks) and **quests** (long-
 | **Cache** | Open missions that are not loaded (the "inbox") |
 | **Loadout** | Today's ordered list of missions for one operator |
 | **CR** (1–3) | Challenge rating / energy cost of a mission (low / medium / high) |
-| **Energy** | Daily capacity: Light = 7, Medium = 10, Heavy = 12 points |
+| **Energy** | Daily capacity: Light = 10, Medium = 14, Heavy = 18 live cells. Owned by the frontend (`ENERGY_POINTS_LIMIT`); the backend still returns 7 / 10 / 12 and is ignored. |
 | **P1 / P2 / P3** | Priority (high+urgent / medium / low) |
 | **Complete** (verb) | Finish a mission or quest — "Complete mission", "Complete quest", "Mark complete" |
 | **Cleared** (state) | Finished — the "Cleared" toggle, "Cleared Oct 8" on done cards, "Accomplished Today" |
@@ -51,7 +51,7 @@ Quests group related missions and carry a colour that tags their nested missions
 
 ## Features
 
-- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 2 on desktop, 4 × 3 on handheld and on laptops ≤ 1100 px) where each mission occupies `CR` cells; the Loadout is the primary pane — widest by default (`clamp(480px, 40vw, 640px)`, so CR1 cells show title + P + CR pips) and drag-resizable from its right edge (400–900 px, persisted as `firebrain_today_panel_width`); Energy decides how many cells are live (7 / 10 / 12) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case (danger-styled when over budget). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and complete. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
+- **Loadout / the Case** — two formats over the same data, toggled in the pane header: **Case** (default) is a fixed inventory grid (6 × 3 on desktop, 3 × 6 on handheld and on laptops ≤ 1100 px) where each mission occupies `CR` cells; the Loadout is the primary pane — widest by default (`clamp(480px, 40vw, 640px)`, so CR1 cells show title + P + CR pips) and drag-resizable from its right edge (400–900 px, persisted as `firebrain_today_panel_width`); Energy decides how many cells are live (Light 10 / Medium 14 / Heavy 18 — frontend-owned; the backend's 7 / 10 / 12 is ignored) and locked cells stay visible; items flow in `today_slot` order and wrap without reflowing, leaving gaps you can pack by reordering. Missions that don't fit render in an **Overflow** tray below the case, on the same columns, each still exactly its CR wide (turquoise "overflow" tone when over budget — surplus energy, not an alarm). **List** is the plain ordered list. Load by dragging onto a cell, pressing Load on a card, or via **Load from Missions** (checkbox picker — the tap-first path); hover a case item for shift ‹ ›, unload and complete. Capacity bar shows `used / live` (+N when over) with a `?` explainer. You can view any operator's loadout but only edit your own.
 - **Missions (Cache)** — create, edit, filter by operator, sort by priority or CR; **List**, **Grid** (grouped by priority) and **Matrix** (P × CR) views; an **Overdue** section at the top gathers every open, unloaded mission past its due date (including quest missions); **Cleared** toggle shows completed missions
 - **Quests** — create, colour, track/untrack, reorder (drag), resize the pane; nested missions (loaded ones included, marked **Loaded**) with inline "+ Mission"; progress `done / total` and a late count per quest; **Complete quest** with a keep-or-complete choice for open missions
 - **Accomplished today** — missions cleared today for the operator being viewed, collapsible under the loadout
@@ -61,7 +61,7 @@ Quests group related missions and carry a colour that tags their nested missions
 - **Settings** (operator menu → Settings…) — skin picker with live previews, UI scale 85 / 100 / 115 / 130 % (85 % reproduces the pre-Oct-2026 density), click sounds on/off, account + log out. All persisted to localStorage (`firebrain_skin`, `firebrain_ui_scale`, `firebrain_sound`; pane widths in `firebrain_quests_panel_width` / `firebrain_today_panel_width`, loadout format in `firebrain_loadout_format`).
 - **Gadget drawer** (desktop; pull tab at the bottom) — a tool belt of small gadgets: **Stopwatch** (count-up or 5/15/25-min countdown with chime; survives reload), **Quick add** (one-line mission creation with live parse preview), **Launchpad** (external tools), **Shortcuts** (only shortcuts that actually exist: Enter opens, Space completes, Esc closes).
 - **Teaching tooltips** — every control explains itself on hover/focus (one sentence, game vocabulary); every icon-only control also has an `aria-label` for touch and screen readers.
-- **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 4 × 3
+- **Handheld** — below 768 px the panes become tabs (Quests / Missions / Loadout); dialogs become bottom sheets; hit targets grow to 44 px on coarse pointers; the Case switches to 3 × 6
 
 ## Data Models
 
@@ -113,7 +113,7 @@ Quests group related missions and carry a colour that tags their nested missions
 |-------|------|-------------|
 | `energy_level` | `light` \| `medium` \| `heavy` | Today's energy budget |
 | `points_used` | number | Sum of CR of loaded missions |
-| `points_limit` | number | 7 / 10 / 12 |
+| `points_limit` | number | 10 / 14 / 18 (derived client-side from `energy_level`; backend 7 / 10 / 12 is discarded) |
 
 ## API Endpoints
 
@@ -226,7 +226,7 @@ tooling below never reaches the Sheet.
 ```bash
 cd web
 npm run typecheck   # tsc --noEmit
-npm run test        # Vitest unit tests (90: casePacking, caseShape, paneWidth, questMissions, parseMission, stopwatch, dueDate, skins contract…)
+npm run test        # Vitest unit tests (87: casePacking, caseShape, paneWidth, questMissions, parseMission, stopwatch, dueDate, skins contract…)
 npm run smoke       # Headless browser run against a MOCKED backend (30 scenarios; screenshots in test/smoke/out/)
 npm run check       # all of the above + build — run before handing work off
 ```

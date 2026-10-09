@@ -1,25 +1,30 @@
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { insertIndexForCell, type CaseLayout, type CaseCell, type PlacedItem } from '../../utils/casePacking';
+import { insertIndexForCell, type CaseLayout, type CaseCell, type OrderedItem, type OverflowItem, type PlacedItem } from '../../utils/casePacking';
 import { isTightCell } from '../../utils/caseShape';
 import { Icon } from './Icon';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
+import { Tooltip } from './Tooltip';
 
 export const CASE_CELL_DROP_PREFIX = 'case-cell-';
+/** Droppable id prefix shared with the List format: dropping on a mission inserts before it. */
+export const LOADOUT_TASK_DROP_PREFIX = 'loadout-task-';
 
 export interface CaseGridActions {
-  onUnload?: (item: PlacedItem) => void;
-  onShiftEarlier?: (item: PlacedItem) => void;
-  onShiftLater?: (item: PlacedItem) => void;
+  onUnload?: (item: OrderedItem) => void;
+  onShiftEarlier?: (item: OrderedItem) => void;
+  onShiftLater?: (item: OrderedItem) => void;
   /** Mark the mission complete (UI verb "Complete"; the resulting state is "Cleared"). */
-  onClear?: (item: PlacedItem) => void;
+  onClear?: (item: OrderedItem) => void;
 }
+
+/** Renders the mission inside its slot. `tight` = a 1-wide cell too narrow for the full stat row. */
+export type CaseRenderItem = (item: OrderedItem, info: { tight: boolean }) => React.ReactNode;
 
 export interface CaseGridProps {
   /** From `packCase(items, capacity, shape)`. */
   layout: CaseLayout;
-  /** Renders the mission inside its item cell. `tight` = a 1-wide cell too narrow for the full stat row. */
-  renderItem: (item: PlacedItem, info: { tight: boolean }) => React.ReactNode;
+  renderItem: CaseRenderItem;
   /** Own loadout: free cells and items are drop targets, hover actions render. */
   editable?: boolean;
   actions?: CaseGridActions;
@@ -38,10 +43,14 @@ export interface CaseGridProps {
  *   .case-grid[data-cols][data-rows][data-capacity]          CSS grid, fixed cell height --h-cell
  *     .case-cell.case-cell--{free|locked|occupied}[data-cell=n]  one per grid cell, always cols×rows of them
  *       (free cells are dnd-kit droppables `case-cell-<n>`; locked cells carry aria-disabled)
- *     .case-item[data-item-id][data-cell=n][data-span=cr]     one per placed item, overlaid on its cells
+ *     .case-slot.case-item[data-item-id][data-cell=n][data-span=cr]  one per placed item, overlaid on its cells
  *       (droppable `case-cell-<n>` for the item's first cell; drop data = { insertIndex })
  *       > renderItem(...)                                        the TaskCard / ItemCard
- *       .case-item__actions                                      hover strip (fine pointer) + ⋯ menu (coarse)
+ *       .case-slot__actions                                      hover strip (fine pointer) + ⋯ menu (coarse)
+ *
+ * `.case-slot` is the shared "mission at cell tier" frame; the tray below the
+ * case (`CaseTray` / `CaseTrayItem`) renders `.case-slot.case-tray__item` with
+ * the same columns, so an overflow mission is never wider than its CR.
  *
  * Every droppable carries `data.insertIndex` = `insertIndexForCell(layout, n)` so the
  * drag handler never has to know the layout: free cell → after everything that starts
@@ -73,20 +82,28 @@ export function CaseGrid({
       {layout.cells.map(cell => (
         <CaseCellView key={cell.n} cell={cell} layout={layout} editable={editable} />
       ))}
-      {layout.placed.map(item => (
-        <CaseItemView
-          key={item.id}
-          item={item}
-          layout={layout}
-          editable={editable}
-          actions={actions}
-          isFirst={item.index === 0}
-          isLast={item.index >= total - 1}
-          tight={tight && item.span === 1}
-        >
-          {renderItem(item, { tight: tight && item.span === 1 })}
-        </CaseItemView>
-      ))}
+      {layout.placed.map(item => {
+        const startN = item.row * layout.cols + item.col;
+        const isTight = tight && item.span === 1;
+        return (
+          <CaseSlot
+            key={item.id}
+            item={item}
+            span={item.span}
+            className="case-item"
+            style={{ gridColumn: `${item.col + 1} / span ${item.span}`, gridRow: item.row + 1 }}
+            dataAttrs={{ 'data-cell': startN }}
+            droppable={{ id: `${CASE_CELL_DROP_PREFIX}${startN}`, data: { type: 'case-cell', n: startN, insertIndex: item.index } }}
+            editable={editable}
+            actions={actions}
+            isFirst={item.index === 0}
+            isLast={item.index >= total - 1}
+            tight={isTight}
+          >
+            {renderItem(item, { tight: isTight })}
+          </CaseSlot>
+        );
+      })}
     </div>
   );
 }
@@ -126,9 +143,17 @@ function stop(e: React.SyntheticEvent) {
   e.stopPropagation();
 }
 
-interface CaseItemViewProps {
-  item: PlacedItem;
-  layout: CaseLayout;
+/* ---- Slot: a mission at cell tier, in the case or in the tray ------------- */
+
+interface CaseSlotProps {
+  item: OrderedItem;
+  /** Cells spanned (== cr). */
+  span: number;
+  /** `case-item` (placed) or `case-tray__item …` (overflow). */
+  className: string;
+  style: React.CSSProperties;
+  dataAttrs?: Record<string, string | number>;
+  droppable: { id: string; data?: Record<string, unknown> };
   editable: boolean;
   actions?: CaseGridActions;
   isFirst: boolean;
@@ -137,12 +162,11 @@ interface CaseItemViewProps {
   children: React.ReactNode;
 }
 
-function CaseItemView({ item, layout, editable, actions, isFirst, isLast, tight, children }: CaseItemViewProps) {
-  const startN = item.row * layout.cols + item.col;
+function CaseSlot({ item, span, className, style, dataAttrs, droppable, editable, actions, isFirst, isLast, tight, children }: CaseSlotProps) {
   const { isOver, setNodeRef } = useDroppable({
-    id: `${CASE_CELL_DROP_PREFIX}${startN}`,
+    id: droppable.id,
     disabled: !editable,
-    data: { type: 'case-cell', n: startN, insertIndex: item.index },
+    data: droppable.data,
   });
 
   const hasActions = editable && actions && (actions.onUnload || actions.onShiftEarlier || actions.onShiftLater || actions.onClear);
@@ -168,44 +192,45 @@ function CaseItemView({ item, layout, editable, actions, isFirst, isLast, tight,
     <div
       ref={editable ? setNodeRef : undefined}
       className={[
-        'case-item',
-        `case-item--cr${item.span}`,
-        tight ? 'case-item--tight' : '',
+        'case-slot',
+        `case-slot--cr${span}`,
+        tight ? 'case-slot--tight' : '',
+        className,
         isOver && editable ? 'is-over' : '',
       ].filter(Boolean).join(' ')}
       data-item-id={item.id}
-      data-cell={startN}
-      data-span={item.span}
+      data-span={span}
       data-index={item.index}
-      style={{ gridColumn: `${item.col + 1} / span ${item.span}`, gridRow: item.row + 1 }}
+      {...dataAttrs}
+      style={style}
     >
       {children}
       {hasActions && (
-        <div className="case-item__actions" onClick={stop} onPointerDown={stop} onKeyDown={stop}>
-          <div className="case-item__strip" role="toolbar" aria-label="Mission actions">
+        <div className="case-slot__actions" onClick={stop} onPointerDown={stop} onKeyDown={stop}>
+          <div className="case-slot__strip" role="toolbar" aria-label="Mission actions">
             {actions?.onShiftEarlier && (
-              <button type="button" className="case-item__btn hit" onClick={() => actions.onShiftEarlier?.(item)} disabled={isFirst} title="Shift earlier" aria-label="Shift earlier">
+              <button type="button" className="case-slot__btn hit" onClick={() => actions.onShiftEarlier?.(item)} disabled={isFirst} title="Shift earlier" aria-label="Shift earlier">
                 <Icon name="chevron-left" size={14} />
               </button>
             )}
             {actions?.onShiftLater && (
-              <button type="button" className="case-item__btn hit" onClick={() => actions.onShiftLater?.(item)} disabled={isLast} title="Shift later" aria-label="Shift later">
+              <button type="button" className="case-slot__btn hit" onClick={() => actions.onShiftLater?.(item)} disabled={isLast} title="Shift later" aria-label="Shift later">
                 <Icon name="chevron-right" size={14} />
               </button>
             )}
             {actions?.onUnload && (
-              <button type="button" className="case-item__btn hit" onClick={() => actions.onUnload?.(item)} title="Unload from today" aria-label="Unload from today">
+              <button type="button" className="case-slot__btn hit" onClick={() => actions.onUnload?.(item)} title="Unload from today" aria-label="Unload from today">
                 <Icon name="unload" size={14} />
               </button>
             )}
             {actions?.onClear && (
-              <button type="button" className="case-item__btn case-item__btn--clear hit" onClick={() => actions.onClear?.(item)} title="Mark complete" aria-label="Mark complete">
-                <Icon name="check" size={12} className="case-item__check" />
+              <button type="button" className="case-slot__btn case-slot__btn--clear hit" onClick={() => actions.onClear?.(item)} title="Mark complete" aria-label="Mark complete">
+                <Icon name="check" size={12} className="case-slot__check" />
               </button>
             )}
           </div>
-          <div className="case-item__menu">
-            <ActionMenu items={menuItems} label="Mission actions" triggerClassName="case-item__btn" />
+          <div className="case-slot__menu">
+            <ActionMenu items={menuItems} label="Mission actions" triggerClassName="case-slot__btn" />
           </div>
         </div>
       )}
@@ -215,26 +240,89 @@ function CaseItemView({ item, layout, editable, actions, isFirst, isLast, tight,
 
 /* ---- Overflow tray -------------------------------------------------------- */
 
+const SQUEEZED_HINT = 'Fits your energy but not the free cells — reorder to pack tighter';
+
 export interface CaseTrayProps {
   /** CR points over capacity (0 when every tray item is merely squeezed out). */
   over: number;
+  /** Column count of the case above, so tray cells line up with case cells. */
+  cols: number;
+  /** Tray items that are within budget but blocked by gaps; > 0 shows the reorder hint. */
+  squeezed?: number;
   children: React.ReactNode;
   className?: string;
 }
 
 /**
  * CaseTray — items that did not make it into the case (brief §6). Rendered by
- * the caller only when `layout.overflow.length > 0`; sits visibly outside the
- * grid. Header: OVERFLOW · +N (mono, danger when N > 0).
+ * the caller only when `layout.overflow.length > 0`; sits under the grid,
+ * separated by a hairline, and uses the *same columns* as the case so each
+ * tray item spans exactly its CR. Header: OVERFLOW · +N (mono). The overflow
+ * tone is energetic, not alarming — overloading is allowed, never hidden.
  */
-export function CaseTray({ over, children, className = '' }: CaseTrayProps) {
+export function CaseTray({ over, cols, squeezed = 0, children, className = '' }: CaseTrayProps) {
   return (
     <section className={`case-tray ${over > 0 ? 'is-over-budget' : ''} ${className}`.trim()} aria-label="Overflow">
       <header className="case-tray__head t-2xs">
         <span className="case-tray__title">Overflow</span>
+        {squeezed > 0 && (
+          <Tooltip content={<div className="tooltip__body">{SQUEEZED_HINT}</div>}>
+            <button type="button" className="case-tray__hint icon-btn hit" aria-label={SQUEEZED_HINT}>
+              <Icon name="info" size={12} />
+            </button>
+          </Tooltip>
+        )}
         {over > 0 && <span className="case-tray__over num">+{over}</span>}
       </header>
-      <div className="case-tray__items">{children}</div>
+      <div
+        className="case-tray__grid"
+        data-cols={cols}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        role="group"
+        aria-label="Overflow missions"
+      >
+        {children}
+      </div>
     </section>
+  );
+}
+
+export interface CaseTrayItemProps {
+  item: OverflowItem;
+  renderItem: CaseRenderItem;
+  editable?: boolean;
+  actions?: CaseGridActions;
+  /** Total ordered items (placed + overflow) so shift ←/→ can disable at the ends. */
+  itemCount: number;
+  /** Measured cell width (px); decides the tight treatment for CR1 slots. */
+  cellWidth?: number | null;
+}
+
+/**
+ * CaseTrayItem — one overflow mission, `cr` columns wide inside `CaseTray`'s
+ * grid (CSS auto-placement wraps and leaves gaps exactly like `packCase`).
+ * Over-budget items get the overflow treatment; a squeezed-out item (within
+ * budget, blocked by gaps) stays neutral — the tray header explains it.
+ * Dropping on it inserts before it (same `loadout-task-` id the List format
+ * uses).
+ */
+export function CaseTrayItem({ item, renderItem, editable = false, actions, itemCount, cellWidth = null }: CaseTrayItemProps) {
+  const tight = isTightCell(cellWidth) && item.cr === 1;
+
+  return (
+    <CaseSlot
+      item={item}
+      span={item.cr}
+      className={`case-tray__item ${item.overBudget ? 'is-over-budget' : 'is-squeezed'}`}
+      style={{ gridColumn: `span ${item.cr}` }}
+      droppable={{ id: `${LOADOUT_TASK_DROP_PREFIX}${item.id}`, data: { type: 'loadout-task', taskId: item.id } }}
+      editable={editable}
+      actions={actions}
+      isFirst={item.index === 0}
+      isLast={item.index >= itemCount - 1}
+      tight={tight}
+    >
+      {renderItem(item, { tight })}
+    </CaseSlot>
   );
 }
