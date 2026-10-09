@@ -151,7 +151,7 @@ function useContainerWidth(): [(el: HTMLElement | null) => void, number | null] 
   return [ref, width];
 }
 
-export function TodayPlanner() {
+export function TodayPlanner({ onOpenBriefing }: { onOpenBriefing?: () => void } = {}) {
   const {
     loadoutTasks,
     accomplishedToday,
@@ -289,6 +289,12 @@ export function TodayPlanner() {
           onChange={level => { void setEnergyLevel(level).catch(() => {}); }}
         />
       </HudGroup>
+      {onOpenBriefing && (
+        <button type="button" className="hud-btn" onClick={onOpenBriefing} title="Morning check-in" aria-label="Open briefing">
+          <Icon name="calendar" size={14} />
+          Briefing
+        </button>
+      )}
     </div>
   ) : !isViewingOwnLoadout ? (
     <div className="loadout-hud loadout-hud--readonly t-xs">
